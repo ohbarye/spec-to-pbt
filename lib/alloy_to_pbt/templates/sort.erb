@@ -1,0 +1,29 @@
+# frozen_string_literal: true
+
+# Auto-generated Property-Based Tests from Alloy Specification
+# Module: <%= @spec.module_name %>
+
+require "pbt"
+
+# Implementation stub - replace with your actual implementation
+def sort(array)
+  array.sort
+end
+
+RSpec.describe "<%= @spec.module_name %>" do
+  describe "Sort Properties" do
+    it "satisfies all sort properties" do
+      Pbt.assert do
+        Pbt.property(Pbt.array(Pbt.integer)) do |input|
+          output = sort(input)
+
+<%- properties_for_sort.each do |prop| -%>
+          # Property: <%= prop.name %>
+          <%= prop.check_code %>
+
+<%- end -%>
+        end
+      end
+    end
+  end
+end

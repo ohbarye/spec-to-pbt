@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "fileutils"
+require_relative "../lib/alloy_to_pbt"
+
+options = { output_dir: "generated" }
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: alloy_to_pbt INPUT.als [options]"
+
+  opts.on("-o", "--output DIR", "Output directory (default: generated)") do |v|
+    options[:output_dir] = v
+  end
+
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+
+  opts.on("-v", "--version", "Show version") do
+    puts "alloy_to_pbt #{AlloyToPbt::VERSION}"
+    exit
+  end
+end.parse!
+
+if ARGV.empty?
+  warn "Error: No input file specified"
+  warn "Usage: alloy_to_pbt INPUT.als [options]"
+  exit 1
+end
+
+input_file = ARGV[0]
+
+unless File.exist?(input_file)
+  warn "Error: File not found: #{input_file}"
+  exit 1
+end
+
+# Parse the Alloy specification
+source = File.read(input_file)
+parser = AlloyToPbt::Parser.new
+spec = parser.parse(source)
+
+# Generate PBT code
+generator = AlloyToPbt::Generator.new(spec)
+pbt_code = generator.generate
+
+# Create output directory if it doesn't exist
+FileUtils.mkdir_p(options[:output_dir])
+
+# Output filename
+base = File.basename(input_file, ".als")
+output_file = File.join(options[:output_dir], "#{base}_pbt.rb")
+
+# Write the generated code
+File.write(output_file, pbt_code)
+
+puts "Generated: #{output_file}"
