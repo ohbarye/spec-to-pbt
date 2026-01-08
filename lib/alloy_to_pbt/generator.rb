@@ -53,6 +53,10 @@ module AlloyToPbt
         "sort"
       elsif module_name.include?("stack")
         "stack"
+      elsif module_name.include?("queue")
+        "queue"
+      elsif module_name.include?("set")
+        "set"
       else
         "generic"
       end
@@ -97,6 +101,52 @@ module AlloyToPbt
         push_pop_identity: Property.new(
           name: "PushPopIdentity",
           check_code: 'raise "PushPopIdentity failed" unless stack.length == original_length'
+        )
+      }
+    end
+
+    def properties_for_queue
+      {
+        enqueue_adds: Property.new(
+          name: "EnqueueAddsElement",
+          check_code: 'raise "EnqueueAddsElement failed" unless queue.length == original_length + 1'
+        ),
+        dequeue_removes: Property.new(
+          name: "DequeueRemovesElement",
+          check_code: 'raise "DequeueRemovesElement failed" unless queue.length == original_length - 1'
+        ),
+        fifo: Property.new(
+          name: "FIFO",
+          check_code: 'raise "FIFO failed" unless dequeued == element'
+        ),
+        enqueue_dequeue_identity: Property.new(
+          name: "EnqueueDequeueIdentity",
+          check_code: 'raise "EnqueueDequeueIdentity failed" unless queue.length == original_length'
+        )
+      }
+    end
+
+    def properties_for_set
+      {
+        add_contains: Property.new(
+          name: "AddContains",
+          check_code: 'raise "AddContains failed" unless set.contains?(element)'
+        ),
+        remove_not_contains: Property.new(
+          name: "RemoveNotContains",
+          check_code: 'raise "RemoveNotContains failed" if set.contains?(element)'
+        ),
+        union_commutative: Property.new(
+          name: "UnionCommutative",
+          check_code: 'raise "UnionCommutative failed" unless set_a.union(set_b) == set_b.union(set_a)'
+        ),
+        union_associative: Property.new(
+          name: "UnionAssociative",
+          check_code: 'raise "UnionAssociative failed" unless set_a.union(set_b).union(set_c) == set_a.union(set_b.union(set_c))'
+        ),
+        intersection_commutative: Property.new(
+          name: "IntersectionCommutative",
+          check_code: 'raise "IntersectionCommutative failed" unless set_a.intersection(set_b) == set_b.intersection(set_a)'
         )
       }
     end

@@ -67,6 +67,55 @@ RSpec.describe AlloyToPbt::Parser do
       end
     end
 
+    context "with queue.als" do
+      let(:source) { File.read(File.expand_path("../../fixtures/queue.als", __dir__)) }
+
+      before { parser.parse(source) }
+
+      it "parses the module name" do
+        expect(parser.spec.module_name).to eq("queue")
+      end
+
+      it "parses signatures" do
+        expect(parser.spec.signatures.length).to eq(2)
+        expect(parser.spec.signatures.map(&:name)).to contain_exactly("Element", "Queue")
+      end
+
+      it "parses predicates" do
+        expect(parser.spec.predicates.length).to eq(5)
+        expect(parser.spec.predicates.map(&:name)).to contain_exactly(
+          "Enqueue", "Dequeue", "EnqueueDequeueIdentity", "IsEmpty", "FIFO"
+        )
+      end
+    end
+
+    context "with set.als" do
+      let(:source) { File.read(File.expand_path("../../fixtures/set.als", __dir__)) }
+
+      before { parser.parse(source) }
+
+      it "parses the module name" do
+        expect(parser.spec.module_name).to eq("set")
+      end
+
+      it "parses signatures" do
+        expect(parser.spec.signatures.length).to eq(2)
+        expect(parser.spec.signatures.map(&:name)).to contain_exactly("Element", "Set")
+      end
+
+      it "parses predicates" do
+        expect(parser.spec.predicates.length).to eq(8)
+        expect(parser.spec.predicates.map(&:name)).to include(
+          "Add", "Remove", "Contains", "UnionCommutative", "UnionAssociative"
+        )
+      end
+
+      it "parses set field multiplicity" do
+        set_sig = parser.spec.signatures.find { |s| s.name == "Set" }
+        expect(set_sig.fields.first.multiplicity).to eq("set")
+      end
+    end
+
     context "with comments" do
       let(:source) do
         <<~ALLOY

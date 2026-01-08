@@ -38,6 +38,19 @@ module AlloyToPbt
         /lifo|fifo/i,
         /first.*last|last.*first/i,
         /head|tail|front|back/i
+      ],
+      associativity: [
+        /associative/i,
+        /\(.*\+.*\)\s*\+.*=.*\+\s*\(.*\+.*\)/
+      ],
+      commutativity: [
+        /commutative/i,
+        /(\w+)\s*\+\s*(\w+)\s*=\s*\2\s*\+\s*\1/
+      ],
+      membership: [
+        /contains|member/i,
+        /in\s+\w+\.elements/i,
+        /add.*implies.*contains/i
       ]
     }.freeze
 

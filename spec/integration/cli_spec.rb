@@ -54,6 +54,40 @@ RSpec.describe "CLI" do
     end
   end
 
+  describe "queue.als conversion" do
+    let(:input_file) { File.join(fixtures_dir, "queue.als") }
+
+    it "generates queue_pbt.rb" do
+      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+      output_file = File.join(output_dir, "queue_pbt.rb")
+      expect(File.exist?(output_file)).to be(true)
+
+      content = File.read(output_file)
+      expect(content).to include("class Queue")
+      expect(content).to include("FIFO")
+    end
+  end
+
+  describe "set.als conversion" do
+    let(:input_file) { File.join(fixtures_dir, "set.als") }
+
+    it "generates set_pbt.rb" do
+      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+      output_file = File.join(output_dir, "set_pbt.rb")
+      expect(File.exist?(output_file)).to be(true)
+
+      content = File.read(output_file)
+      expect(content).to include("class MySet")
+      expect(content).to include("union is commutative")
+    end
+  end
+
   describe "error handling" do
     it "fails with missing input file" do
       _stdout, stderr, status = Open3.capture3(cli_path, "nonexistent.als")

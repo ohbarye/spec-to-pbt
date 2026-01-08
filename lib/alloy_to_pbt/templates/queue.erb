@@ -1,0 +1,103 @@
+# frozen_string_literal: true
+
+# Auto-generated Property-Based Tests from Alloy Specification
+# Module: <%= @spec.module_name %>
+
+require "pbt"
+
+# Implementation stub - replace with your actual implementation
+class Queue
+  def initialize
+    @elements = []
+  end
+
+  def enqueue(element)
+    @elements.push(element)
+    self
+  end
+
+  def dequeue
+    @elements.shift
+  end
+
+  def peek
+    @elements.first
+  end
+
+  def empty?
+    @elements.empty?
+  end
+
+  def length
+    @elements.length
+  end
+
+  def ==(other)
+    @elements == other.instance_variable_get(:@elements)
+  end
+
+  def dup
+    q = Queue.new
+    @elements.each { |e| q.enqueue(e) }
+    q
+  end
+end
+
+RSpec.describe "<%= @spec.module_name %>" do
+  describe "Queue Properties" do
+    it "enqueue increases size by 1" do
+      Pbt.assert do
+        Pbt.property(Pbt.array(Pbt.integer), Pbt.integer) do |initial, element|
+          queue = Queue.new
+          initial.each { |e| queue.enqueue(e) }
+
+          original_length = queue.length
+          queue.enqueue(element)
+
+          <%= properties_for_queue[:enqueue_adds].check_code %>
+        end
+      end
+    end
+
+    it "dequeue decreases size by 1 (when not empty)" do
+      Pbt.assert do
+        Pbt.property(Pbt.array(Pbt.integer, min: 1)) do |initial|
+          queue = Queue.new
+          initial.each { |e| queue.enqueue(e) }
+
+          original_length = queue.length
+          queue.dequeue
+
+          <%= properties_for_queue[:dequeue_removes].check_code %>
+        end
+      end
+    end
+
+    it "FIFO - First In First Out" do
+      Pbt.assert do
+        Pbt.property(Pbt.integer) do |element|
+          queue = Queue.new
+          queue.enqueue(element)
+          dequeued = queue.dequeue
+
+          <%= properties_for_queue[:fifo].check_code %>
+        end
+      end
+    end
+
+    it "enqueue-dequeue identity (round trip)" do
+      Pbt.assert do
+        Pbt.property(Pbt.array(Pbt.integer), Pbt.integer) do |initial, element|
+          queue = Queue.new
+          initial.each { |e| queue.enqueue(e) }
+          original_length = queue.length
+
+          queue.enqueue(element)
+          queue.dequeue
+
+          <%= properties_for_queue[:enqueue_dequeue_identity].check_code %>
+        end
+      end
+    end
+  end
+end

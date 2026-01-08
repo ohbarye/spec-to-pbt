@@ -48,5 +48,25 @@ RSpec.describe AlloyToPbt::PropertyPattern do
       patterns = described_class.detect("SortPreserved", "sorted and #input = #output")
       expect(patterns).to include(:invariant, :size)
     end
+
+    it "detects associativity patterns" do
+      patterns = described_class.detect("UnionAssociative", "(a + b) + c = a + (b + c)")
+      expect(patterns).to include(:associativity)
+    end
+
+    it "detects commutativity patterns" do
+      patterns = described_class.detect("UnionCommutative", "a + b = b + a")
+      expect(patterns).to include(:commutativity)
+    end
+
+    it "detects membership patterns" do
+      patterns = described_class.detect("AddContains", "add implies contains")
+      expect(patterns).to include(:membership)
+    end
+
+    it "detects membership with in keyword" do
+      patterns = described_class.detect("Contains", "e in s.elements")
+      expect(patterns).to include(:membership)
+    end
   end
 end

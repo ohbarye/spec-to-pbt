@@ -97,6 +97,63 @@ RSpec.describe AlloyToPbt::Generator do
         expect(code).to include("CustomProp")
       end
     end
+
+    context "with queue spec" do
+      let(:spec) do
+        AlloyToPbt::Spec.new(
+          module_name: "queue",
+          predicates: [
+            AlloyToPbt::Predicate.new(name: "Enqueue", body: "#q'.elements = add[#q.elements, 1]")
+          ]
+        )
+      end
+      let(:generator) { described_class.new(spec) }
+
+      it "generates valid Ruby code" do
+        code = generator.generate
+        expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
+      end
+
+      it "includes Queue class stub" do
+        code = generator.generate
+        expect(code).to include("class Queue")
+      end
+
+      it "includes queue property tests" do
+        code = generator.generate
+        expect(code).to include("enqueue increases size")
+        expect(code).to include("FIFO")
+      end
+    end
+
+    context "with set spec" do
+      let(:spec) do
+        AlloyToPbt::Spec.new(
+          module_name: "set",
+          predicates: [
+            AlloyToPbt::Predicate.new(name: "Add", body: "s'.elements = s.elements + e")
+          ]
+        )
+      end
+      let(:generator) { described_class.new(spec) }
+
+      it "generates valid Ruby code" do
+        code = generator.generate
+        expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
+      end
+
+      it "includes MySet class stub" do
+        code = generator.generate
+        expect(code).to include("class MySet")
+      end
+
+      it "includes set property tests" do
+        code = generator.generate
+        expect(code).to include("add then contains")
+        expect(code).to include("union is commutative")
+        expect(code).to include("union is associative")
+      end
+    end
   end
 
   describe "#analyze" do
