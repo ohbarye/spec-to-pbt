@@ -28,53 +28,51 @@ RSpec.describe AlloyToPbt::PatternCodeGenerator do
 
   describe ".generate" do
     context "with idempotent pattern" do
-      it "generates check code with default operation (sort)" do
-        code = described_class.generate(:idempotent)
+      it "generates check code using operation from context" do
+        code = described_class.generate(:idempotent, operation: "sort")
         expect(code).to include("sort(input)")
-        expect(code).to include("sort(output)")
+        expect(code).to include("sort(result)")
         expect(code).to include('raise "Idempotent failed"')
       end
 
       it "generates check code with custom operation" do
-        code = described_class.generate(:idempotent, operation: "my_sort")
-        expect(code).to include("my_sort(input)")
-        expect(code).to include("my_sort(output)")
+        code = described_class.generate(:idempotent, operation: "my_func")
+        expect(code).to include("my_func(input)")
+        expect(code).to include("my_func(result)")
       end
     end
 
     context "with size pattern" do
       it "generates check code for length preservation" do
-        code = described_class.generate(:size)
+        code = described_class.generate(:size, operation: "transform")
+        expect(code).to include("transform(input)")
         expect(code).to include("input.length == output.length")
         expect(code).to include('raise "Size failed"')
       end
     end
 
     context "with roundtrip pattern" do
-      it "generates check code with default operations" do
-        code = described_class.generate(:roundtrip)
-        expect(code).to include("push(input, value)")
-        expect(code).to include("pop(input)")
+      it "generates check code using operation from context" do
+        code = described_class.generate(:roundtrip, operation: "reverse")
+        expect(code).to include("reverse(input)")
+        expect(code).to include("reverse(result)")
         expect(code).to include('raise "Roundtrip failed"')
+        expect(code).to include("restored == input")
       end
 
-      it "generates check code with custom operations" do
-        code = described_class.generate(:roundtrip, operations: %w[enqueue dequeue])
-        expect(code).to include("enqueue(input, value)")
-        expect(code).to include("dequeue(input)")
+      it "generates check code for self-inverse function" do
+        code = described_class.generate(:roundtrip, operation: "swap")
+        expect(code).to include("swap(input)")
+        expect(code).to include("swap(result)")
       end
     end
 
     context "with invariant pattern" do
-      it "generates check code with default check" do
-        code = described_class.generate(:invariant)
-        expect(code).to include("each_cons(2).all?")
+      it "generates check code calling invariant? helper" do
+        code = described_class.generate(:invariant, operation: "sort")
+        expect(code).to include("sort(input)")
+        expect(code).to include("invariant?(output)")
         expect(code).to include('raise "Invariant failed"')
-      end
-
-      it "generates check code with custom invariant" do
-        code = described_class.generate(:invariant, invariant_check: "valid?")
-        expect(code).to include("output.valid?")
       end
     end
 

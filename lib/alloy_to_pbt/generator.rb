@@ -87,16 +87,13 @@ module AlloyToPbt
     end
 
     # Infer Pbt generator code from predicate
+    # Always generates array type since patterns (size, roundtrip, etc.) expect collections
     # @rbs predicate: Predicate
     # @rbs return: String
     def infer_generator(predicate)
-      # Find the main type from predicate parameters or use default
-      if predicate.params.any?
-        param = predicate.params.first
-        @type_inferrer.generator_for(param[:type]) # steep:ignore
-      else
-        "Pbt.array(Pbt.integer)"
-      end
+      # Always use array for consistency with patterns
+      # Patterns like size, roundtrip work on collections
+      "Pbt.array(Pbt.integer)"
     end
 
     # Generate check code for supported patterns
@@ -115,61 +112,36 @@ module AlloyToPbt
 
       return nil if codes.empty?
 
-      # For data structures like stack/queue, each pattern generates complete code
-      # Just join them without output deduplication
-      if context[:data_structure]
-        codes.join("\n")
-      else
-        # For sort-like operations, deduplicate output definitions
-        lines = [] #: Array[String]
-        output_defined = false
+      # Deduplicate output/result definitions
+      lines = [] #: Array[String]
+      defined_vars = {} #: Hash[String, bool]
 
-        codes.each do |code|
-          code.lines.map(&:strip).each do |line|
-            if line.start_with?("output = ")
-              unless output_defined
-                lines << line
-                output_defined = true
-              end
-            else
+      codes.each do |code|
+        code.lines.map(&:strip).each do |line|
+          # Check for variable assignments like "output = " or "result = "
+          if line.match?(/^(output|result|twice|restored) = /)
+            var_name = line.split(" = ").first
+            unless defined_vars[var_name]
               lines << line
+              defined_vars[var_name] = true
             end
+          else
+            lines << line
           end
         end
-
-        lines.join("\n")
       end
+
+      lines.join("\n")
     end
 
-    # Build context for pattern code generation
+    # Build context for pattern code generation (generic - uses module_name as operation)
     # @rbs predicate: Predicate
     # @rbs return: Hash[Symbol, untyped]
     def build_context(predicate)
-      name = predicate.name.downcase
-      module_name = @spec.module_name&.downcase || ""
-      context = {} #: Hash[Symbol, untyped]
+      # Use module_name as the operation name (generic approach)
+      operation = @spec.module_name || "operation"
 
-      # Infer operation name from module name first, then predicate name
-      if module_name.include?("sort") || name.include?("sort")
-        context[:operation] = "sort"
-        context[:invariant_check] = "each_cons(2).all? { |a, b| a <= b }"
-      elsif module_name.include?("stack")
-        context[:operation] = "process_stack"
-        context[:operations] = %w[push pop]
-        context[:data_structure] = :stack
-      elsif module_name.include?("queue")
-        context[:operation] = "process_queue"
-        context[:operations] = %w[enqueue dequeue]
-        context[:data_structure] = :queue
-      elsif name.include?("push") && name.include?("pop")
-        context[:operations] = %w[push pop]
-      elsif name.include?("enqueue") && name.include?("dequeue")
-        context[:operations] = %w[enqueue dequeue]
-      elsif name.include?("add") && name.include?("remove")
-        context[:operations] = %w[add remove]
-      end
-
-      context
+      { operation: operation } #: Hash[Symbol, untyped]
     end
   end
 end

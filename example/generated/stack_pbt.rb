@@ -11,11 +11,9 @@ RSpec.describe "stack" do
   describe "PushAddsElement" do
     it "satisfies the property" do
       Pbt.assert do
-        Pbt.property(Pbt.integer) do |input|
-          stack = Stack.new
-          original_length = stack.length
-          stack.push(input)
-          raise "Size failed" unless stack.length == original_length + 1
+        Pbt.property(Pbt.array(Pbt.integer)) do |input|
+          output = stack(input)
+          raise "Size failed" unless input.length == output.length
         end
       end
     end
@@ -25,10 +23,8 @@ RSpec.describe "stack" do
     it "satisfies the property" do
       Pbt.assert do
         Pbt.property(Pbt.array(Pbt.integer)) do |input|
-          stack = Stack.new
-          original_length = stack.length
-          stack.push(input)
-          raise "Size failed" unless stack.length == original_length + 1
+          output = stack(input)
+          raise "Size failed" unless input.length == output.length
         end
       end
     end
@@ -37,15 +33,12 @@ RSpec.describe "stack" do
   describe "PushPopIdentity" do
     it "satisfies the property" do
       Pbt.assert do
-        Pbt.property(Pbt.integer) do |input|
-          stack = Stack.new
-          stack.push(input)
-          popped = stack.pop
-          raise "Roundtrip failed" unless popped == input
-          stack = Stack.new
-          original_length = stack.length
-          stack.push(input)
-          raise "Size failed" unless stack.length == original_length + 1
+        Pbt.property(Pbt.array(Pbt.integer)) do |input|
+          result = stack(input)
+          restored = stack(result)
+          raise "Roundtrip failed" unless restored == input
+          output = stack(input)
+          raise "Size failed" unless input.length == output.length
         end
       end
     end
@@ -64,10 +57,9 @@ RSpec.describe "stack" do
     it "satisfies the property" do
       Pbt.assert do
         Pbt.property(Pbt.array(Pbt.integer)) do |input|
-          stack = Stack.new
-          stack.push(input)
-          popped = stack.pop
-          raise "Roundtrip failed" unless popped == input
+          result = stack(input)
+          restored = stack(result)
+          raise "Roundtrip failed" unless restored == input
         end
       end
     end
