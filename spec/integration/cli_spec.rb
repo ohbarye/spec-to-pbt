@@ -7,7 +7,7 @@ require "open3"
 RSpec.describe "CLI" do
   let(:project_root) { File.expand_path("../..", __dir__) }
   let(:cli_path) { File.join(project_root, "bin/alloy_to_pbt") }
-  let(:fixtures_dir) { File.join(project_root, "fixtures") }
+  let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp") }
 
   before do

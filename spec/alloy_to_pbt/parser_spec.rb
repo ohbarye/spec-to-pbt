@@ -7,7 +7,7 @@ RSpec.describe AlloyToPbt::Parser do
 
   describe "#parse" do
     context "with sort.als" do
-      let(:source) { File.read(File.expand_path("../../fixtures/sort.als", __dir__)) }
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/sort.als", __dir__)) }
 
       before { parser.parse(source) }
 
@@ -46,7 +46,7 @@ RSpec.describe AlloyToPbt::Parser do
     end
 
     context "with stack.als" do
-      let(:source) { File.read(File.expand_path("../../fixtures/stack.als", __dir__)) }
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/stack.als", __dir__)) }
 
       before { parser.parse(source) }
 
@@ -68,7 +68,7 @@ RSpec.describe AlloyToPbt::Parser do
     end
 
     context "with queue.als" do
-      let(:source) { File.read(File.expand_path("../../fixtures/queue.als", __dir__)) }
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/queue.als", __dir__)) }
 
       before { parser.parse(source) }
 
@@ -90,7 +90,7 @@ RSpec.describe AlloyToPbt::Parser do
     end
 
     context "with set.als" do
-      let(:source) { File.read(File.expand_path("../../fixtures/set.als", __dir__)) }
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/set.als", __dir__)) }
 
       before { parser.parse(source) }
 

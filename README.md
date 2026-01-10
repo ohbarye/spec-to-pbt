@@ -13,11 +13,15 @@ Auto-generate Property-Based Tests (PBT) from formal method specifications to au
 
 ```bash
 bundle install
-bin/alloy_to_pbt fixtures/sort.als
+
+# Generate PBT from Alloy spec
+bin/alloy_to_pbt spec/fixtures/alloy/sort.als -o generated
+
+# Run generated tests (requires *_impl.rb file in same directory)
 bundle exec rspec generated/sort_pbt.rb
 ```
 
-Generated tests require a `*_impl.rb` file with your implementation:
+Generated tests require a corresponding `*_impl.rb` file:
 
 ```ruby
 # generated/sort_impl.rb
@@ -25,6 +29,18 @@ def sort(array)
   array.sort
 end
 ```
+
+## Examples
+
+Working examples are provided in `example/`:
+
+```bash
+# Run example tests
+bundle exec rspec example/generated/sort_pbt.rb
+bundle exec rspec example/generated/stack_pbt.rb
+```
+
+See `example/impl/` for sample implementations.
 
 ## Supported Alloy Syntax
 

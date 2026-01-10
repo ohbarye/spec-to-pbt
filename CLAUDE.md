@@ -24,11 +24,15 @@ bundle exec rspec spec/alloy_to_pbt/parser_spec.rb
 bundle exec rspec spec/alloy_to_pbt/parser_spec.rb:14
 
 # Generate PBT from Alloy spec
-bin/alloy_to_pbt fixtures/sort.als
-bin/alloy_to_pbt fixtures/stack.als -o output_dir
+bin/alloy_to_pbt spec/fixtures/alloy/sort.als
+bin/alloy_to_pbt spec/fixtures/alloy/stack.als -o output_dir
 
 # Run generated tests (requires *_impl.rb file)
 bundle exec rspec generated/sort_pbt.rb
+
+# Run example tests
+bundle exec rspec example/generated/sort_pbt.rb
+bundle exec rspec example/generated/stack_pbt.rb
 ```
 
 ## Architecture
@@ -96,12 +100,26 @@ Unsupported patterns (elements, empty, ordering, etc.) are output as comments wi
 - Ruby 4.0+
 - pbt gem for property-based testing
 
-## Generated Code Structure
-
-Generated tests require a corresponding `*_impl.rb` file with the implementation:
+## Directory Structure
 
 ```
-generated/
-  sort_pbt.rb      # Generated test (require_relative "sort_impl")
-  sort_impl.rb     # User implementation (def sort(array) ... end)
+spec/fixtures/alloy/   # Test fixtures (.als files)
+  sort.als
+  stack.als
+  queue.als
+  set.als
+
+example/               # Working examples
+  impl/                # Sample implementations
+    sort_impl.rb
+    stack_impl.rb
+  generated/           # Pre-generated PBT tests
+    sort_pbt.rb
+    stack_pbt.rb
+
+generated/             # User workspace (gitignored)
+  *_pbt.rb             # Generated test (require_relative "*_impl")
+  *_impl.rb            # User implementation
 ```
+
+Generated tests require a corresponding `*_impl.rb` file in the same directory.
