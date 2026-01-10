@@ -28,6 +28,9 @@ jobs:
 
       - name: Test CLI
         run: |
-          bundle exec bin/alloy_to_pbt fixtures/sort.als
-          bundle exec bin/alloy_to_pbt fixtures/stack.als
+          bundle exec bin/alloy_to_pbt fixtures/sort.als -o generated
+          bundle exec bin/alloy_to_pbt fixtures/stack.als -o generated
           ls -la generated/
+
+      - name: Run example PBT
+        run: bundle exec rspec example/generated/sort_pbt.rb example/generated/stack_pbt.rb

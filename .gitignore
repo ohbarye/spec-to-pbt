@@ -1,0 +1,15 @@
+# Generated files (user workspace)
+/generated/
+
+# Ruby
+/.bundle/
+/vendor/bundle/
+
+# IDE
+.idea/
+*.swp
+.DS_Store
+
+# RSpec
+/spec/examples.txt
+/spec/tmp/
