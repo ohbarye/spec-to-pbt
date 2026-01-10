@@ -1,0 +1,24 @@
+# Generated from lib/alloy_to_pbt/pattern_code_generator.rb with RBS::Inline
+
+module AlloyToPbt
+  # Generates Ruby check code from detected property patterns
+  class PatternCodeGenerator
+    type context = { operation: String?, operations: Array[String]?, data_structure: Symbol?, invariant_check: String? }
+
+    # Pattern → check code generation logic
+    PATTERN_HANDLERS: Hash[Symbol, ^(Hash[Symbol, untyped]) -> String?]
+
+    SUPPORTED_PATTERNS: Array[Symbol]
+
+    # Check if a pattern is supported
+    # @rbs pattern: Symbol
+    # @rbs return: bool
+    def self.supported?: (Symbol pattern) -> bool
+
+    # Generate check code for a pattern
+    # @rbs pattern: Symbol
+    # @rbs context: Hash[Symbol, untyped]
+    # @rbs return: String?
+    def self.generate: (Symbol pattern, ?Hash[Symbol, untyped] context) -> String?
+  end
+end

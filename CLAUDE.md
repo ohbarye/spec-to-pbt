@@ -33,6 +33,10 @@ bundle exec rspec generated/sort_pbt.rb
 # Run example tests
 bundle exec rspec example/generated/sort_pbt.rb
 bundle exec rspec example/generated/stack_pbt.rb
+
+# Type checking with Steep
+bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations
+bundle exec steep check                              # Run type check
 ```
 
 ## Architecture
@@ -100,9 +104,41 @@ Unsupported patterns (elements, empty, ordering, etc.) are output as comments wi
 - Ruby 4.0+
 - pbt gem for property-based testing
 
+## Type Checking
+
+This project uses [RBS inline](https://github.com/soutaro/rbs-inline) for type annotations and [Steep](https://github.com/soutaro/steep) for type checking.
+
+- Type annotations are written inline in Ruby source files using `# @rbs` and `#:` syntax
+- RBS files are generated to `sig/generated/` directory
+- Steepfile configures the type checking target and library dependencies
+
+### Annotation Syntax Examples
+
+```ruby
+# Method signatures
+# @rbs name: String
+# @rbs return: Array[Symbol]
+def detect(name, body)
+
+# Constants and attributes
+PATTERNS = { ... }.freeze #: Hash[Symbol, Array[Regexp]]
+attr_reader :spec #: Spec?
+
+# Instance variables
+@spec = nil #: Spec?
+
+# Type aliases (inline RBS)
+# @rbs!
+#   type pattern_info = { predicate: Predicate, patterns: Array[Symbol] }
+```
+
 ## Directory Structure
 
 ```
+lib/                   # Source code (with RBS inline annotations)
+sig/generated/         # Generated RBS type definitions
+Steepfile              # Steep configuration
+
 spec/fixtures/alloy/   # Test fixtures (.als files)
   sort.als
   stack.als

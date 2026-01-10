@@ -88,7 +88,24 @@ These patterns are detected and converted to working Ruby check code:
 ## Development
 
 ```bash
+# Run tests
 bundle exec rspec
+
+# Type checking (RBS inline + Steep)
+bundle exec rbs-inline --output sig/generated lib/
+bundle exec steep check
+```
+
+### Type Annotations
+
+This project uses [RBS inline](https://github.com/soutaro/rbs-inline) for type annotations embedded in Ruby source files:
+
+```ruby
+# @rbs name: String
+# @rbs return: Array[Symbol]
+def detect(name, body)
+  # ...
+end
 ```
 
 ## Architecture

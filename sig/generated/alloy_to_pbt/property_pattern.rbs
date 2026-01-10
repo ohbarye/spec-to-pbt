@@ -1,0 +1,15 @@
+# Generated from lib/alloy_to_pbt/property_pattern.rb with RBS::Inline
+
+module AlloyToPbt
+  # Recognizes common property patterns in Alloy predicates
+  class PropertyPattern
+    # Pattern name to regex array mapping
+    PATTERNS: Hash[Symbol, Array[Regexp]]
+
+    # Detect which patterns apply to a predicate
+    # @rbs name: String
+    # @rbs body: String
+    # @rbs return: Array[Symbol]
+    def self.detect: (String name, String body) -> Array[Symbol]
+  end
+end

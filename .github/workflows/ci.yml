@@ -26,10 +26,15 @@ jobs:
       - name: Run tests
         run: bundle exec rspec
 
+      - name: Type check
+        run: |
+          bundle exec rbs-inline --output sig/generated lib/
+          bundle exec steep check
+
       - name: Test CLI
         run: |
-          bundle exec bin/alloy_to_pbt fixtures/sort.als -o generated
-          bundle exec bin/alloy_to_pbt fixtures/stack.als -o generated
+          bundle exec bin/alloy_to_pbt spec/fixtures/alloy/sort.als -o generated
+          bundle exec bin/alloy_to_pbt spec/fixtures/alloy/stack.als -o generated
           ls -la generated/
 
       - name: Run example PBT

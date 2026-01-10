@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
+# rbs_inline: enabled
+
 module AlloyToPbt
   # Recognizes common property patterns in Alloy predicates
   class PropertyPattern
+    # Pattern name to regex array mapping
     PATTERNS = {
       roundtrip: [
         /push.*pop|pop.*push/i,
@@ -52,15 +55,15 @@ module AlloyToPbt
         /in\s+\w+\.elements/i,
         /add.*implies.*contains/i
       ]
-    }.freeze
+    }.freeze #: Hash[Symbol, Array[Regexp]]
 
     # Detect which patterns apply to a predicate
-    # @param name [String] predicate name
-    # @param body [String] predicate body
-    # @return [Array<Symbol>] detected pattern names
+    # @rbs name: String
+    # @rbs body: String
+    # @rbs return: Array[Symbol]
     def self.detect(name, body)
       text = "#{name} #{body}"
-      detected = []
+      detected = [] #: Array[Symbol]
 
       PATTERNS.each do |pattern_name, regexes|
         if regexes.any? { |regex| text.match?(regex) }

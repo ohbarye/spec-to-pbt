@@ -1,0 +1,194 @@
+# Generated from lib/alloy_to_pbt/parser.rb with RBS::Inline
+
+module AlloyToPbt
+  # Represents an Alloy signature field
+  # @rbs name: String
+  # @rbs type: String
+  # @rbs multiplicity: String
+  class Field < Data
+    attr_reader name(): untyped
+
+    attr_reader type(): untyped
+
+    attr_reader multiplicity(): untyped
+
+    def self.new: (untyped name, untyped type, untyped multiplicity) -> instance
+                | (name: untyped, type: untyped, multiplicity: untyped) -> instance
+
+    def self.members: () -> [ :name, :type, :multiplicity ]
+
+    def members: () -> [ :name, :type, :multiplicity ]
+  end
+
+  # Represents an Alloy signature
+  # @rbs name: String
+  # @rbs fields: Array[Field]
+  # @rbs extends: String?
+  class Signature < Data
+    attr_reader name(): untyped
+
+    attr_reader fields(): untyped
+
+    attr_reader extends(): untyped
+
+    def self.new: (untyped name, untyped fields, untyped extends) -> instance
+                | (name: untyped, fields: untyped, extends: untyped) -> instance
+
+    def self.members: () -> [ :name, :fields, :extends ]
+
+    def members: () -> [ :name, :fields, :extends ]
+  end
+
+  # Represents an Alloy predicate
+  # @rbs name: String
+  # @rbs params: Array[Hash[Symbol, String]]
+  # @rbs body: String
+  class Predicate < Data
+    attr_reader name(): untyped
+
+    attr_reader params(): untyped
+
+    attr_reader body(): untyped
+
+    def self.new: (untyped name, untyped params, untyped body) -> instance
+                | (name: untyped, params: untyped, body: untyped) -> instance
+
+    def self.members: () -> [ :name, :params, :body ]
+
+    def members: () -> [ :name, :params, :body ]
+  end
+
+  # Represents an Alloy assertion
+  # @rbs name: String
+  # @rbs body: String
+  class Assertion < Data
+    attr_reader name(): untyped
+
+    attr_reader body(): untyped
+
+    def self.new: (untyped name, untyped body) -> instance
+                | (name: untyped, body: untyped) -> instance
+
+    def self.members: () -> [ :name, :body ]
+
+    def members: () -> [ :name, :body ]
+  end
+
+  # Represents an Alloy fact
+  # @rbs name: String?
+  # @rbs body: String
+  class Fact < Data
+    attr_reader name(): untyped
+
+    attr_reader body(): untyped
+
+    def self.new: (untyped name, untyped body) -> instance
+                | (name: untyped, body: untyped) -> instance
+
+    def self.members: () -> [ :name, :body ]
+
+    def members: () -> [ :name, :body ]
+  end
+
+  # Represents an Alloy specification
+  # @rbs module_name: String?
+  # @rbs signatures: Array[Signature]
+  # @rbs predicates: Array[Predicate]
+  # @rbs assertions: Array[Assertion]
+  # @rbs facts: Array[Fact]
+  class Spec < Data
+    attr_reader module_name(): untyped
+
+    attr_reader signatures(): untyped
+
+    attr_reader predicates(): untyped
+
+    attr_reader assertions(): untyped
+
+    attr_reader facts(): untyped
+
+    def self.new: (untyped module_name, untyped signatures, untyped predicates, untyped assertions, untyped facts) -> instance
+                | (module_name: untyped, signatures: untyped, predicates: untyped, assertions: untyped, facts: untyped) -> instance
+
+    def self.members: () -> [ :module_name, :signatures, :predicates, :assertions, :facts ]
+
+    def members: () -> [ :module_name, :signatures, :predicates, :assertions, :facts ]
+  end
+
+  # Parser for Alloy specifications
+  class Parser
+    SIG_PATTERN: Regexp
+
+    FIELD_PATTERN: Regexp
+
+    PRED_PATTERN: Regexp
+
+    PARAM_PATTERN: Regexp
+
+    ASSERT_PATTERN: Regexp
+
+    FACT_PATTERN: Regexp
+
+    MODULE_PATTERN: Regexp
+
+    attr_reader spec: Spec?
+
+    # @rbs return: void
+    def initialize: () -> void
+
+    # Parse an Alloy specification source
+    # @rbs source: String
+    # @rbs return: Spec
+    def parse: (String source) -> Spec
+
+    # Convert spec to hash representation
+    # @rbs return: Hash[Symbol, untyped]
+    def to_h: () -> Hash[Symbol, untyped]
+
+    # Convert spec to JSON string
+    # @rbs return: String
+    def to_json: () -> String
+
+    private
+
+    # Remove comments from source
+    # @rbs source: String
+    # @rbs return: String
+    def remove_comments: (String source) -> String
+
+    # Parse module name
+    # @rbs source: String
+    # @rbs return: String?
+    def parse_module: (String source) -> String?
+
+    # Parse signatures
+    # @rbs source: String
+    # @rbs return: Array[Signature]
+    def parse_signatures: (String source) -> Array[Signature]
+
+    # Parse fields from field string
+    # @rbs fields_str: String
+    # @rbs return: Array[Field]
+    def parse_fields: (String fields_str) -> Array[Field]
+
+    # Parse predicates
+    # @rbs source: String
+    # @rbs return: Array[Predicate]
+    def parse_predicates: (String source) -> Array[Predicate]
+
+    # Parse predicate parameters
+    # @rbs params_str: String
+    # @rbs return: Array[Hash[Symbol, String]]
+    def parse_params: (String params_str) -> Array[Hash[Symbol, String]]
+
+    # Parse assertions
+    # @rbs source: String
+    # @rbs return: Array[Assertion]
+    def parse_assertions: (String source) -> Array[Assertion]
+
+    # Parse facts
+    # @rbs source: String
+    # @rbs return: Array[Fact]
+    def parse_facts: (String source) -> Array[Fact]
+  end
+end

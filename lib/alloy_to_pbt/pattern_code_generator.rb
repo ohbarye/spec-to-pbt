@@ -1,8 +1,19 @@
 # frozen_string_literal: true
 
+# rbs_inline: enabled
+
 module AlloyToPbt
   # Generates Ruby check code from detected property patterns
   class PatternCodeGenerator
+    # Pattern handler context type
+    # @rbs!
+    #   type context = {
+    #     operation: String?,
+    #     operations: Array[String]?,
+    #     data_structure: Symbol?,
+    #     invariant_check: String?
+    #   }
+
     # Pattern → check code generation logic
     PATTERN_HANDLERS = {
       idempotent: ->(ctx) {
@@ -78,21 +89,21 @@ module AlloyToPbt
           RUBY
         end
       }
-    }.freeze
+    }.freeze #: Hash[Symbol, ^(Hash[Symbol, untyped]) -> String?]
 
-    SUPPORTED_PATTERNS = PATTERN_HANDLERS.keys.freeze
+    SUPPORTED_PATTERNS = PATTERN_HANDLERS.keys.freeze #: Array[Symbol]
 
     # Check if a pattern is supported
-    # @param pattern [Symbol] the pattern name
-    # @return [Boolean]
+    # @rbs pattern: Symbol
+    # @rbs return: bool
     def self.supported?(pattern)
       SUPPORTED_PATTERNS.include?(pattern)
     end
 
     # Generate check code for a pattern
-    # @param pattern [Symbol] the pattern name
-    # @param context [Hash] context for code generation
-    # @return [String, nil] generated code or nil if unsupported
+    # @rbs pattern: Symbol
+    # @rbs context: Hash[Symbol, untyped]
+    # @rbs return: String?
     def self.generate(pattern, context = {})
       handler = PATTERN_HANDLERS[pattern]
       return nil unless handler

@@ -1,0 +1,11 @@
+# Generated from lib/alloy_to_pbt.rb with RBS::Inline
+
+module AlloyToPbt
+  # Base error class for AlloyToPbt
+  class Error < StandardError
+  end
+
+  # Raised when parsing Alloy specification fails
+  class ParseError < Error
+  end
+end

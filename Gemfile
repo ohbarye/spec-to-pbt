@@ -8,4 +8,7 @@ gem "pbt"
 
 group :development, :test do
   gem "rspec"
+  gem "rbs-inline"
+  gem "steep"
+  gem "tsort"
 end

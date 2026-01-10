@@ -1,25 +1,46 @@
 # frozen_string_literal: true
 
+# rbs_inline: enabled
+
 require "erb"
 
 module AlloyToPbt
   # Property data for template rendering
+  # @rbs name: String
+  # @rbs check_code: String?
   Property = Data.define(:name, :check_code)
 
   # Generates Ruby PBT code from Alloy specification using unified generator
   class Generator
-    TEMPLATES_DIR = File.expand_path("templates", __dir__)
+    TEMPLATES_DIR = File.expand_path("templates", __dir__ || __FILE__) #: String
 
-    attr_reader :spec, :detected_patterns
+    # @rbs!
+    #   type pattern_info = {
+    #     predicate: Predicate,
+    #     patterns: Array[Symbol]
+    #   }
+    #
+    #   type property_data = {
+    #     predicate: Predicate,
+    #     generator_code: String,
+    #     check_code: String?,
+    #     unsupported_patterns: Array[Symbol]
+    #   }
 
+    attr_reader :spec #: Spec
+    attr_reader :detected_patterns #: Hash[String, pattern_info]
+
+    # @rbs spec: Spec
+    # @rbs return: void
     def initialize(spec)
       @spec = spec
-      @detected_patterns = {}
-      @type_inferrer = nil
-      @generated_properties = []
+      @detected_patterns = {} #: Hash[String, pattern_info]
+      @type_inferrer = nil #: TypeInferrer?
+      @generated_properties = [] #: Array[property_data]
     end
 
     # Analyze predicates and detect patterns
+    # @rbs return: Hash[String, pattern_info]
     def analyze
       @spec.predicates.each do |pred|
         patterns = PropertyPattern.detect(pred.name, pred.body)
@@ -32,6 +53,7 @@ module AlloyToPbt
     end
 
     # Generate Ruby PBT code using unified template
+    # @rbs return: String
     def generate
       analyze
 
@@ -45,6 +67,8 @@ module AlloyToPbt
 
     private
 
+    # Build property data for template rendering
+    # @rbs return: Array[property_data]
     def build_properties
       @detected_patterns.map do |pred_name, info|
         patterns = info[:patterns]
@@ -62,16 +86,23 @@ module AlloyToPbt
       end
     end
 
+    # Infer Pbt generator code from predicate
+    # @rbs predicate: Predicate
+    # @rbs return: String
     def infer_generator(predicate)
       # Find the main type from predicate parameters or use default
       if predicate.params.any?
         param = predicate.params.first
-        @type_inferrer.generator_for(param[:type])
+        @type_inferrer.generator_for(param[:type]) # steep:ignore
       else
         "Pbt.array(Pbt.integer)"
       end
     end
 
+    # Generate check code for supported patterns
+    # @rbs patterns: Array[Symbol]
+    # @rbs predicate: Predicate
+    # @rbs return: String?
     def generate_check_code(patterns, predicate)
       return nil if patterns.empty?
 
@@ -90,7 +121,7 @@ module AlloyToPbt
         codes.join("\n")
       else
         # For sort-like operations, deduplicate output definitions
-        lines = []
+        lines = [] #: Array[String]
         output_defined = false
 
         codes.each do |code|
@@ -110,10 +141,13 @@ module AlloyToPbt
       end
     end
 
+    # Build context for pattern code generation
+    # @rbs predicate: Predicate
+    # @rbs return: Hash[Symbol, untyped]
     def build_context(predicate)
       name = predicate.name.downcase
       module_name = @spec.module_name&.downcase || ""
-      context = {}
+      context = {} #: Hash[Symbol, untyped]
 
       # Infer operation name from module name first, then predicate name
       if module_name.include?("sort") || name.include?("sort")
