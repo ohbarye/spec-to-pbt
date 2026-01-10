@@ -4,13 +4,26 @@ require "spec_helper"
 
 RSpec.describe AlloyToPbt::Generator do
   describe "#generate" do
-    context "with sort spec" do
+    context "with sort spec (idempotent + invariant + size patterns)" do
       let(:spec) do
         AlloyToPbt::Spec.new(
           module_name: "sort",
+          signatures: [
+            AlloyToPbt::Signature.new(name: "List", fields: [
+              AlloyToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
+            ])
+          ],
           predicates: [
-            AlloyToPbt::Predicate.new(name: "Sorted", body: "all i: sorted"),
-            AlloyToPbt::Predicate.new(name: "LengthPreserved", body: "#input = #output")
+            AlloyToPbt::Predicate.new(
+              name: "Sorted",
+              params: [{ name: "l", type: "List" }],
+              body: "all i: sorted"
+            ),
+            AlloyToPbt::Predicate.new(
+              name: "Idempotent",
+              params: [{ name: "l", type: "List" }],
+              body: "sort(sort(l)) = sort(l)"
+            )
           ]
         )
       end
@@ -26,14 +39,14 @@ RSpec.describe AlloyToPbt::Generator do
         expect(code).to include('require "pbt"')
       end
 
+      it "includes require_relative for impl" do
+        code = generator.generate
+        expect(code).to include('require_relative "sort_impl"')
+      end
+
       it "includes RSpec describe block" do
         code = generator.generate
         expect(code).to include('RSpec.describe "sort"')
-      end
-
-      it "includes sort implementation stub" do
-        code = generator.generate
-        expect(code).to include("def sort(array)")
       end
 
       it "includes Pbt.assert" do
@@ -41,19 +54,37 @@ RSpec.describe AlloyToPbt::Generator do
         expect(code).to include("Pbt.assert")
       end
 
-      it "includes property checks" do
+      it "generates check code for invariant pattern" do
         code = generator.generate
-        expect(code).to include("Sorted failed")
-        expect(code).to include("LengthPreserved failed")
+        expect(code).to include("Invariant failed")
+      end
+
+      it "generates check code for idempotent pattern" do
+        code = generator.generate
+        expect(code).to include("Idempotent failed")
       end
     end
 
-    context "with stack spec" do
+    context "with stack spec (size + roundtrip patterns)" do
       let(:spec) do
         AlloyToPbt::Spec.new(
           module_name: "stack",
+          signatures: [
+            AlloyToPbt::Signature.new(name: "Stack", fields: [
+              AlloyToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
+            ])
+          ],
           predicates: [
-            AlloyToPbt::Predicate.new(name: "PushAddsElement", body: "#stack' = #stack + 1")
+            AlloyToPbt::Predicate.new(
+              name: "PushAddsElement",
+              params: [{ name: "s", type: "Stack" }],
+              body: "#stack' = add[#stack, 1]"
+            ),
+            AlloyToPbt::Predicate.new(
+              name: "PushPopIdentity",
+              params: [{ name: "s", type: "Stack" }],
+              body: "push then pop returns original"
+            )
           ]
         )
       end
@@ -64,24 +95,26 @@ RSpec.describe AlloyToPbt::Generator do
         expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
       end
 
-      it "includes Stack class stub" do
+      it "generates check code for size pattern" do
         code = generator.generate
-        expect(code).to include("class Stack")
+        expect(code).to include("Size failed")
       end
 
-      it "includes stack property tests" do
+      it "generates check code for roundtrip pattern" do
         code = generator.generate
-        expect(code).to include("push increases size")
-        expect(code).to include("LIFO")
+        expect(code).to include("Roundtrip failed")
       end
     end
 
-    context "with generic spec" do
+    context "with unsupported patterns" do
       let(:spec) do
         AlloyToPbt::Spec.new(
           module_name: "custom",
           predicates: [
-            AlloyToPbt::Predicate.new(name: "CustomProp", body: "some custom logic")
+            AlloyToPbt::Predicate.new(
+              name: "SameElements",
+              body: "elems = elems (elements pattern)"
+            )
           ]
         )
       end
@@ -92,18 +125,23 @@ RSpec.describe AlloyToPbt::Generator do
         expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
       end
 
-      it "includes predicate name in comments" do
+      it "includes unsupported pattern in comments" do
         code = generator.generate
-        expect(code).to include("CustomProp")
+        expect(code).to include("Unsupported patterns detected: elements")
+      end
+
+      it "skips the test for unsupported patterns" do
+        code = generator.generate
+        expect(code).to include("No supported patterns detected")
       end
     end
 
-    context "with queue spec" do
+    context "with no patterns detected" do
       let(:spec) do
         AlloyToPbt::Spec.new(
-          module_name: "queue",
+          module_name: "empty",
           predicates: [
-            AlloyToPbt::Predicate.new(name: "Enqueue", body: "#q'.elements = add[#q.elements, 1]")
+            AlloyToPbt::Predicate.new(name: "Unknown", body: "xyz abc")
           ]
         )
       end
@@ -114,44 +152,9 @@ RSpec.describe AlloyToPbt::Generator do
         expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
       end
 
-      it "includes Queue class stub" do
+      it "indicates pending implementation" do
         code = generator.generate
-        expect(code).to include("class Queue")
-      end
-
-      it "includes queue property tests" do
-        code = generator.generate
-        expect(code).to include("enqueue increases size")
-        expect(code).to include("FIFO")
-      end
-    end
-
-    context "with set spec" do
-      let(:spec) do
-        AlloyToPbt::Spec.new(
-          module_name: "set",
-          predicates: [
-            AlloyToPbt::Predicate.new(name: "Add", body: "s'.elements = s.elements + e")
-          ]
-        )
-      end
-      let(:generator) { described_class.new(spec) }
-
-      it "generates valid Ruby code" do
-        code = generator.generate
-        expect { RubyVM::InstructionSequence.compile(code) }.not_to raise_error
-      end
-
-      it "includes MySet class stub" do
-        code = generator.generate
-        expect(code).to include("class MySet")
-      end
-
-      it "includes set property tests" do
-        code = generator.generate
-        expect(code).to include("add then contains")
-        expect(code).to include("union is commutative")
-        expect(code).to include("union is associative")
+        expect(code).to include("is pending implementation")
       end
     end
   end

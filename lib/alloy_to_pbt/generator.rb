@@ -6,7 +6,7 @@ module AlloyToPbt
   # Property data for template rendering
   Property = Data.define(:name, :check_code)
 
-  # Generates Ruby PBT code from Alloy specification
+  # Generates Ruby PBT code from Alloy specification using unified generator
   class Generator
     TEMPLATES_DIR = File.expand_path("templates", __dir__)
 
@@ -15,6 +15,8 @@ module AlloyToPbt
     def initialize(spec)
       @spec = spec
       @detected_patterns = {}
+      @type_inferrer = nil
+      @generated_properties = []
     end
 
     # Analyze predicates and detect patterns
@@ -29,126 +31,111 @@ module AlloyToPbt
       @detected_patterns
     end
 
-    # Generate Ruby PBT code
+    # Generate Ruby PBT code using unified template
     def generate
       analyze
 
-      template_name = detect_template_type
-      template_path = File.join(TEMPLATES_DIR, "#{template_name}.erb")
+      @type_inferrer = TypeInferrer.new(@spec)
+      @generated_properties = build_properties
 
-      unless File.exist?(template_path)
-        raise Error, "Template not found: #{template_path}"
-      end
-
+      template_path = File.join(TEMPLATES_DIR, "unified.erb")
       template = ERB.new(File.read(template_path), trim_mode: "-")
       template.result(binding)
     end
 
     private
 
-    def detect_template_type
-      module_name = @spec.module_name&.downcase || ""
+    def build_properties
+      @detected_patterns.map do |pred_name, info|
+        patterns = info[:patterns]
+        predicate = info[:predicate]
 
-      if module_name.include?("sort")
-        "sort"
-      elsif module_name.include?("stack")
-        "stack"
-      elsif module_name.include?("queue")
-        "queue"
-      elsif module_name.include?("set")
-        "set"
-      else
-        "generic"
+        supported = patterns.select { |p| PatternCodeGenerator.supported?(p) }
+        unsupported = patterns - supported
+
+        {
+          predicate: predicate,
+          generator_code: infer_generator(predicate),
+          check_code: generate_check_code(supported, predicate),
+          unsupported_patterns: unsupported
+        }
       end
     end
 
-    # Helper methods for templates
-    def properties_for_sort
-      [
-        Property.new(
-          name: "Sorted",
-          check_code: 'raise "Sorted failed" unless output.each_cons(2).all? { |a, b| a <= b }'
-        ),
-        Property.new(
-          name: "LengthPreserved",
-          check_code: 'raise "LengthPreserved failed" unless input.length == output.length'
-        ),
-        Property.new(
-          name: "SameElements",
-          check_code: 'raise "SameElements failed" unless input.sort == output.sort'
-        ),
-        Property.new(
-          name: "Idempotent",
-          check_code: 'raise "Idempotent failed" unless sort(output) == output'
-        )
-      ]
+    def infer_generator(predicate)
+      # Find the main type from predicate parameters or use default
+      if predicate.params.any?
+        param = predicate.params.first
+        @type_inferrer.generator_for(param[:type])
+      else
+        "Pbt.array(Pbt.integer)"
+      end
     end
 
-    def properties_for_stack
-      {
-        push_adds: Property.new(
-          name: "PushAddsElement",
-          check_code: 'raise "PushAddsElement failed" unless stack.length == original_length + 1'
-        ),
-        pop_removes: Property.new(
-          name: "PopRemovesElement",
-          check_code: 'raise "PopRemovesElement failed" unless stack.length == original_length - 1'
-        ),
-        lifo: Property.new(
-          name: "LIFO",
-          check_code: 'raise "LIFO failed" unless popped == element'
-        ),
-        push_pop_identity: Property.new(
-          name: "PushPopIdentity",
-          check_code: 'raise "PushPopIdentity failed" unless stack.length == original_length'
-        )
-      }
+    def generate_check_code(patterns, predicate)
+      return nil if patterns.empty?
+
+      context = build_context(predicate)
+
+      # Collect all non-nil code blocks
+      codes = patterns.filter_map do |pattern|
+        PatternCodeGenerator.generate(pattern, context)
+      end
+
+      return nil if codes.empty?
+
+      # For data structures like stack/queue, each pattern generates complete code
+      # Just join them without output deduplication
+      if context[:data_structure]
+        codes.join("\n")
+      else
+        # For sort-like operations, deduplicate output definitions
+        lines = []
+        output_defined = false
+
+        codes.each do |code|
+          code.lines.map(&:strip).each do |line|
+            if line.start_with?("output = ")
+              unless output_defined
+                lines << line
+                output_defined = true
+              end
+            else
+              lines << line
+            end
+          end
+        end
+
+        lines.join("\n")
+      end
     end
 
-    def properties_for_queue
-      {
-        enqueue_adds: Property.new(
-          name: "EnqueueAddsElement",
-          check_code: 'raise "EnqueueAddsElement failed" unless queue.length == original_length + 1'
-        ),
-        dequeue_removes: Property.new(
-          name: "DequeueRemovesElement",
-          check_code: 'raise "DequeueRemovesElement failed" unless queue.length == original_length - 1'
-        ),
-        fifo: Property.new(
-          name: "FIFO",
-          check_code: 'raise "FIFO failed" unless dequeued == element'
-        ),
-        enqueue_dequeue_identity: Property.new(
-          name: "EnqueueDequeueIdentity",
-          check_code: 'raise "EnqueueDequeueIdentity failed" unless queue.length == original_length'
-        )
-      }
-    end
+    def build_context(predicate)
+      name = predicate.name.downcase
+      module_name = @spec.module_name&.downcase || ""
+      context = {}
 
-    def properties_for_set
-      {
-        add_contains: Property.new(
-          name: "AddContains",
-          check_code: 'raise "AddContains failed" unless set.contains?(element)'
-        ),
-        remove_not_contains: Property.new(
-          name: "RemoveNotContains",
-          check_code: 'raise "RemoveNotContains failed" if set.contains?(element)'
-        ),
-        union_commutative: Property.new(
-          name: "UnionCommutative",
-          check_code: 'raise "UnionCommutative failed" unless set_a.union(set_b) == set_b.union(set_a)'
-        ),
-        union_associative: Property.new(
-          name: "UnionAssociative",
-          check_code: 'raise "UnionAssociative failed" unless set_a.union(set_b).union(set_c) == set_a.union(set_b.union(set_c))'
-        ),
-        intersection_commutative: Property.new(
-          name: "IntersectionCommutative",
-          check_code: 'raise "IntersectionCommutative failed" unless set_a.intersection(set_b) == set_b.intersection(set_a)'
-        )
-      }
+      # Infer operation name from module name first, then predicate name
+      if module_name.include?("sort") || name.include?("sort")
+        context[:operation] = "sort"
+        context[:invariant_check] = "each_cons(2).all? { |a, b| a <= b }"
+      elsif module_name.include?("stack")
+        context[:operation] = "process_stack"
+        context[:operations] = %w[push pop]
+        context[:data_structure] = :stack
+      elsif module_name.include?("queue")
+        context[:operation] = "process_queue"
+        context[:operations] = %w[enqueue dequeue]
+        context[:data_structure] = :queue
+      elsif name.include?("push") && name.include?("pop")
+        context[:operations] = %w[push pop]
+      elsif name.include?("enqueue") && name.include?("dequeue")
+        context[:operations] = %w[enqueue dequeue]
+      elsif name.include?("add") && name.include?("remove")
+        context[:operations] = %w[add remove]
+      end
+
+      context
     end
   end
 end

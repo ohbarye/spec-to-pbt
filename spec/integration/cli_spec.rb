@@ -32,8 +32,19 @@ RSpec.describe "CLI" do
 
       content = File.read(output_file)
       expect(content).to include('require "pbt"')
-      expect(content).to include("def sort(array)")
+      expect(content).to include('require_relative "sort_impl"')
       expect(content).to include("Pbt.assert")
+      expect(content).to include('RSpec.describe "sort"')
+    end
+
+    it "generates check code for detected patterns" do
+      _stdout, _stderr, _status = Open3.capture3(cli_path, input_file, "-o", output_dir)
+      content = File.read(File.join(output_dir, "sort_pbt.rb"))
+
+      # Invariant pattern should be detected for Sorted predicate
+      expect(content).to include("Invariant failed")
+      # Size pattern should be detected for LengthPreserved predicate
+      expect(content).to include("Size failed")
     end
   end
 
@@ -49,42 +60,26 @@ RSpec.describe "CLI" do
       expect(File.exist?(output_file)).to be(true)
 
       content = File.read(output_file)
-      expect(content).to include("class Stack")
-      expect(content).to include("LIFO")
+      expect(content).to include('require_relative "stack_impl"')
+      expect(content).to include('RSpec.describe "stack"')
     end
-  end
 
-  describe "queue.als conversion" do
-    let(:input_file) { File.join(fixtures_dir, "queue.als") }
+    it "generates check code for detected patterns" do
+      _stdout, _stderr, _status = Open3.capture3(cli_path, input_file, "-o", output_dir)
+      content = File.read(File.join(output_dir, "stack_pbt.rb"))
 
-    it "generates queue_pbt.rb" do
-      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "-o", output_dir)
-
-      expect(status.success?).to be(true), "CLI failed: #{stderr}"
-
-      output_file = File.join(output_dir, "queue_pbt.rb")
-      expect(File.exist?(output_file)).to be(true)
-
-      content = File.read(output_file)
-      expect(content).to include("class Queue")
-      expect(content).to include("FIFO")
+      # Size pattern for PushAddsElement
+      expect(content).to include("Size failed")
+      # Roundtrip pattern for PushPopIdentity
+      expect(content).to include("Roundtrip failed")
     end
-  end
 
-  describe "set.als conversion" do
-    let(:input_file) { File.join(fixtures_dir, "set.als") }
+    it "comments unsupported patterns" do
+      _stdout, _stderr, _status = Open3.capture3(cli_path, input_file, "-o", output_dir)
+      content = File.read(File.join(output_dir, "stack_pbt.rb"))
 
-    it "generates set_pbt.rb" do
-      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "-o", output_dir)
-
-      expect(status.success?).to be(true), "CLI failed: #{stderr}"
-
-      output_file = File.join(output_dir, "set_pbt.rb")
-      expect(File.exist?(output_file)).to be(true)
-
-      content = File.read(output_file)
-      expect(content).to include("class MySet")
-      expect(content).to include("union is commutative")
+      # IsEmpty predicate has only 'empty' pattern which is unsupported
+      expect(content).to include("Unsupported patterns detected:")
     end
   end
 
