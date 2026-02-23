@@ -1,4 +1,4 @@
-# alloy_to_pbt (planned rename: `spec-to-pbt`)
+# spec-to-pbt (Ruby package name: `alloy_to_pbt`)
 
 A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on `pbt` stateful PBT scaffolding.
 
