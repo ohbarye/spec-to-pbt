@@ -1,0 +1,380 @@
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+module AlloyToPbt
+  # Generates a stateful PBT scaffold that targets `Pbt.stateful`.
+  # This is intentionally a scaffold (not a complete translator): it emits
+  # a runnable skeleton with TODO placeholders for model transitions and SUT wiring.
+  class StatefulGenerator
+    PRIMITIVE_TYPES = ["Int", "String"].freeze #: Array[String]
+    EXCLUDED_COMMAND_PATTERNS = [:roundtrip, :ordering, :invariant, :idempotent, :empty].freeze #: Array[Symbol]
+
+    # @rbs spec: Spec
+    # @rbs return: void
+    def initialize(spec)
+      @spec = spec #: Spec
+      @type_inferrer = TypeInferrer.new(spec) #: TypeInferrer
+    end
+
+    # @rbs return: String
+    def generate
+      lines = [] #: Array[String]
+      lines << "# frozen_string_literal: true"
+      lines << ""
+      lines << 'require "pbt"'
+      lines << 'require "rspec"'
+      lines << %(require_relative "#{module_name}_impl")
+      lines << ""
+      lines << %(RSpec.describe "#{module_name} (stateful scaffold)" do)
+      lines << "  it \"wires a stateful PBT scaffold (customize before enabling)\" do"
+      lines << '    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"'
+      lines << '      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"'
+      lines << "    end"
+      lines << ""
+      lines << "    Pbt.assert(worker: :none, num_runs: 5, seed: 1) do"
+      lines << "      Pbt.stateful("
+      lines << "        model: #{model_class_name}.new,"
+      lines << "        sut: -> { #{sut_factory_code} },"
+      lines << "        max_steps: 20"
+      lines << "      )"
+      lines << "    end"
+      lines << "  end"
+      lines << ""
+      lines << "  class #{model_class_name}"
+      lines << "    def initialize"
+      lines << "      @commands = ["
+      command_class_names.each_with_index do |class_name, index|
+        suffix = (index == command_class_names.length - 1) ? "" : ","
+        lines << "        #{class_name}.new#{suffix}"
+      end
+      lines << "      ]"
+      lines << "    end"
+      lines << ""
+      lines << "    def initial_state"
+      lines << "      [] # TODO: replace with a domain-specific model state"
+      lines << "    end"
+      lines << ""
+      lines << "    def commands(_state)"
+      lines << "      @commands"
+      lines << "    end"
+      lines << "  end"
+      lines << ""
+
+      if selected_command_predicates.empty?
+        lines.concat(generated_command_fallback_lines)
+        lines << ""
+      else
+        selected_command_predicates.each do |predicate|
+          lines.concat(command_class_lines(predicate))
+          lines << ""
+        end
+      end
+
+      lines << "end"
+      lines.join("\n")
+    end
+
+    private
+
+    # @rbs return: String
+    def module_name
+      @spec.module_name || "operation"
+    end
+
+    # @rbs return: String
+    def model_class_name
+      "#{camelize(module_name)}Model"
+    end
+
+    # @rbs return: String
+    def sut_factory_code
+      "#{camelize(module_name)}Impl.new"
+    end
+
+    # @rbs return: Array[String]
+    def signature_names
+      @signature_names ||= @spec.signatures.map(&:name) #: Array[String]
+    end
+
+    # @rbs return: String?
+    def state_signature_name
+      @state_signature_name ||= signature_names.find { |name| name == camelize(module_name) }
+    end
+
+    # @rbs return: Array[Predicate]
+    def selected_command_predicates
+      @selected_command_predicates ||= @spec.predicates.select { |predicate| command_like_predicate?(predicate) } #: Array[Predicate]
+    end
+
+    # @rbs return: Array[String]
+    def command_class_names
+      names = selected_command_predicates.map { |predicate| "#{camelize(predicate.name)}Command" }
+      names.empty? ? ["GeneratedCommand"] : names
+    end
+
+    # Heuristic only: parser is regex-based and loses some Alloy syntax (e.g. primed vars),
+    # so use predicate names + body shape to emit a useful scaffold instead of pretending exact semantics.
+    # @rbs predicate: Predicate
+    # @rbs return: bool
+    def command_like_predicate?(predicate)
+      patterns = PropertyPattern.detect(predicate.name, predicate.body)
+      return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
+      return false if property_like_name?(predicate.name)
+
+      verb_like_name?(predicate.name) || transition_like_body?(predicate.body)
+    end
+
+    # @rbs name: String
+    # @rbs return: bool
+    def verb_like_name?(name)
+      name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/)
+    end
+
+    # @rbs name: String
+    # @rbs return: bool
+    def property_like_name?(name)
+      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
+    end
+
+    # @rbs body: String
+    # @rbs return: bool
+    def transition_like_body?(body)
+      body.include?("'") && body.match?(/[#=]/)
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: Array[Hash[Symbol, String]]
+    def argument_params(predicate)
+      params = predicate.params.reject do |param|
+        signature_names.include?(param[:name])
+      end
+
+      state_sig = state_signature_name
+      if state_sig
+        params = params.reject { |param| param[:type] == state_sig }
+      end
+
+      params
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: String
+    def arguments_code(predicate)
+      params = argument_params(predicate)
+      return "Pbt.nil" if params.empty?
+
+      arbitaries = params.map { |param| arbitrary_code_for(param[:type]) }
+      return arbitaries.first if arbitaries.size == 1
+
+      "Pbt.tuple(#{arbitaries.join(', ')})"
+    end
+
+    # @rbs type_name: String
+    # @rbs return: String
+    def arbitrary_code_for(type_name)
+      code = @type_inferrer.generator_for(type_name)
+      return code if PRIMITIVE_TYPES.include?(type_name)
+
+      "#{code} # placeholder for #{type_name}"
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: Symbol
+    def command_behavior(predicate)
+      name = predicate.name
+      return :append if name.match?(/\A(?:Push|Enqueue|Add|Insert|Put)/)
+      return :dequeue if name.match?(/\ADequeue/)
+      return :pop if name.match?(/\A(?:Pop|Remove|Delete|Get)/)
+
+      :unknown
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: String
+    def method_name_for(predicate)
+      underscore(predicate.name)
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: Array[String]
+    def command_class_lines(predicate)
+      class_name = "#{camelize(predicate.name)}Command"
+      method_name = method_name_for(predicate)
+      behavior = command_behavior(predicate)
+      body_preview = predicate.body.lines.map(&:strip).reject(&:empty?).join(" ")
+
+      [
+        "  class #{class_name}",
+        "    def name",
+        "      :#{method_name}",
+        "    end",
+        "",
+        "    def arguments",
+        "      #{arguments_code(predicate)}",
+        "    end",
+        "",
+        *applicable_lines(behavior, method_name),
+        "",
+        *next_state_lines(behavior),
+        "",
+        *run_lines(method_name),
+        "",
+        *verify_lines(behavior, predicate.name, body_preview),
+        "  end"
+      ]
+    end
+
+    # @rbs return: Array[String]
+    def generated_command_fallback_lines
+      [
+        "  class GeneratedCommand",
+        "    def name",
+        "      :generated_command",
+        "    end",
+        "",
+        "    def arguments",
+        "      Pbt.nil",
+        "    end",
+        "",
+        "    def applicable?(_state)",
+        "      true",
+        "    end",
+        "",
+        "    def next_state(state, _args)",
+        "      state",
+        "    end",
+        "",
+        "    def run!(_sut, _args)",
+        "      nil",
+        "    end",
+        "",
+        "    def verify!(before_state:, after_state:, args:, result:, sut:)",
+        "      # TODO: no command-like predicates were detected; replace this placeholder",
+        "      nil",
+        "    end",
+        "  end"
+      ]
+    end
+
+    # @rbs behavior: Symbol
+    # @rbs method_name: String
+    # @rbs return: Array[String]
+    def applicable_lines(behavior, method_name)
+      case behavior
+      when :pop, :dequeue
+        [
+          "    def applicable?(state)",
+          "      !state.empty? # inferred precondition for #{method_name}",
+          "    end"
+        ]
+      else
+        [
+          "    def applicable?(_state)",
+          "      true",
+          "    end"
+        ]
+      end
+    end
+
+    # @rbs behavior: Symbol
+    # @rbs return: Array[String]
+    def next_state_lines(behavior)
+      case behavior
+      when :append
+        [
+          "    def next_state(state, args)",
+          "      state + [args]",
+          "    end"
+        ]
+      when :pop
+        [
+          "    def next_state(state, _args)",
+          "      state[0...-1]",
+          "    end"
+        ]
+      when :dequeue
+        [
+          "    def next_state(state, _args)",
+          "      state.drop(1)",
+          "    end"
+        ]
+      else
+        [
+          "    def next_state(state, _args)",
+          "      state # TODO: model transition",
+          "    end"
+        ]
+      end
+    end
+
+    # @rbs method_name: String
+    # @rbs return: Array[String]
+    def run_lines(method_name)
+      [
+        "    def run!(sut, args)",
+        "      if args.nil?",
+        "        sut.public_send(:#{method_name})",
+        "      elsif args.is_a?(Array)",
+        "        sut.public_send(:#{method_name}, *args)",
+        "      else",
+        "        sut.public_send(:#{method_name}, args)",
+        "      end",
+        "    end"
+      ]
+    end
+
+    # @rbs behavior: Symbol
+    # @rbs predicate_name: String
+    # @rbs body_preview: String
+    # @rbs return: Array[String]
+    def verify_lines(behavior, predicate_name, body_preview)
+      lines = [
+        "    def verify!(before_state:, after_state:, args:, result:, sut:)",
+        "      # TODO: translate predicate semantics into postcondition checks",
+        "      # Alloy predicate body (preview): #{body_preview.inspect}"
+      ]
+
+      case behavior
+      when :append
+        lines.concat([
+          "      expected_size = before_state.length + 1",
+          "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
+        ])
+      when :pop
+        lines.concat([
+          "      expected = before_state.last",
+          "      raise \"Expected popped value to match model\" unless result == expected",
+          "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+        ])
+      when :dequeue
+        lines.concat([
+          "      expected = before_state.first",
+          "      raise \"Expected dequeued value to match model\" unless result == expected",
+          "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+        ])
+      else
+        lines << "      # TODO: add concrete checks for #{predicate_name}"
+      end
+
+      lines << "      [sut, args] && nil"
+      lines << "    end"
+      lines
+    end
+
+    # @rbs value: String
+    # @rbs return: String
+    def camelize(value)
+      value.to_s.split(/[^a-zA-Z0-9]+/).reject(&:empty?).map { |part| part[0].upcase + part[1..] }.join
+    end
+
+    # @rbs value: String
+    # @rbs return: String
+    def underscore(value)
+      value
+        .gsub(/([a-z\d])([A-Z])/, '\\1_\\2')
+        .tr("-", "_")
+        .downcase
+    end
+  end
+end

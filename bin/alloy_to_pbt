@@ -14,6 +14,10 @@ OptionParser.new do |opts|
     options[:output_dir] = v
   end
 
+  opts.on("--stateful", "Generate a Pbt.stateful scaffold instead of the unified stateless generator") do
+    options[:stateful] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -44,7 +48,11 @@ parser = AlloyToPbt::Parser.new
 spec = parser.parse(source)
 
 # Generate PBT code
-generator = AlloyToPbt::Generator.new(spec)
+generator = if options[:stateful]
+  AlloyToPbt::StatefulGenerator.new(spec)
+else
+  AlloyToPbt::Generator.new(spec)
+end
 pbt_code = generator.generate
 
 # Create output directory if it doesn't exist

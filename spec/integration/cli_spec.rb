@@ -83,6 +83,26 @@ RSpec.describe "CLI" do
     end
   end
 
+  describe "stateful generation (--stateful)" do
+    let(:input_file) { File.join(fixtures_dir, "stack.als") }
+
+    it "generates stateful PBT scaffold code" do
+      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+      output_file = File.join(output_dir, "stack_pbt.rb")
+      expect(File.exist?(output_file)).to be(true)
+
+      content = File.read(output_file)
+      expect(content).to include("Pbt.stateful(")
+      expect(content).to include("class StackModel")
+      expect(content).to include("worker: :none")
+      expect(content).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
+      expect(content).to include("Pbt.integer # placeholder for Element")
+    end
+  end
+
   describe "error handling" do
     it "fails with missing input file" do
       _stdout, stderr, status = Open3.capture3(cli_path, "nonexistent.als")
