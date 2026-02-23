@@ -87,5 +87,32 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("class GeneratedCommand")
       end
     end
+
+    context "with primed state params on a non-module state signature" do
+      let(:source) do
+        <<~ALLOY
+          module workflow
+
+          sig Machine {
+            value: one Int
+          }
+
+          sig Token {}
+
+          pred Step[m, m': Machine, t: Token] {
+            #m'.value = add[#m.value, 1]
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "excludes primed state parameter pairs from command arguments" do
+        code = generator.generate
+
+        expect(code).to include("class StepCommand")
+        expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
+        expect(code).not_to include("Pbt.tuple(Pbt.integer, Pbt.integer, Pbt.integer)")
+      end
+    end
   end
 end

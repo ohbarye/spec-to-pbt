@@ -136,6 +136,33 @@ RSpec.describe SpecToPbt::Parser do
         expect(parser.spec.signatures.first.name).to eq("Foo")
       end
     end
+
+    context "with primed variables in predicate parameters" do
+      let(:source) do
+        <<~ALLOY
+          module state
+
+          sig State {}
+          sig Value {}
+
+          pred Step[s, s': State, v: Value] {
+            #s' = add[#s, 1]
+          }
+        ALLOY
+      end
+
+      before { parser.parse(source) }
+
+      it "preserves primed parameter names" do
+        step_pred = parser.spec.predicates.find { |p| p.name == "Step" }
+
+        expect(step_pred.params).to eq([
+          { name: "s", type: "State" },
+          { name: "s'", type: "State" },
+          { name: "v", type: "Value" }
+        ])
+      end
+    end
   end
 
   describe "#to_h" do

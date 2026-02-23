@@ -80,7 +80,7 @@ module SpecToPbt
     SIG_PATTERN = /sig\s+(\w+)(?:\s+extends\s+(\w+))?\s*\{([^}]*)\}/m #: Regexp
     FIELD_PATTERN = /(\w+)\s*:\s*(one|lone|set|seq)?\s*(\w+)/ #: Regexp
     PRED_PATTERN = /pred\s+(\w+)\s*\[([^\]]*)\]\s*\{([^}]*)\}/m #: Regexp
-    PARAM_PATTERN = /([\w,\s]+)\s*:\s*(\w+)/ #: Regexp
+    PARAM_PATTERN = /([\w',\s]+)\s*:\s*(\w+)/ #: Regexp
     ASSERT_PATTERN = /assert\s+(\w+)\s*\{([^}]*)\}/m #: Regexp
     FACT_PATTERN = /fact\s*(\w*)\s*\{([^}]*)\}/m #: Regexp
     MODULE_PATTERN = /module\s+(\w+)/ #: Regexp

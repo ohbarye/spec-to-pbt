@@ -146,8 +146,9 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: Array[Hash[Symbol, String]]
     def argument_params(predicate)
+      state_param_names = inferred_state_param_names(predicate)
       params = predicate.params.reject do |param|
-        signature_names.include?(param[:name])
+        signature_names.include?(param[:name]) || state_param_names.include?(param[:name])
       end
 
       state_sig = state_signature_name
@@ -156,6 +157,30 @@ module SpecToPbt
       end
 
       params
+    end
+
+    # Infer state variables from primed/unprimed parameter pairs (e.g. s, s')
+    # in addition to the module-name-based state signature heuristic.
+    # @rbs predicate: Predicate
+    # @rbs return: Array[String]
+    def inferred_state_param_names(predicate)
+      names = [] #: Array[String]
+      params_by_name = predicate.params.to_h { |param| [param[:name], param] }
+
+      predicate.params.each do |param|
+        name = param[:name]
+        next unless name.end_with?("'")
+
+        base_name = name.delete_suffix("'")
+        base_param = params_by_name[base_name]
+        next unless base_param
+        next unless base_param[:type] == param[:type]
+
+        names << base_name
+        names << name
+      end
+
+      names
     end
 
     # @rbs predicate: Predicate
