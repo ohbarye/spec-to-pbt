@@ -66,6 +66,8 @@ RSpec.describe "queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q'.elements = add[#q.elements, 1]"
+      # Related Alloy assertions: QueueProperties
+      # Assertion/fact pattern hints: empty
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
       [sut, args] && nil
@@ -102,6 +104,8 @@ RSpec.describe "queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q.elements > 0 implies #q'.elements = sub[#q.elements, 1]"
+      # Related Alloy assertions: QueueProperties
+      # Assertion/fact pattern hints: empty
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

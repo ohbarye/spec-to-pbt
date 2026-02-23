@@ -56,6 +56,13 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected popped value to match model")
         expect(code).to include("sut.public_send(:push_adds_element, args)")
       end
+
+      it "adds assertion/fact hints to verify! comments" do
+        code = generator.generate
+
+        expect(code).to include("# Related Alloy assertions: StackProperties")
+        expect(code).to include("# Assertion/fact pattern hints: empty")
+      end
     end
 
     context "with queue spec" do
@@ -112,6 +119,32 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("class StepCommand")
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
         expect(code).not_to include("Pbt.tuple(Pbt.integer, Pbt.integer, Pbt.integer)")
+      end
+    end
+
+    context "with facts that reference a command predicate" do
+      let(:source) do
+        <<~ALLOY
+          module ledger
+
+          sig Ledger { size: one Int }
+          sig Entry {}
+
+          pred Append[l, l': Ledger, e: Entry] {
+            #l'.size = add[#l.size, 1]
+          }
+
+          fact LedgerInvariant {
+            all l, l': Ledger, e: Entry | Append[l, l', e]
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "includes related fact names in verify! hints" do
+        code = generator.generate
+
+        expect(code).to include("# Related Alloy facts: LedgerInvariant")
       end
     end
   end

@@ -354,11 +354,24 @@ module SpecToPbt
     # @rbs body_preview: String
     # @rbs return: Array[String]
     def verify_lines(behavior, predicate_name, body_preview)
+      related_assertions = related_assertions_for(predicate_name)
+      related_facts = related_facts_for(predicate_name)
+      assertion_fact_hints = assertion_fact_pattern_hints(predicate_name)
+
       lines = [
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
         "      # TODO: translate predicate semantics into postcondition checks",
         "      # Alloy predicate body (preview): #{body_preview.inspect}"
       ]
+      if related_assertions.any?
+        lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"
+      end
+      if related_facts.any?
+        lines << "      # Related Alloy facts: #{related_facts.join(', ')}"
+      end
+      if assertion_fact_hints.any?
+        lines << "      # Assertion/fact pattern hints: #{assertion_fact_hints.map(&:to_s).join(', ')}"
+      end
 
       case behavior
       when :append
@@ -385,6 +398,49 @@ module SpecToPbt
       lines << "      [sut, args] && nil"
       lines << "    end"
       lines
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[String]
+    def related_assertions_for(predicate_name)
+      @spec.assertions.filter_map do |assertion|
+        references_predicate?(assertion.body, predicate_name) ? assertion.name : nil
+      end
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[String]
+    def related_facts_for(predicate_name)
+      @spec.facts.filter_map do |fact|
+        next unless references_predicate?(fact.body, predicate_name)
+
+        fact.name || "<anonymous fact>"
+      end
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[Symbol]
+    def assertion_fact_pattern_hints(predicate_name)
+      texts = [] #: Array[String]
+
+      @spec.assertions.each do |assertion|
+        texts << "#{assertion.name} #{assertion.body}" if references_predicate?(assertion.body, predicate_name)
+      end
+      @spec.facts.each do |fact|
+        next unless references_predicate?(fact.body, predicate_name)
+
+        fact_name = fact.name || ""
+        texts << "#{fact_name} #{fact.body}".strip
+      end
+
+      texts.flat_map { |text| PropertyPattern.detect("", text) }.uniq
+    end
+
+    # @rbs body: String
+    # @rbs predicate_name: String
+    # @rbs return: bool
+    def references_predicate?(body, predicate_name)
+      body.match?(/\b#{Regexp.escape(predicate_name)}\s*\[/)
     end
 
     # @rbs value: String
