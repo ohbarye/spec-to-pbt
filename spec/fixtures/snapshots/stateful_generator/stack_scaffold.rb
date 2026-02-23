@@ -68,6 +68,8 @@ RSpec.describe "stack (stateful scaffold)" do
       # Alloy predicate body (preview): "#s'.elements = add[#s.elements, 1]"
       # Related Alloy assertions: StackProperties
       # Assertion/fact pattern hints: empty
+      # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
+      # Related property predicate pattern hints: roundtrip, size, empty, ordering
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
       [sut, args] && nil
@@ -106,6 +108,8 @@ RSpec.describe "stack (stateful scaffold)" do
       # Alloy predicate body (preview): "#s.elements > 0 implies #s'.elements = sub[#s.elements, 1]"
       # Related Alloy assertions: StackProperties
       # Assertion/fact pattern hints: empty
+      # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
+      # Related property predicate pattern hints: roundtrip, size, empty, ordering
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

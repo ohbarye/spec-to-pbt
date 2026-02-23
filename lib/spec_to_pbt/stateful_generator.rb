@@ -357,6 +357,8 @@ module SpecToPbt
       related_assertions = related_assertions_for(predicate_name)
       related_facts = related_facts_for(predicate_name)
       assertion_fact_hints = assertion_fact_pattern_hints(predicate_name)
+      related_property_predicates = related_property_predicates_for(predicate_name)
+      related_property_predicate_hints = related_property_predicate_pattern_hints(predicate_name)
 
       lines = [
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
@@ -371,6 +373,12 @@ module SpecToPbt
       end
       if assertion_fact_hints.any?
         lines << "      # Assertion/fact pattern hints: #{assertion_fact_hints.map(&:to_s).join(', ')}"
+      end
+      if related_property_predicates.any?
+        lines << "      # Related Alloy property predicates: #{related_property_predicates.join(', ')}"
+      end
+      if related_property_predicate_hints.any?
+        lines << "      # Related property predicate pattern hints: #{related_property_predicate_hints.map(&:to_s).join(', ')}"
       end
 
       case behavior
@@ -434,6 +442,62 @@ module SpecToPbt
       end
 
       texts.flat_map { |text| PropertyPattern.detect("", text) }.uniq
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[Predicate]
+    def related_property_predicates(predicate_name)
+      command_pred = @spec.predicates.find { |predicate| predicate.name == predicate_name }
+      return [] unless command_pred
+
+      state_types = state_param_types_for(command_pred)
+      return [] if state_types.empty?
+
+      @spec.predicates.select do |predicate|
+        next false if predicate.name == predicate_name
+        next false if command_like_predicate?(predicate)
+
+        predicate.params.any? { |param| state_types.include?(param[:type]) }
+      end
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[String]
+    def related_property_predicates_for(predicate_name)
+      related_property_predicates(predicate_name).map(&:name)
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Array[Symbol]
+    def related_property_predicate_pattern_hints(predicate_name)
+      related_property_predicates(predicate_name)
+        .flat_map { |predicate| PropertyPattern.detect(predicate.name, predicate.body) }
+        .uniq
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: Array[String]
+    def state_param_types_for(predicate)
+      primed_state_types = [] #: Array[String]
+      params_by_name = predicate.params.to_h { |param| [param[:name], param] }
+
+      predicate.params.each do |param|
+        name = param[:name]
+        next unless name.end_with?("'")
+
+        base_name = name.delete_suffix("'")
+        base_param = params_by_name[base_name]
+        next unless base_param
+        next unless base_param[:type] == param[:type]
+
+        primed_state_types << param[:type]
+      end
+
+      if primed_state_types.empty? && state_signature_name
+        [state_signature_name]
+      else
+        primed_state_types.uniq
+      end
     end
 
     # @rbs body: String

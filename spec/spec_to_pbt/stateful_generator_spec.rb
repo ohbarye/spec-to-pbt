@@ -63,6 +63,16 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("# Related Alloy assertions: StackProperties")
         expect(code).to include("# Assertion/fact pattern hints: empty")
       end
+
+      it "adds sibling property predicate hints for the same state domain" do
+        code = generator.generate
+
+        expect(code).to include("# Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO")
+        expect(code).to include("# Related property predicate pattern hints:")
+        expect(code).to include("roundtrip")
+        expect(code).to include("empty")
+        expect(code).to include("ordering")
+      end
     end
 
     context "with queue spec" do
@@ -79,6 +89,10 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).not_to include("class FIFOCommand")
         expect(code).to include("state.drop(1)")
         expect(code).to include("Expected dequeued value to match model")
+        expect(code).to include("# Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO")
+        expect(code).to include("# Related property predicate pattern hints:")
+        expect(code).to include("empty")
+        expect(code).to include("ordering")
       end
     end
 
