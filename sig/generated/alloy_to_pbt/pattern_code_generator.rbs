@@ -2,10 +2,9 @@
 
 module AlloyToPbt
   # Generates Ruby check code from detected property patterns
+  # Generic implementation - no special cases for specific data structures
   class PatternCodeGenerator
-    type context = { operation: String?, operations: Array[String]?, data_structure: Symbol?, invariant_check: String? }
-
-    # Pattern → check code generation logic
+    # Pattern → check code generation logic (generic templates)
     PATTERN_HANDLERS: Hash[Symbol, ^(Hash[Symbol, untyped]) -> String?]
 
     SUPPORTED_PATTERNS: Array[Symbol]

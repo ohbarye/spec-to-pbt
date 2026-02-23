@@ -13,7 +13,7 @@ RSpec.describe "sort" do
       Pbt.assert do
         Pbt.property(Pbt.array(Pbt.integer)) do |input|
           output = sort(input)
-          raise "Invariant failed" unless output.each_cons(2).all? { |a, b| a <= b }
+          raise "Invariant failed" unless invariant?(output)
           raise "Size failed" unless input.length == output.length
         end
       end
@@ -25,7 +25,7 @@ RSpec.describe "sort" do
       Pbt.assert do
         Pbt.property(Pbt.array(Pbt.integer)) do |input|
           output = sort(input)
-          raise "Invariant failed" unless output.each_cons(2).all? { |a, b| a <= b }
+          raise "Invariant failed" unless invariant?(output)
           raise "Size failed" unless input.length == output.length
         end
       end
@@ -44,10 +44,11 @@ RSpec.describe "sort" do
     it "satisfies the property" do
       Pbt.assert do
         Pbt.property(Pbt.array(Pbt.integer)) do |input|
+          result = sort(input)
+          twice = sort(result)
+          raise "Idempotent failed" unless result == twice
           output = sort(input)
-          twice = sort(output)
-          raise "Idempotent failed" unless output == twice
-          raise "Invariant failed" unless output.each_cons(2).all? { |a, b| a <= b }
+          raise "Invariant failed" unless invariant?(output)
         end
       end
     end

@@ -81,12 +81,14 @@ Alloy Spec (.als)
 
 ### Supported Patterns
 
-| Pattern | Description | Generated Check |
-|---------|-------------|-----------------|
-| `idempotent` | f(f(x)) == f(x) | `sort(sort(x)) == sort(x)` |
-| `size` | Length preservation | `input.length == output.length` |
-| `roundtrip` | Inverse operations | `push → pop → original` |
-| `invariant` | Output property | `output.each_cons(2).all? { \|a, b\| a <= b }` |
+The generator uses a **generic approach** - it uses the Alloy module name as the operation name in generated tests:
+
+| Pattern | Description | Generated Code (where `op` = module name) |
+|---------|-------------|-------------------------------------------|
+| `idempotent` | f(f(x)) == f(x) | `result = op(input); twice = op(result); result == twice` |
+| `size` | Length preservation | `output = op(input); input.length == output.length` |
+| `roundtrip` | Self-inverse | `result = op(input); restored = op(result); restored == input` |
+| `invariant` | Output property | `output = op(input); invariant?(output)` |
 
 Unsupported patterns (elements, empty, ordering, etc.) are output as comments with pending tests.
 

@@ -48,6 +48,7 @@ module AlloyToPbt
     def build_properties: () -> Array[property_data]
 
     # Infer Pbt generator code from predicate
+    # Always generates array type since patterns (size, roundtrip, etc.) expect collections
     # @rbs predicate: Predicate
     # @rbs return: String
     def infer_generator: (Predicate predicate) -> String
@@ -58,7 +59,7 @@ module AlloyToPbt
     # @rbs return: String?
     def generate_check_code: (Array[Symbol] patterns, Predicate predicate) -> String?
 
-    # Build context for pattern code generation
+    # Build context for pattern code generation (generic - uses module_name as operation)
     # @rbs predicate: Predicate
     # @rbs return: Hash[Symbol, untyped]
     def build_context: (Predicate predicate) -> Hash[Symbol, untyped]
