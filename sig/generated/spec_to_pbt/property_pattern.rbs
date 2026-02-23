@@ -1,6 +1,6 @@
-# Generated from lib/alloy_to_pbt/property_pattern.rb with RBS::Inline
+# Generated from lib/spec_to_pbt/property_pattern.rb with RBS::Inline
 
-module AlloyToPbt
+module SpecToPbt
   # Recognizes common property patterns in Alloy predicates
   class PropertyPattern
     # Pattern name to regex array mapping

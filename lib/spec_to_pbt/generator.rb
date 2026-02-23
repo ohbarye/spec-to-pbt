@@ -4,7 +4,7 @@
 
 require "erb"
 
-module AlloyToPbt
+module SpecToPbt
   # Property data for template rendering
   # @rbs name: String
   # @rbs check_code: String?

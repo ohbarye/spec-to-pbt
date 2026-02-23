@@ -1,4 +1,4 @@
-# spec-to-pbt (Ruby package name: `alloy_to_pbt`)
+# spec-to-pbt (Ruby package name: `spec_to_pbt`)
 
 A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on `pbt` stateful PBT scaffolding.
 
@@ -16,10 +16,10 @@ Auto-generate Property-Based Tests (PBT) from specifications to automate the "sp
 bundle install
 
 # Generate PBT from Alloy spec
-bin/alloy_to_pbt spec/fixtures/alloy/sort.als -o generated
+bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
 
 # Generate a stateful PBT scaffold (experimental)
-bin/alloy_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
+bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
 
 # Run generated tests (requires *_impl.rb file in same directory)
 bundle exec rspec generated/sort_pbt.rb

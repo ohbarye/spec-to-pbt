@@ -2,8 +2,8 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::TypeInferrer do
-  let(:spec) { AlloyToPbt::Spec.new(signatures: signatures) }
+RSpec.describe SpecToPbt::TypeInferrer do
+  let(:spec) { SpecToPbt::Spec.new(signatures: signatures) }
   let(:inferrer) { described_class.new(spec) }
 
   describe "#generator_for" do
@@ -42,13 +42,13 @@ RSpec.describe AlloyToPbt::TypeInferrer do
     context "with custom signatures" do
       let(:signatures) do
         [
-          AlloyToPbt::Signature.new(
+          SpecToPbt::Signature.new(
             name: "Element",
-            fields: [AlloyToPbt::Field.new(name: "value", type: "Int", multiplicity: "one")]
+            fields: [SpecToPbt::Field.new(name: "value", type: "Int", multiplicity: "one")]
           ),
-          AlloyToPbt::Signature.new(
+          SpecToPbt::Signature.new(
             name: "List",
-            fields: [AlloyToPbt::Field.new(name: "elements", type: "Element", multiplicity: "seq")]
+            fields: [SpecToPbt::Field.new(name: "elements", type: "Element", multiplicity: "seq")]
           )
         ]
       end
@@ -64,7 +64,7 @@ RSpec.describe AlloyToPbt::TypeInferrer do
 
     context "with empty signature fields" do
       let(:signatures) do
-        [AlloyToPbt::Signature.new(name: "Empty", fields: [])]
+        [SpecToPbt::Signature.new(name: "Empty", fields: [])]
       end
 
       it "returns Pbt.integer for sig with no fields" do

@@ -2,14 +2,14 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::StatefulGenerator do
+RSpec.describe SpecToPbt::StatefulGenerator do
   describe "#generate" do
     let(:generator) { described_class.new(spec) }
 
     context "with stack spec" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/stack.als", __dir__) }
       let(:source) { File.read(fixture_path) }
-      let(:spec) { AlloyToPbt::Parser.new.parse(source) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
       it "generates valid Ruby code" do
         code = generator.generate
@@ -61,7 +61,7 @@ RSpec.describe AlloyToPbt::StatefulGenerator do
     context "with queue spec" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/queue.als", __dir__) }
       let(:source) { File.read(fixture_path) }
-      let(:spec) { AlloyToPbt::Parser.new.parse(source) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
       it "extracts enqueue/dequeue commands and excludes ordering properties" do
         code = generator.generate
@@ -78,7 +78,7 @@ RSpec.describe AlloyToPbt::StatefulGenerator do
     context "with sort spec (no command-like predicates)" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/sort.als", __dir__) }
       let(:source) { File.read(fixture_path) }
-      let(:spec) { AlloyToPbt::Parser.new.parse(source) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
       it "emits a placeholder command scaffold" do
         code = generator.generate

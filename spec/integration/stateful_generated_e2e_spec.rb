@@ -6,7 +6,7 @@ require "open3"
 
 RSpec.describe "Stateful generated scaffold E2E" do
   let(:project_root) { File.expand_path("../..", __dir__) }
-  let(:cli_path) { File.join(project_root, "bin/alloy_to_pbt") }
+  let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp_stateful_e2e") }
   let(:pbt_lib_dir) { "/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib" }

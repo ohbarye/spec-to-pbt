@@ -1,7 +1,7 @@
-# Generated from lib/alloy_to_pbt.rb with RBS::Inline
+# Generated from lib/spec_to_pbt.rb with RBS::Inline
 
-module AlloyToPbt
-  # Base error class for AlloyToPbt
+module SpecToPbt
+  # Base error class for SpecToPbt
   class Error < StandardError
   end
 

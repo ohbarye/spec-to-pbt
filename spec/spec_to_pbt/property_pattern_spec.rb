@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::PropertyPattern do
+RSpec.describe SpecToPbt::PropertyPattern do
   describe ".detect" do
     it "detects roundtrip patterns" do
       patterns = described_class.detect("PushPopIdentity", "push then pop")

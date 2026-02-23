@@ -2,24 +2,24 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::Generator do
+RSpec.describe SpecToPbt::Generator do
   describe "#generate" do
     context "with sort spec (idempotent + invariant + size patterns)" do
       let(:spec) do
-        AlloyToPbt::Spec.new(
+        SpecToPbt::Spec.new(
           module_name: "sort",
           signatures: [
-            AlloyToPbt::Signature.new(name: "List", fields: [
-              AlloyToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
+            SpecToPbt::Signature.new(name: "List", fields: [
+              SpecToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
             ])
           ],
           predicates: [
-            AlloyToPbt::Predicate.new(
+            SpecToPbt::Predicate.new(
               name: "Sorted",
               params: [{ name: "l", type: "List" }],
               body: "all i: sorted"
             ),
-            AlloyToPbt::Predicate.new(
+            SpecToPbt::Predicate.new(
               name: "Idempotent",
               params: [{ name: "l", type: "List" }],
               body: "sort(sort(l)) = sort(l)"
@@ -67,20 +67,20 @@ RSpec.describe AlloyToPbt::Generator do
 
     context "with stack spec (size + roundtrip patterns)" do
       let(:spec) do
-        AlloyToPbt::Spec.new(
+        SpecToPbt::Spec.new(
           module_name: "stack",
           signatures: [
-            AlloyToPbt::Signature.new(name: "Stack", fields: [
-              AlloyToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
+            SpecToPbt::Signature.new(name: "Stack", fields: [
+              SpecToPbt::Field.new(name: "elements", type: "Int", multiplicity: "seq")
             ])
           ],
           predicates: [
-            AlloyToPbt::Predicate.new(
+            SpecToPbt::Predicate.new(
               name: "PushAddsElement",
               params: [{ name: "s", type: "Stack" }],
               body: "#stack' = add[#stack, 1]"
             ),
-            AlloyToPbt::Predicate.new(
+            SpecToPbt::Predicate.new(
               name: "PushPopIdentity",
               params: [{ name: "s", type: "Stack" }],
               body: "push then pop returns original"
@@ -108,10 +108,10 @@ RSpec.describe AlloyToPbt::Generator do
 
     context "with unsupported patterns" do
       let(:spec) do
-        AlloyToPbt::Spec.new(
+        SpecToPbt::Spec.new(
           module_name: "custom",
           predicates: [
-            AlloyToPbt::Predicate.new(
+            SpecToPbt::Predicate.new(
               name: "SameElements",
               body: "elems = elems (elements pattern)"
             )
@@ -138,10 +138,10 @@ RSpec.describe AlloyToPbt::Generator do
 
     context "with no patterns detected" do
       let(:spec) do
-        AlloyToPbt::Spec.new(
+        SpecToPbt::Spec.new(
           module_name: "empty",
           predicates: [
-            AlloyToPbt::Predicate.new(name: "Unknown", body: "xyz abc")
+            SpecToPbt::Predicate.new(name: "Unknown", body: "xyz abc")
           ]
         )
       end
@@ -161,11 +161,11 @@ RSpec.describe AlloyToPbt::Generator do
 
   describe "#analyze" do
     let(:spec) do
-      AlloyToPbt::Spec.new(
+      SpecToPbt::Spec.new(
         module_name: "test",
         predicates: [
-          AlloyToPbt::Predicate.new(name: "Sorted", body: "ordered elements"),
-          AlloyToPbt::Predicate.new(name: "LIFO", body: "last in first out")
+          SpecToPbt::Predicate.new(name: "Sorted", body: "ordered elements"),
+          SpecToPbt::Predicate.new(name: "LIFO", body: "last in first out")
         ]
       )
     end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../lib/alloy_to_pbt"
+require_relative "../lib/spec_to_pbt"
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|

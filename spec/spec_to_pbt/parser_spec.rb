@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::Parser do
+RSpec.describe SpecToPbt::Parser do
   let(:parser) { described_class.new }
 
   describe "#parse" do

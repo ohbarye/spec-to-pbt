@@ -2,7 +2,7 @@
 
 # rbs_inline: enabled
 
-module AlloyToPbt
+module SpecToPbt
   # Infers Pbt generator code from Alloy signature definitions
   class TypeInferrer
     # Multiplicity to collection type mapping

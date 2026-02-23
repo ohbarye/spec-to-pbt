@@ -3,12 +3,12 @@
 
 require "optparse"
 require "fileutils"
-require_relative "../lib/alloy_to_pbt"
+require_relative "../lib/spec_to_pbt"
 
 options = { output_dir: "generated" }
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: alloy_to_pbt INPUT.als [options]"
+  opts.banner = "Usage: spec_to_pbt INPUT.als [options]"
 
   opts.on("-o", "--output DIR", "Output directory (default: generated)") do |v|
     options[:output_dir] = v
@@ -24,14 +24,14 @@ OptionParser.new do |opts|
   end
 
   opts.on("-v", "--version", "Show version") do
-    puts "alloy_to_pbt #{AlloyToPbt::VERSION}"
+    puts "spec_to_pbt #{SpecToPbt::VERSION}"
     exit
   end
 end.parse!
 
 if ARGV.empty?
   warn "Error: No input file specified"
-  warn "Usage: alloy_to_pbt INPUT.als [options]"
+  warn "Usage: spec_to_pbt INPUT.als [options]"
   exit 1
 end
 
@@ -44,14 +44,14 @@ end
 
 # Parse the Alloy specification
 source = File.read(input_file)
-parser = AlloyToPbt::Parser.new
+parser = SpecToPbt::Parser.new
 spec = parser.parse(source)
 
 # Generate PBT code
 generator = if options[:stateful]
-  AlloyToPbt::StatefulGenerator.new(spec)
+  SpecToPbt::StatefulGenerator.new(spec)
 else
-  AlloyToPbt::Generator.new(spec)
+  SpecToPbt::Generator.new(spec)
 end
 pbt_code = generator.generate
 

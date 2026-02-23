@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-alloy_to_pbt is a tool that generates Ruby Property-Based Tests from Alloy specifications. It parses .als files (Alloy specification language) and outputs Ruby test code compatible with the pbt gem.
+spec_to_pbt is a tool that generates Ruby Property-Based Tests from Alloy specifications. It parses .als files (Alloy specification language) and outputs Ruby test code compatible with the pbt gem.
 
 The generator uses a **pattern-based unified approach** - instead of domain-specific templates, it detects property patterns and dynamically generates check code.
 
@@ -18,14 +18,14 @@ bundle install
 bundle exec rspec
 
 # Run a single test file
-bundle exec rspec spec/alloy_to_pbt/parser_spec.rb
+bundle exec rspec spec/spec_to_pbt/parser_spec.rb
 
 # Run a specific test (by line number)
-bundle exec rspec spec/alloy_to_pbt/parser_spec.rb:14
+bundle exec rspec spec/spec_to_pbt/parser_spec.rb:14
 
 # Generate PBT from Alloy spec
-bin/alloy_to_pbt spec/fixtures/alloy/sort.als
-bin/alloy_to_pbt spec/fixtures/alloy/stack.als -o output_dir
+bin/spec_to_pbt spec/fixtures/alloy/sort.als
+bin/spec_to_pbt spec/fixtures/alloy/stack.als -o output_dir
 
 # Run generated tests (requires *_impl.rb file)
 bundle exec rspec generated/sort_pbt.rb
@@ -61,15 +61,15 @@ Alloy Spec (.als)
 
 ### Core Components
 
-1. **Parser** (`lib/alloy_to_pbt/parser.rb`): Parses Alloy .als files using regex patterns. Outputs a `Spec` data structure containing signatures, predicates, assertions, and facts.
+1. **Parser** (`lib/spec_to_pbt/parser.rb`): Parses Alloy .als files using regex patterns. Outputs a `Spec` data structure containing signatures, predicates, assertions, and facts.
 
-2. **PropertyPattern** (`lib/alloy_to_pbt/property_pattern.rb`): Detects common property patterns from predicate names and bodies using regex matching.
+2. **PropertyPattern** (`lib/spec_to_pbt/property_pattern.rb`): Detects common property patterns from predicate names and bodies using regex matching.
 
-3. **TypeInferrer** (`lib/alloy_to_pbt/type_inferrer.rb`): Infers Pbt generator code from Alloy sig definitions (e.g., `seq Element` → `Pbt.array(Pbt.integer)`).
+3. **TypeInferrer** (`lib/spec_to_pbt/type_inferrer.rb`): Infers Pbt generator code from Alloy sig definitions (e.g., `seq Element` → `Pbt.array(Pbt.integer)`).
 
-4. **PatternCodeGenerator** (`lib/alloy_to_pbt/pattern_code_generator.rb`): Maps detected patterns to Ruby check code (e.g., `:idempotent` → `sort(sort(x)) == sort(x)`).
+4. **PatternCodeGenerator** (`lib/spec_to_pbt/pattern_code_generator.rb`): Maps detected patterns to Ruby check code (e.g., `:idempotent` → `sort(sort(x)) == sort(x)`).
 
-5. **Generator** (`lib/alloy_to_pbt/generator.rb`): Orchestrates the pipeline and renders Ruby PBT code using `unified.erb`.
+5. **Generator** (`lib/spec_to_pbt/generator.rb`): Orchestrates the pipeline and renders Ruby PBT code using `unified.erb`.
 
 ### Data Structures (parser.rb)
 

@@ -1,6 +1,6 @@
-# Generated from lib/alloy_to_pbt/generator.rb with RBS::Inline
+# Generated from lib/spec_to_pbt/generator.rb with RBS::Inline
 
-module AlloyToPbt
+module SpecToPbt
   # Property data for template rendering
   # @rbs name: String
   # @rbs check_code: String?

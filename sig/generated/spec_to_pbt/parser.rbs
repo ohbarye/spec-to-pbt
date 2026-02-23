@@ -1,6 +1,6 @@
-# Generated from lib/alloy_to_pbt/parser.rb with RBS::Inline
+# Generated from lib/spec_to_pbt/parser.rb with RBS::Inline
 
-module AlloyToPbt
+module SpecToPbt
   # Represents an Alloy signature field
   # @rbs name: String
   # @rbs type: String

@@ -1,5 +1,0 @@
-# Generated from lib/alloy_to_pbt/version.rb with RBS::Inline
-
-module AlloyToPbt
-  VERSION: String
-end

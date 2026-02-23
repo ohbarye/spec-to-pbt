@@ -2,7 +2,7 @@
 
 # rbs_inline: enabled
 
-module AlloyToPbt
+module SpecToPbt
   # Represents an Alloy signature field
   # @rbs name: String
   # @rbs type: String

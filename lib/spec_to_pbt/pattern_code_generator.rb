@@ -2,7 +2,7 @@
 
 # rbs_inline: enabled
 
-module AlloyToPbt
+module SpecToPbt
   # Generates Ruby check code from detected property patterns
   # Generic implementation - no special cases for specific data structures
   class PatternCodeGenerator

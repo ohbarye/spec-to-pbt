@@ -1,6 +1,6 @@
-# Generated from lib/alloy_to_pbt/type_inferrer.rb with RBS::Inline
+# Generated from lib/spec_to_pbt/type_inferrer.rb with RBS::Inline
 
-module AlloyToPbt
+module SpecToPbt
   # Infers Pbt generator code from Alloy signature definitions
   class TypeInferrer
     # Multiplicity to collection type mapping

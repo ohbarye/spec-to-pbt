@@ -1,0 +1,5 @@
+# Generated from lib/spec_to_pbt/version.rb with RBS::Inline
+
+module SpecToPbt
+  VERSION: String
+end

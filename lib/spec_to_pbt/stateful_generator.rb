@@ -2,7 +2,7 @@
 
 # rbs_inline: enabled
 
-module AlloyToPbt
+module SpecToPbt
   # Generates a stateful PBT scaffold that targets `Pbt.stateful`.
   # This is intentionally a scaffold (not a complete translator): it emits
   # a runnable skeleton with TODO placeholders for model transitions and SUT wiring.

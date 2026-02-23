@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe AlloyToPbt::PatternCodeGenerator do
+RSpec.describe SpecToPbt::PatternCodeGenerator do
   describe ".supported?" do
     it "returns true for idempotent" do
       expect(described_class.supported?(:idempotent)).to be true

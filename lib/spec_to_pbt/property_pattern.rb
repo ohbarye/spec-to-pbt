@@ -2,7 +2,7 @@
 
 # rbs_inline: enabled
 
-module AlloyToPbt
+module SpecToPbt
   # Recognizes common property patterns in Alloy predicates
   class PropertyPattern
     # Pattern name to regex array mapping
