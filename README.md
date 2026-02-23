@@ -1,13 +1,14 @@
-# alloy_to_pbt
+# alloy_to_pbt (planned rename: `spec-to-pbt`)
 
-A PoC tool that generates Ruby Property-Based Tests from Alloy specifications.
+A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on `pbt` stateful PBT scaffolding.
 
 ## Concept
 
-Auto-generate Property-Based Tests (PBT) from formal method specifications to automate the "spec -> implementation -> test" loop.
+Auto-generate Property-Based Tests (PBT) from specifications to automate the "spec -> implementation -> test" loop.
 
-- Input: Alloy specification (.als)
-- Output: Ruby test code compatible with [pbt gem](https://github.com/ohbarye/pbt) (.rb)
+- Input (current): Alloy specification (`.als`)
+- Output: Ruby test code compatible with [pbt gem](https://github.com/ohbarye/pbt) (`.rb`)
+- Direction: evolve from `Alloy -> PBT` into a broader `spec -> pbt` experiment space
 
 ## Usage
 
@@ -16,6 +17,9 @@ bundle install
 
 # Generate PBT from Alloy spec
 bin/alloy_to_pbt spec/fixtures/alloy/sort.als -o generated
+
+# Generate a stateful PBT scaffold (experimental)
+bin/alloy_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
 
 # Run generated tests (requires *_impl.rb file in same directory)
 bundle exec rspec generated/sort_pbt.rb
@@ -83,7 +87,7 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 
 ### Code Generation
 - Module name is used as the operation name (generic approach)
-- No support for stateful test sequences (only single-operation tests)
+- `--stateful` generation is a scaffold (heuristic command extraction + TODOs), not a semantics-preserving translator
 - No generation of counterexample shrinking hints
 - Generated code requires manual `*_impl.rb` file with `invariant?` helper
 - Input type is always `Array[Integer]` for pattern compatibility
