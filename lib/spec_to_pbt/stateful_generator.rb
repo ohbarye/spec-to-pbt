@@ -196,6 +196,7 @@ module SpecToPbt
     def command_class_lines(predicate)
       class_name = "#{camelize(predicate.name)}Command"
       method_name = method_name_for(predicate)
+      analysis = predicate_analysis(predicate)
       behavior = command_behavior(predicate)
       body_preview = predicate.body.lines.map(&:strip).reject(&:empty?).join(" ")
 
@@ -211,7 +212,7 @@ module SpecToPbt
         "",
         *applicable_lines(behavior, method_name),
         "",
-        *next_state_lines(behavior),
+        *next_state_lines(behavior, analysis),
         "",
         *run_lines(method_name),
         "",
@@ -273,8 +274,9 @@ module SpecToPbt
     end
 
     # @rbs behavior: Symbol
+    # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
-    def next_state_lines(behavior)
+    def next_state_lines(behavior, analysis)
       case behavior
       when :append
         [
@@ -292,6 +294,12 @@ module SpecToPbt
         [
           "    def next_state(state, _args)",
           "      state.drop(1)",
+          "    end"
+        ]
+      when :size_no_change
+        [
+          "    def next_state(state, _args)",
+          "      state # inferred size-preserving transition (customize shape change if needed)",
           "    end"
         ]
       else
@@ -355,6 +363,12 @@ module SpecToPbt
         lines << "      # Related property predicate pattern hints: #{related_property_predicate_hints.map(&:to_s).join(', ')}"
       end
 
+      if analysis && analysis.size_delta == 0
+        lines.concat([
+          "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length"
+        ])
+      end
+
       case behavior
       when :append
         lines.concat([
@@ -362,14 +376,16 @@ module SpecToPbt
           "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
         ])
       when :pop
+        expected_expr = expected_result_expr_for(analysis, fallback: "before_state.last")
         lines.concat([
-          "      expected = before_state.last",
+          "      expected = #{expected_expr}",
           "      raise \"Expected popped value to match model\" unless result == expected",
           "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
         ])
       when :dequeue
+        expected_expr = expected_result_expr_for(analysis, fallback: "before_state.first")
         lines.concat([
-          "      expected = before_state.first",
+          "      expected = #{expected_expr}",
           "      raise \"Expected dequeued value to match model\" unless result == expected",
           "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
         ])
@@ -424,7 +440,9 @@ module SpecToPbt
       command_pred = @spec.predicates.find { |predicate| predicate.name == predicate_name }
       return [] unless command_pred
 
-      state_types = state_param_types_for(command_pred)
+      analysis = predicate_analysis(command_pred)
+      state_types = [analysis.state_type].compact
+      state_types = state_param_types_for(command_pred) if state_types.empty?
       return [] if state_types.empty?
 
       @spec.predicates.select do |predicate|
@@ -492,6 +510,19 @@ module SpecToPbt
         [state_signature_name]
       else
         primed_state_types.uniq
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs fallback: String
+    # @rbs return: String
+    def expected_result_expr_for(analysis, fallback:)
+      return fallback unless analysis
+
+      case analysis.result_position
+      when :first then "before_state.first"
+      when :last then "before_state.last"
+      else fallback
       end
     end
 

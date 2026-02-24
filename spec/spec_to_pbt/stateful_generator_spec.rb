@@ -161,5 +161,30 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("# Related Alloy facts: LedgerInvariant")
       end
     end
+
+    context "with a size-preserving command-like transition" do
+      let(:source) do
+        <<~ALLOY
+          module cache
+
+          sig Cache {
+            entries: seq Int
+          }
+
+          pred Rewrite[c, c': Cache] {
+            #c'.entries = #c.entries
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "emits analyzer hints and a generic size-preserving verify scaffold" do
+        code = generator.generate
+
+        expect(code).to include('transition_kind=:size_no_change')
+        expect(code).to include('state_field="entries"')
+        expect(code).to include("Expected size to stay the same")
+      end
+    end
   end
 end

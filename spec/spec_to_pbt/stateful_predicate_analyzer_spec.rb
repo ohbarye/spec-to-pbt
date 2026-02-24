@@ -33,6 +33,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.requires_non_empty_state).to be(true)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:pop)
+        expect(result.result_position).to eq(:last)
       end
     end
 
@@ -60,6 +61,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.requires_non_empty_state).to be(true)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:dequeue)
+        expect(result.result_position).to eq(:first)
       end
     end
 
@@ -110,6 +112,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.size_delta).to eq(0)
         expect(result.state_field).to eq("entries")
         expect(result.transition_kind).to eq(:size_no_change)
+        expect(result.result_position).to be_nil
       end
     end
   end

@@ -11,7 +11,8 @@ module SpecToPbt
     :state_field,
     :size_delta,
     :requires_non_empty_state,
-    :transition_kind
+    :transition_kind,
+    :result_position
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
@@ -21,8 +22,9 @@ module SpecToPbt
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
     # @rbs transition_kind: Symbol?
+    # @rbs result_position: Symbol?
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -50,6 +52,8 @@ module SpecToPbt
       size_delta = infer_size_delta(predicate.body)
       requires_non_empty_state = requires_non_empty_state?(predicate.body)
 
+      transition_kind = infer_transition_kind(predicate.name, size_delta, requires_non_empty_state)
+
       StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
         state_param_names:,
@@ -58,7 +62,8 @@ module SpecToPbt
         state_field:,
         size_delta:,
         requires_non_empty_state:,
-        transition_kind: infer_transition_kind(predicate.name, size_delta, requires_non_empty_state)
+        transition_kind:,
+        result_position: infer_result_position(predicate.name, transition_kind)
       )
     end
 
@@ -124,6 +129,18 @@ module SpecToPbt
       return :dequeue if size_delta == -1 && predicate_name.match?(/\ADequeue/i)
       return :pop if size_delta == -1 && requires_non_empty_state
       return :size_no_change if size_delta == 0
+
+      nil
+    end
+
+    # @rbs predicate_name: String
+    # @rbs transition_kind: Symbol?
+    # @rbs return: Symbol?
+    def infer_result_position(predicate_name, transition_kind)
+      return :first if transition_kind == :dequeue
+      return :last if transition_kind == :pop
+      return :first if predicate_name.match?(/\A(?:Shift|Dequeue)/i)
+      return :last if predicate_name.match?(/\A(?:Pop|Remove|Delete|Get)/i)
 
       nil
     end
