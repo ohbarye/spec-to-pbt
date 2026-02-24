@@ -15,6 +15,7 @@ module SpecToPbt
     def initialize(spec)
       @spec = spec #: Spec
       @type_inferrer = TypeInferrer.new(spec) #: TypeInferrer
+      @predicate_analyzer = StatefulPredicateAnalyzer.new(spec) #: StatefulPredicateAnalyzer
     end
 
     # @rbs return: String
@@ -146,41 +147,7 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: Array[Hash[Symbol, String]]
     def argument_params(predicate)
-      state_param_names = inferred_state_param_names(predicate)
-      params = predicate.params.reject do |param|
-        signature_names.include?(param[:name]) || state_param_names.include?(param[:name])
-      end
-
-      state_sig = state_signature_name
-      if state_sig
-        params = params.reject { |param| param[:type] == state_sig }
-      end
-
-      params
-    end
-
-    # Infer state variables from primed/unprimed parameter pairs (e.g. s, s')
-    # in addition to the module-name-based state signature heuristic.
-    # @rbs predicate: Predicate
-    # @rbs return: Array[String]
-    def inferred_state_param_names(predicate)
-      names = [] #: Array[String]
-      params_by_name = predicate.params.to_h { |param| [param[:name], param] }
-
-      predicate.params.each do |param|
-        name = param[:name]
-        next unless name.end_with?("'")
-
-        base_name = name.delete_suffix("'")
-        base_param = params_by_name[base_name]
-        next unless base_param
-        next unless base_param[:type] == param[:type]
-
-        names << base_name
-        names << name
-      end
-
-      names
+      predicate_analysis(predicate).argument_params
     end
 
     # @rbs predicate: Predicate
@@ -286,8 +253,8 @@ module SpecToPbt
     # @rbs method_name: String
     # @rbs return: Array[String]
     def applicable_lines(behavior, method_name)
-      case behavior
-      when :pop, :dequeue
+      analysis = predicate_analysis_by_method_name(method_name)
+      if analysis&.requires_non_empty_state || [:pop, :dequeue].include?(behavior)
         [
           "    def applicable?(state)",
           "      !state.empty? # inferred precondition for #{method_name}",
@@ -354,6 +321,7 @@ module SpecToPbt
     # @rbs body_preview: String
     # @rbs return: Array[String]
     def verify_lines(behavior, predicate_name, body_preview)
+      analysis = predicate_analysis_by_name(predicate_name)
       related_assertions = related_assertions_for(predicate_name)
       related_facts = related_facts_for(predicate_name)
       assertion_fact_hints = assertion_fact_pattern_hints(predicate_name)
@@ -365,6 +333,9 @@ module SpecToPbt
         "      # TODO: translate predicate semantics into postcondition checks",
         "      # Alloy predicate body (preview): #{body_preview.inspect}"
       ]
+      if analysis
+        lines << "      # Analyzer hints: size_delta=#{analysis.size_delta.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}"
+      end
       if related_assertions.any?
         lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"
       end
@@ -459,6 +430,27 @@ module SpecToPbt
 
         predicate.params.any? { |param| state_types.include?(param[:type]) }
       end
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: StatefulPredicateAnalysis
+    def predicate_analysis(predicate)
+      @predicate_analyses ||= {} #: Hash[String, StatefulPredicateAnalysis]
+      @predicate_analyses[predicate.name] ||= @predicate_analyzer.analyze(predicate)
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: StatefulPredicateAnalysis?
+    def predicate_analysis_by_name(predicate_name)
+      predicate = @spec.predicates.find { |item| item.name == predicate_name }
+      predicate ? predicate_analysis(predicate) : nil
+    end
+
+    # @rbs method_name: String
+    # @rbs return: StatefulPredicateAnalysis?
+    def predicate_analysis_by_method_name(method_name)
+      predicate = @spec.predicates.find { |item| underscore(item.name) == method_name }
+      predicate ? predicate_analysis(predicate) : nil
     end
 
     # @rbs predicate_name: String

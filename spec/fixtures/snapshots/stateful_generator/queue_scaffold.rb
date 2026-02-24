@@ -66,6 +66,7 @@ RSpec.describe "queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q'.elements = add[#q.elements, 1]"
+      # Analyzer hints: size_delta=1, requires_non_empty_state=false
       # Related Alloy assertions: QueueProperties
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
@@ -106,6 +107,7 @@ RSpec.describe "queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q.elements > 0 implies #q'.elements = sub[#q.elements, 1]"
+      # Analyzer hints: size_delta=-1, requires_non_empty_state=true
       # Related Alloy assertions: QueueProperties
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO

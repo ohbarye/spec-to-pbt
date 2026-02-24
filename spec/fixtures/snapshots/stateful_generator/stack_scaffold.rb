@@ -66,6 +66,7 @@ RSpec.describe "stack (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#s'.elements = add[#s.elements, 1]"
+      # Analyzer hints: size_delta=1, requires_non_empty_state=false
       # Related Alloy assertions: StackProperties
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
@@ -106,6 +107,7 @@ RSpec.describe "stack (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#s.elements > 0 implies #s'.elements = sub[#s.elements, 1]"
+      # Analyzer hints: size_delta=-1, requires_non_empty_state=true
       # Related Alloy assertions: StackProperties
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO

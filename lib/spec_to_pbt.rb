@@ -8,6 +8,7 @@ require_relative "spec_to_pbt/property_pattern"
 require_relative "spec_to_pbt/type_inferrer"
 require_relative "spec_to_pbt/pattern_code_generator"
 require_relative "spec_to_pbt/generator"
+require_relative "spec_to_pbt/stateful_predicate_analyzer"
 require_relative "spec_to_pbt/stateful_generator"
 
 module SpecToPbt
