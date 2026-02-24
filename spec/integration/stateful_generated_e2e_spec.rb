@@ -9,7 +9,8 @@ RSpec.describe "Stateful generated scaffold E2E" do
   let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp_stateful_e2e") }
-  let(:pbt_lib_dir) { "/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib" }
+  let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", "/Users/ohbarye/ghq/github.com/ohbarye/pbt") }
+  let(:pbt_lib_dir) { File.join(pbt_repo_dir, "lib") }
 
   before do
     FileUtils.mkdir_p(output_dir)
@@ -20,6 +21,20 @@ RSpec.describe "Stateful generated scaffold E2E" do
   end
 
   it "runs a generated stateful scaffold through Pbt.assert using a local pbt checkout" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    branch_stdout, branch_stderr, branch_status = Open3.capture3("git", "rev-parse", "--abbrev-ref", "HEAD", chdir: pbt_repo_dir)
+    expect(branch_status.success?).to be(true), "Failed to inspect pbt branch: #{branch_stderr}"
+
+    current_branch = branch_stdout.strip
+    expect(current_branch).to eq("main"), <<~MSG
+      Stateful E2E expects pbt main branch.
+      pbt repo: #{pbt_repo_dir}
+      current branch: #{current_branch}
+    MSG
+
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"
