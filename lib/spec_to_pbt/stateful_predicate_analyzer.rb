@@ -8,17 +8,21 @@ module SpecToPbt
     :state_param_names,
     :state_type,
     :argument_params,
+    :state_field,
     :size_delta,
-    :requires_non_empty_state
+    :requires_non_empty_state,
+    :transition_kind
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
     # @rbs state_type: String?
     # @rbs argument_params: Array[Hash[Symbol, String]]
+    # @rbs state_field: String?
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
+    # @rbs transition_kind: Symbol?
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], size_delta: nil, requires_non_empty_state: false) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -42,13 +46,19 @@ module SpecToPbt
         argument_params = argument_params.reject { |param| param[:type] == state_type && state_param_names.include?(param[:name]) }
       end
 
+      state_field = infer_state_field(predicate.body, state_param_names)
+      size_delta = infer_size_delta(predicate.body)
+      requires_non_empty_state = requires_non_empty_state?(predicate.body)
+
       StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
         state_param_names:,
         state_type:,
         argument_params:,
-        size_delta: infer_size_delta(predicate.body),
-        requires_non_empty_state: requires_non_empty_state?(predicate.body)
+        state_field:,
+        size_delta:,
+        requires_non_empty_state:,
+        transition_kind: infer_transition_kind(predicate.name, size_delta, requires_non_empty_state)
       )
     end
 
@@ -87,9 +97,35 @@ module SpecToPbt
     end
 
     # @rbs body: String
+    # @rbs state_param_names: Array[String]
+    # @rbs return: String?
+    def infer_state_field(body, state_param_names)
+      state_param_names.each do |param_name|
+        match = body.match(/##{Regexp.escape(param_name)}\.(\w+)/)
+        return match[1] if match
+      end
+
+      match = body.match(/#\w+'?\.(\w+)/)
+      match && match[1]
+    end
+
+    # @rbs body: String
     # @rbs return: bool
     def requires_non_empty_state?(body)
       body.match?(/#\w+\.?\w*\s*>\s*0/)
+    end
+
+    # @rbs predicate_name: String
+    # @rbs size_delta: Integer?
+    # @rbs requires_non_empty_state: bool
+    # @rbs return: Symbol?
+    def infer_transition_kind(predicate_name, size_delta, requires_non_empty_state)
+      return :append if size_delta == 1
+      return :dequeue if size_delta == -1 && predicate_name.match?(/\ADequeue/i)
+      return :pop if size_delta == -1 && requires_non_empty_state
+      return :size_no_change if size_delta == 0
+
+      nil
     end
 
     # @rbs value: String

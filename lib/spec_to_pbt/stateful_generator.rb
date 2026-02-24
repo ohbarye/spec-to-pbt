@@ -174,6 +174,9 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: Symbol
     def command_behavior(predicate)
+      analysis = predicate_analysis(predicate)
+      return analysis.transition_kind if analysis.transition_kind
+
       name = predicate.name
       return :append if name.match?(/\A(?:Push|Enqueue|Add|Insert|Put)/)
       return :dequeue if name.match?(/\ADequeue/)
@@ -334,7 +337,7 @@ module SpecToPbt
         "      # Alloy predicate body (preview): #{body_preview.inspect}"
       ]
       if analysis
-        lines << "      # Analyzer hints: size_delta=#{analysis.size_delta.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}"
+        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}"
       end
       if related_assertions.any?
         lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"

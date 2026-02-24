@@ -19,6 +19,8 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.argument_params).to eq([{ name: "e", type: "Element" }])
         expect(result.size_delta).to eq(1)
         expect(result.requires_non_empty_state).to be(false)
+        expect(result.state_field).to eq("elements")
+        expect(result.transition_kind).to eq(:append)
       end
 
       it "extracts non-empty guard and -1 size delta for pop" do
@@ -29,6 +31,8 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.argument_params).to eq([])
         expect(result.size_delta).to eq(-1)
         expect(result.requires_non_empty_state).to be(true)
+        expect(result.state_field).to eq("elements")
+        expect(result.transition_kind).to eq(:pop)
       end
     end
 
@@ -44,6 +48,18 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_type).to eq("Queue")
         expect(result.argument_params).to eq([{ name: "e", type: "Element" }])
         expect(result.size_delta).to eq(1)
+        expect(result.state_field).to eq("elements")
+        expect(result.transition_kind).to eq(:append)
+      end
+
+      it "recognizes dequeue-like removal" do
+        predicate = spec.predicates.find { |p| p.name == "Dequeue" }
+        result = analyzer.analyze(predicate)
+
+        expect(result.size_delta).to eq(-1)
+        expect(result.requires_non_empty_state).to be(true)
+        expect(result.state_field).to eq("elements")
+        expect(result.transition_kind).to eq(:dequeue)
       end
     end
 
@@ -69,6 +85,31 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_param_names).to eq(["m", "m'"])
         expect(result.state_type).to eq("Machine")
         expect(result.argument_params).to eq([{ name: "t", type: "Token" }])
+        expect(result.state_field).to eq("value")
+        expect(result.transition_kind).to eq(:append)
+      end
+    end
+
+    context "with size-preserving transition body" do
+      let(:source) do
+        <<~ALLOY
+          module cache
+
+          sig Cache { entries: seq Int }
+
+          pred Rewrite[c, c': Cache] {
+            #c'.entries = #c.entries
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "recognizes size_no_change transition hints" do
+        result = analyzer.analyze(spec.predicates.first)
+
+        expect(result.size_delta).to eq(0)
+        expect(result.state_field).to eq("entries")
+        expect(result.transition_kind).to eq(:size_no_change)
       end
     end
   end
