@@ -72,6 +72,7 @@ RSpec.describe "workflow (stateful scaffold)" do
       # 3. Related property predicates
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Machine#value
+      # TODO: verify incremented value for Machine#value
       [sut, args] && nil
     end
   end

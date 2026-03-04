@@ -241,6 +241,60 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include('scalar_update_kind=:replace_like')
         expect(code).to include("TODO: replace Thermostat#target using args/result")
+        expect(code).to include("TODO: verify replaced value for Thermostat#target")
+      end
+    end
+
+    context "with a decrement-like scalar state update" do
+      let(:source) do
+        <<~ALLOY
+          module counter
+
+          sig Counter {
+            value: one Int
+          }
+
+          pred Dec[c, c': Counter] {
+            #c'.value = sub[#c.value, 1]
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "emits decrement-oriented scalar guidance" do
+        code = generator.generate
+
+        expect(code).to include('scalar_update_kind=:decrement_like')
+        expect(code).to include("TODO: decrease Counter#value based on args/result")
+        expect(code).to include("TODO: verify decremented value for Counter#value")
+      end
+    end
+
+    context "with transition-like predicates whose names are not strong verbs" do
+      let(:source) do
+        <<~ALLOY
+          module ledger
+
+          sig Ledger {
+            entries: seq Int
+          }
+
+          pred Advance[l, l': Ledger, e: Int] {
+            #l'.entries = add[#l.entries, 1]
+          }
+
+          pred Stable[l, l': Ledger] {
+            #l'.entries = #l.entries
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "treats transition-like predicates as commands even without classic verb prefixes" do
+        code = generator.generate
+
+        expect(code).to include("class AdvanceCommand")
+        expect(code).to include("class StableCommand")
       end
     end
 

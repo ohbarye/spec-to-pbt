@@ -128,9 +128,11 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: bool
     def command_like_predicate?(predicate)
+      analysis = predicate_analysis(predicate)
       patterns = PropertyPattern.detect(predicate.name, predicate.body)
       return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
       return false if property_like_name?(predicate.name)
+      return true if transition_evidence?(analysis)
 
       verb_like_name?(predicate.name) || transition_like_body?(predicate.body)
     end
@@ -389,6 +391,7 @@ module SpecToPbt
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
         lines << "      # Inferred state target: #{state_target_label(analysis)}"
+        lines << "      # TODO: #{scalar_verify_guidance(analysis)}"
         lines << "      [sut, args] && nil"
         lines << "    end"
         return lines
@@ -605,6 +608,14 @@ module SpecToPbt
       "#{analysis.state_type}##{analysis.state_field}"
     end
 
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def transition_evidence?(analysis)
+      return false unless analysis
+
+      !analysis.transition_kind.nil? || !analysis.size_delta.nil? || analysis.requires_non_empty_state
+    end
+
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def scalar_update_guidance(analysis)
@@ -617,6 +628,23 @@ module SpecToPbt
         "decrease #{state_target_label(analysis)} based on args/result"
       else
         "update #{state_target_label(analysis)} based on args/result"
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: String
+    def scalar_verify_guidance(analysis)
+      return "verify scalar/domain-specific postconditions" unless analysis
+
+      case analysis.scalar_update_kind
+      when :replace_like
+        "verify replaced value for #{state_target_label(analysis)}"
+      when :increment_like
+        "verify incremented value for #{state_target_label(analysis)}"
+      when :decrement_like
+        "verify decremented value for #{state_target_label(analysis)}"
+      else
+        "verify scalar/domain-specific postconditions for #{state_target_label(analysis)}"
       end
     end
 
