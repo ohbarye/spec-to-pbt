@@ -300,24 +300,28 @@ module SpecToPbt
       when :append
         [
           "    def next_state(state, args)",
+          "      # Inferred transition target: #{state_target_label(analysis)}",
           "      state + [args]",
           "    end"
         ]
       when :pop
         [
           "    def next_state(state, _args)",
+          "      # Inferred transition target: #{state_target_label(analysis)}",
           "      state[0...-1]",
           "    end"
         ]
       when :dequeue
         [
           "    def next_state(state, _args)",
+          "      # Inferred transition target: #{state_target_label(analysis)}",
           "      state.drop(1)",
           "    end"
         ]
       when :size_no_change
         [
           "    def next_state(state, _args)",
+          "      # Inferred transition target: #{state_target_label(analysis)}",
           "      state # inferred size-preserving transition (customize shape change if needed)",
           "    end"
         ]
@@ -386,6 +390,8 @@ module SpecToPbt
         return lines
       end
 
+      lines << "      # Inferred collection target: #{state_target_label(analysis)}"
+
       if analysis && analysis.size_delta == 0
         lines.concat([
           "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length"
@@ -424,16 +430,22 @@ module SpecToPbt
     # @rbs predicate_name: String
     # @rbs return: Array[String]
     def related_assertions_for(predicate_name)
+      analysis = predicate_analysis_by_name(predicate_name)
       @spec.assertions.filter_map do |assertion|
-        references_predicate?(assertion.body, predicate_name) ? assertion.name : nil
+        next unless references_predicate?(assertion.body, predicate_name)
+        next unless related_text_matches_analysis?(assertion.body, analysis)
+
+        assertion.name
       end
     end
 
     # @rbs predicate_name: String
     # @rbs return: Array[String]
     def related_facts_for(predicate_name)
+      analysis = predicate_analysis_by_name(predicate_name)
       @spec.facts.filter_map do |fact|
         next unless references_predicate?(fact.body, predicate_name)
+        next unless related_text_matches_analysis?(fact.body, analysis)
 
         fact.name || "<anonymous fact>"
       end
@@ -442,13 +454,18 @@ module SpecToPbt
     # @rbs predicate_name: String
     # @rbs return: Array[Symbol]
     def assertion_fact_pattern_hints(predicate_name)
+      analysis = predicate_analysis_by_name(predicate_name)
       texts = [] #: Array[String]
 
       @spec.assertions.each do |assertion|
-        texts << "#{assertion.name} #{assertion.body}" if references_predicate?(assertion.body, predicate_name)
+        next unless references_predicate?(assertion.body, predicate_name)
+        next unless related_text_matches_analysis?(assertion.body, analysis)
+
+        texts << "#{assertion.name} #{assertion.body}"
       end
       @spec.facts.each do |fact|
         next unless references_predicate?(fact.body, predicate_name)
+        next unless related_text_matches_analysis?(fact.body, analysis)
 
         fact_name = fact.name || ""
         texts << "#{fact_name} #{fact.body}".strip
@@ -471,6 +488,7 @@ module SpecToPbt
       @spec.predicates.select do |predicate|
         next false if predicate.name == predicate_name
         next false if command_like_predicate?(predicate)
+        next false unless related_predicate_matches_analysis?(predicate, analysis)
 
         predicate.params.any? { |param| state_types.include?(param[:type]) }
       end
@@ -561,7 +579,7 @@ module SpecToPbt
     def generic_next_state_lines
       [
         "    def next_state(state, _args)",
-        "      state # TODO: model transition",
+        "      state # TODO: model transition (analyzer could not infer a collection-safe update)",
         "    end"
       ]
     end
@@ -573,6 +591,31 @@ module SpecToPbt
       return analysis.state_type.to_s if analysis.state_field.nil?
 
       "#{analysis.state_type}##{analysis.state_field}"
+    end
+
+    # @rbs text: String
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def related_text_matches_analysis?(text, analysis)
+      return true unless analysis
+
+      state_matches = analysis.state_type.nil? || text.match?(/\b#{Regexp.escape(analysis.state_type)}\b/)
+      field_matches = analysis.state_field.nil? || text.match?(/\b#{Regexp.escape(analysis.state_field)}\b/)
+
+      state_matches || field_matches
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def related_predicate_matches_analysis?(predicate, analysis)
+      return true unless analysis
+
+      predicate_analysis = predicate_analysis(predicate)
+      return true if predicate_analysis.state_type == analysis.state_type
+      return true if predicate_analysis.state_field == analysis.state_field && !analysis.state_field.nil?
+
+      related_text_matches_analysis?(predicate.body, analysis)
     end
 
     # @rbs body: String

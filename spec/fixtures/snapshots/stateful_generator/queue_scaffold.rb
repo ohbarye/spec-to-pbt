@@ -50,6 +50,7 @@ RSpec.describe "queue (stateful scaffold)" do
     end
 
     def next_state(state, args)
+      # Inferred transition target: Queue#elements
       state + [args]
     end
 
@@ -71,6 +72,7 @@ RSpec.describe "queue (stateful scaffold)" do
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
       # Related property predicate pattern hints: size, empty, ordering
+      # Inferred collection target: Queue#elements
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
       [sut, args] && nil
@@ -91,6 +93,7 @@ RSpec.describe "queue (stateful scaffold)" do
     end
 
     def next_state(state, _args)
+      # Inferred transition target: Queue#elements
       state.drop(1)
     end
 
@@ -112,6 +115,7 @@ RSpec.describe "queue (stateful scaffold)" do
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
       # Related property predicate pattern hints: size, empty, ordering
+      # Inferred collection target: Queue#elements
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

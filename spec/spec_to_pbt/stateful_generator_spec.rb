@@ -54,6 +54,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("!state.empty? # inferred precondition for pop_removes_element")
         expect(code).to include("Expected size to increase by 1")
         expect(code).to include("Expected popped value to match model")
+        expect(code).to include("Inferred collection target: Stack#elements")
         expect(code).to include("sut.public_send(:push_adds_element, args)")
       end
 
