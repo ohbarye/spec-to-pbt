@@ -1,6 +1,6 @@
 # spec-to-pbt (Ruby package name: `spec_to_pbt`)
 
-A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on `pbt` stateful PBT scaffolding.
+A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on practical `pbt` stateful PBT scaffolding.
 
 ## Concept
 
@@ -23,6 +23,9 @@ bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
 
 # Run generated tests (requires *_impl.rb file in same directory)
 bundle exec rspec generated/sort_pbt.rb
+
+# Run a generated stateful scaffold after customization
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
 Generated tests require a corresponding `*_impl.rb` file. The **module name** becomes the operation name:
@@ -39,6 +42,21 @@ def invariant?(array)
 end
 ```
 
+For `--stateful`, the generated file is intentionally a scaffold rather than a semantics-preserving translation.
+It is expected that you will:
+
+- provide a `*_impl.rb` implementation object
+- customize model state representation
+- refine `next_state`
+- refine `verify!`
+
+The scaffold now includes analyzer-driven hints such as:
+
+- inferred state target (for example `Stack#elements` or `Machine#value`)
+- inferred transition kind
+- related assertions / facts / property predicates
+- suggested verification order
+
 ## Examples
 
 Working examples are provided in `example/`:
@@ -50,6 +68,10 @@ bundle exec rspec example/generated/stack_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
+
+For current stateful work and roadmap details, see:
+
+- [docs/stateful-scaffold-roadmap-2026-03-04.md](docs/stateful-scaffold-roadmap-2026-03-04.md)
 
 ## Supported Alloy Syntax
 
@@ -87,10 +109,11 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 
 ### Code Generation
 - Module name is used as the operation name (generic approach)
-- `--stateful` generation is a scaffold (heuristic command extraction + TODOs), not a semantics-preserving translator
+- `--stateful` generation is a scaffold (command extraction + analyzer-driven hints + TODOs), not a semantics-preserving translator
 - No generation of counterexample shrinking hints
-- Generated code requires manual `*_impl.rb` file with `invariant?` helper
-- Input type is always `Array[Integer]` for pattern compatibility
+- Stateless generated code may require a manual `*_impl.rb` file with helpers such as `invariant?`
+- Stateless generation still assumes generic pattern-compatible inputs in several places
+- Stateful generation intentionally falls back to generic TODOs when state shape inference is weak
 
 ## Development
 
@@ -102,6 +125,18 @@ bundle exec rspec
 bundle exec rbs-inline --output sig/generated lib/
 bundle exec steep check
 ```
+
+### Stateful Development Notes
+
+- The main stateful integration path uses the local `pbt` checkout at `../pbt` by default
+- Override with `PBT_REPO_DIR=/path/to/pbt` if needed
+- Stateful scaffold execution in generated specs is gated by:
+  - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
+- Stateful generator regression coverage includes:
+  - unit specs
+  - snapshot specs
+  - API contract specs
+  - generated scaffold E2E
 
 ### Type Annotations
 
@@ -122,11 +157,15 @@ Alloy Spec (.als)
        ↓
     Parser (regex-based)
        ↓
-    PropertyPattern.detect
-       ↓
-    TypeInferrer + PatternCodeGenerator
-       ↓
-    unified.erb template
+    ┌───────────────────────────────┬────────────────────────────────┐
+    │ stateless path                │ stateful path                  │
+    │                               │                                │
+    │ PropertyPattern.detect        │ StatefulPredicateAnalyzer      │
+    │ TypeInferrer                  │ StatefulGenerator              │
+    │ PatternCodeGenerator          │                                │
+    │ unified template/code path    │ scaffold code generation       │
+    │                               │                                │
+    └───────────────────────────────┴────────────────────────────────┘
        ↓
     Ruby PBT code (.rb)
 ```
