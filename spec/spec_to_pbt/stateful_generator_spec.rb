@@ -135,7 +135,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
         expect(code).to include("nil # TODO: replace with a domain-specific scalar/model state")
         expect(code).not_to include("Pbt.tuple(Pbt.integer, Pbt.integer, Pbt.integer)")
-        expect(code).to include("state # TODO: model transition")
+        expect(code).to include("state # TODO: update Machine#value based on args/result")
         expect(code).not_to include("state + [args]")
       end
     end
@@ -215,6 +215,22 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('state_field="value"')
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
+        expect(code).to include("TODO: update Machine#value based on args/result")
+      end
+    end
+
+    context "with prioritized verify hints" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/stack.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "marks assertion/fact/property guidance with a suggested order" do
+        code = generator.generate
+
+        expect(code).to include("Suggested verify order:")
+        expect(code).to include("1. Command-specific postconditions")
+        expect(code).to include("2. Related Alloy assertions/facts")
+        expect(code).to include("3. Related property predicates")
       end
     end
   end

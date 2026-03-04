@@ -72,6 +72,10 @@ RSpec.describe "stack (stateful scaffold)" do
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
       # Related property predicate pattern hints: roundtrip, size, empty, ordering
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
       # Inferred collection target: Stack#elements
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
@@ -115,6 +119,10 @@ RSpec.describe "stack (stateful scaffold)" do
       # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
       # Related property predicate pattern hints: roundtrip, size, empty, ordering
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
       # Inferred collection target: Stack#elements
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected

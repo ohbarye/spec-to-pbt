@@ -8,7 +8,10 @@ RSpec.describe "SpecToPbt::StatefulGenerator snapshots" do
   {
     "stack" => "stack.als",
     "queue" => "queue.als",
-    "sort" => "sort.als"
+    "sort" => "sort.als",
+    "workflow_scalar" => "workflow_scalar.als",
+    "cache_size_preserving" => "cache_size_preserving.als",
+    "bag_body_removal" => "bag_body_removal.als"
   }.each do |name, fixture_name|
     it "matches the #{name} scaffold snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

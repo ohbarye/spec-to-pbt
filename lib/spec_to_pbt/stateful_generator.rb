@@ -294,7 +294,7 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def next_state_lines(behavior, analysis)
-      return generic_next_state_lines unless collection_like_state?(analysis)
+      return generic_next_state_lines(analysis) unless collection_like_state?(analysis)
 
       case behavior
       when :append
@@ -326,7 +326,7 @@ module SpecToPbt
           "    end"
         ]
       else
-        generic_next_state_lines
+        generic_next_state_lines(analysis)
       end
     end
 
@@ -381,6 +381,10 @@ module SpecToPbt
       if related_property_predicate_hints.any?
         lines << "      # Related property predicate pattern hints: #{related_property_predicate_hints.map(&:to_s).join(', ')}"
       end
+      lines << "      # Suggested verify order:"
+      lines << "      # 1. Command-specific postconditions"
+      lines << "      # 2. Related Alloy assertions/facts"
+      lines << "      # 3. Related property predicates"
 
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
@@ -576,12 +580,20 @@ module SpecToPbt
     end
 
     # @rbs return: Array[String]
-    def generic_next_state_lines
-      [
-        "    def next_state(state, _args)",
-        "      state # TODO: model transition (analyzer could not infer a collection-safe update)",
-        "    end"
-      ]
+    def generic_next_state_lines(analysis)
+      if analysis && !collection_like_state?(analysis)
+        [
+          "    def next_state(state, _args)",
+          "      state # TODO: update #{state_target_label(analysis)} based on args/result",
+          "    end"
+        ]
+      else
+        [
+          "    def next_state(state, _args)",
+          "      state # TODO: model transition (analyzer could not infer a collection-safe update)",
+          "    end"
+        ]
+      end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis?
