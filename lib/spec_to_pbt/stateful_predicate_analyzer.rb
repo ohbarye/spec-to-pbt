@@ -9,6 +9,7 @@ module SpecToPbt
     :state_type,
     :argument_params,
     :state_field,
+    :state_field_multiplicity,
     :size_delta,
     :requires_non_empty_state,
     :transition_kind,
@@ -19,12 +20,13 @@ module SpecToPbt
     # @rbs state_type: String?
     # @rbs argument_params: Array[Hash[Symbol, String]]
     # @rbs state_field: String?
+    # @rbs state_field_multiplicity: String?
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
     # @rbs transition_kind: Symbol?
     # @rbs result_position: Symbol?
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -49,6 +51,7 @@ module SpecToPbt
       end
 
       state_field = infer_state_field(predicate.body, state_param_names)
+      state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
       size_delta = infer_size_delta(predicate.body)
       requires_non_empty_state = requires_non_empty_state?(predicate.body)
 
@@ -60,6 +63,7 @@ module SpecToPbt
         state_type:,
         argument_params:,
         state_field:,
+        state_field_multiplicity:,
         size_delta:,
         requires_non_empty_state:,
         transition_kind:,
@@ -112,6 +116,19 @@ module SpecToPbt
 
       match = body.match(/#\w+'?\.(\w+)/)
       match && match[1]
+    end
+
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: String?
+    def infer_state_field_multiplicity(state_type, state_field)
+      return nil unless state_type && state_field
+
+      signature = @spec.signatures.find { |sig| sig.name == state_type }
+      return nil unless signature
+
+      field = signature.fields.find { |item| item.name == state_field }
+      field&.multiplicity
     end
 
     # @rbs body: String

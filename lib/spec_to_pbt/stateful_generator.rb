@@ -53,7 +53,7 @@ module SpecToPbt
       lines << "    end"
       lines << ""
       lines << "    def initial_state"
-      lines << "      [] # TODO: replace with a domain-specific model state"
+      lines << "      #{initial_state_code}"
       lines << "    end"
       lines << ""
       lines << "    def commands(_state)"
@@ -112,6 +112,15 @@ module SpecToPbt
     def command_class_names
       names = selected_command_predicates.map { |predicate| "#{camelize(predicate.name)}Command" }
       names.empty? ? ["GeneratedCommand"] : names
+    end
+
+    # @rbs return: String
+    def initial_state_code
+      analyses = selected_command_predicates.map { |predicate| predicate_analysis(predicate) }
+      return "[] # TODO: replace with a domain-specific model state" if analyses.empty?
+      return "[] # TODO: replace with a domain-specific collection state" if analyses.all? { |analysis| collection_like_state?(analysis) }
+
+      "nil # TODO: replace with a domain-specific scalar/model state"
     end
 
     # Heuristic only: parser is regex-based and loses some Alloy syntax (e.g. primed vars),
@@ -259,6 +268,14 @@ module SpecToPbt
     def applicable_lines(behavior, method_name)
       analysis = predicate_analysis_by_method_name(method_name)
       if analysis&.requires_non_empty_state || [:pop, :dequeue].include?(behavior)
+        unless collection_like_state?(analysis)
+          return [
+            "    def applicable?(_state)",
+            "      true # TODO: infer a scalar/domain-specific precondition",
+            "    end"
+          ]
+        end
+
         [
           "    def applicable?(state)",
           "      !state.empty? # inferred precondition for #{method_name}",
@@ -277,6 +294,8 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def next_state_lines(behavior, analysis)
+      return generic_next_state_lines unless collection_like_state?(analysis)
+
       case behavior
       when :append
         [
@@ -303,11 +322,7 @@ module SpecToPbt
           "    end"
         ]
       else
-        [
-          "    def next_state(state, _args)",
-          "      state # TODO: model transition",
-          "    end"
-        ]
+        generic_next_state_lines
       end
     end
 
@@ -361,6 +376,13 @@ module SpecToPbt
       end
       if related_property_predicate_hints.any?
         lines << "      # Related property predicate pattern hints: #{related_property_predicate_hints.map(&:to_s).join(', ')}"
+      end
+
+      unless collection_like_state?(analysis)
+        lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
+        lines << "      [sut, args] && nil"
+        lines << "    end"
+        return lines
       end
 
       if analysis && analysis.size_delta == 0
@@ -524,6 +546,23 @@ module SpecToPbt
       when :last then "before_state.last"
       else fallback
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def collection_like_state?(analysis)
+      return true unless analysis
+
+      ["seq", "set"].include?(analysis.state_field_multiplicity)
+    end
+
+    # @rbs return: Array[String]
+    def generic_next_state_lines
+      [
+        "    def next_state(state, _args)",
+        "      state # TODO: model transition",
+        "    end"
+      ]
     end
 
     # @rbs body: String

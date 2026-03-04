@@ -28,7 +28,7 @@ RSpec.describe "queue (stateful scaffold)" do
     end
 
     def initial_state
-      [] # TODO: replace with a domain-specific model state
+      [] # TODO: replace with a domain-specific collection state
     end
 
     def commands(_state)

@@ -88,6 +88,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_type).to eq("Machine")
         expect(result.argument_params).to eq([{ name: "t", type: "Token" }])
         expect(result.state_field).to eq("value")
+        expect(result.state_field_multiplicity).to eq("one")
         expect(result.transition_kind).to eq(:append)
       end
     end

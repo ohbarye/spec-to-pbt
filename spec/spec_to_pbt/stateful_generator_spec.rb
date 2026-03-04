@@ -132,7 +132,10 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("class StepCommand")
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
+        expect(code).to include("nil # TODO: replace with a domain-specific scalar/model state")
         expect(code).not_to include("Pbt.tuple(Pbt.integer, Pbt.integer, Pbt.integer)")
+        expect(code).to include("state # TODO: model transition")
+        expect(code).not_to include("state + [args]")
       end
     end
 
