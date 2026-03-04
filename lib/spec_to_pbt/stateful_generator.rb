@@ -364,7 +364,7 @@ module SpecToPbt
         "      # Alloy predicate body (preview): #{body_preview.inspect}"
       ]
       if analysis
-        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}"
+        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}"
       end
       if related_assertions.any?
         lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"
@@ -584,7 +584,7 @@ module SpecToPbt
       if analysis && !collection_like_state?(analysis)
         [
           "    def next_state(state, _args)",
-          "      state # TODO: update #{state_target_label(analysis)} based on args/result",
+          "      state # TODO: #{scalar_update_guidance(analysis)}",
           "    end"
         ]
       else
@@ -603,6 +603,21 @@ module SpecToPbt
       return analysis.state_type.to_s if analysis.state_field.nil?
 
       "#{analysis.state_type}##{analysis.state_field}"
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def scalar_update_guidance(analysis)
+      case analysis.scalar_update_kind
+      when :replace_like
+        "replace #{state_target_label(analysis)} using args/result"
+      when :increment_like
+        "update #{state_target_label(analysis)} based on args/result"
+      when :decrement_like
+        "decrease #{state_target_label(analysis)} based on args/result"
+      else
+        "update #{state_target_label(analysis)} based on args/result"
+      end
     end
 
     # @rbs text: String

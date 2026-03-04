@@ -13,7 +13,8 @@ module SpecToPbt
     :size_delta,
     :requires_non_empty_state,
     :transition_kind,
-    :result_position
+    :result_position,
+    :scalar_update_kind
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
@@ -25,8 +26,9 @@ module SpecToPbt
     # @rbs requires_non_empty_state: bool
     # @rbs transition_kind: Symbol?
     # @rbs result_position: Symbol?
+    # @rbs scalar_update_kind: Symbol?
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -67,7 +69,8 @@ module SpecToPbt
         size_delta:,
         requires_non_empty_state:,
         transition_kind:,
-        result_position: infer_result_position(predicate.name, transition_kind)
+        result_position: infer_result_position(predicate.name, transition_kind),
+        scalar_update_kind: infer_scalar_update_kind(predicate.body, state_field, state_field_multiplicity)
       )
     end
 
@@ -162,6 +165,21 @@ module SpecToPbt
       return :last if transition_kind == :pop
       return :first if predicate_name.match?(/\A(?:Shift|Dequeue)/i)
       return :last if predicate_name.match?(/\A(?:Pop|Remove|Delete|Get)/i)
+
+      nil
+    end
+
+    # @rbs body: String
+    # @rbs state_field: String?
+    # @rbs state_field_multiplicity: String?
+    # @rbs return: Symbol?
+    def infer_scalar_update_kind(body, state_field, state_field_multiplicity)
+      return nil if state_field.nil?
+      return nil if ["seq", "set"].include?(state_field_multiplicity)
+
+      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*add\[/)
+      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*sub\[/)
+      return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*#\w+/)
 
       nil
     end

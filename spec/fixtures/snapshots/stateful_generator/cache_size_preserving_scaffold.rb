@@ -66,7 +66,7 @@ RSpec.describe "cache (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#c'.entries = #c.entries"
-      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false
+      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts

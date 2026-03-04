@@ -216,6 +216,31 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
         expect(code).to include("TODO: update Machine#value based on args/result")
+        expect(code).to include("scalar_update_kind=:increment_like")
+      end
+    end
+
+    context "with a replace-like scalar state update" do
+      let(:source) do
+        <<~ALLOY
+          module thermostat
+
+          sig Thermostat {
+            target: one Int
+          }
+
+          pred SetTarget[t, t': Thermostat, next: Int] {
+            #t'.target = #next
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "emits replacement-oriented scalar guidance" do
+        code = generator.generate
+
+        expect(code).to include('scalar_update_kind=:replace_like')
+        expect(code).to include("TODO: replace Thermostat#target using args/result")
       end
     end
 

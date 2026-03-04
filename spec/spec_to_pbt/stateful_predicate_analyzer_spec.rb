@@ -90,6 +90,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_field).to eq("value")
         expect(result.state_field_multiplicity).to eq("one")
         expect(result.transition_kind).to eq(:append)
+        expect(result.scalar_update_kind).to eq(:increment_like)
       end
     end
 
@@ -145,6 +146,30 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(take_front.result_position).to eq(:first)
         expect(drop_last.transition_kind).to eq(:pop)
         expect(drop_last.result_position).to eq(:last)
+      end
+    end
+
+    context "with scalar replacement semantics" do
+      let(:source) do
+        <<~ALLOY
+          module thermostat
+
+          sig Thermostat {
+            target: one Int
+          }
+
+          pred SetTarget[t, t': Thermostat, next: Int] {
+            #t'.target = #next
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "recognizes direct replacement-style scalar updates" do
+        result = analyzer.analyze(spec.predicates.first)
+
+        expect(result.state_field).to eq("target")
+        expect(result.scalar_update_kind).to eq(:replace_like)
       end
     end
   end
