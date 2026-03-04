@@ -298,6 +298,30 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with low-confidence transition evidence" do
+      let(:source) do
+        <<~ALLOY
+          module weak
+
+          sig Box {
+            value: one Int
+          }
+
+          pred MaybeChange[b, b': Box] {
+            b' = b
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "falls back instead of treating the predicate as a command" do
+        code = generator.generate
+
+        expect(code).to include("GeneratedCommand.new")
+        expect(code).not_to include("class MaybeChangeCommand")
+      end
+    end
+
     context "with prioritized verify hints" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/stack.als", __dir__) }
       let(:source) { File.read(fixture_path) }

@@ -132,6 +132,7 @@ module SpecToPbt
       patterns = PropertyPattern.detect(predicate.name, predicate.body)
       return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
       return false if property_like_name?(predicate.name)
+      return false if analysis.command_confidence == :low
       return true if transition_evidence?(analysis)
 
       verb_like_name?(predicate.name) || transition_like_body?(predicate.body)

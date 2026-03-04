@@ -21,6 +21,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.requires_non_empty_state).to be(false)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:append)
+        expect(result.command_confidence).to eq(:high)
       end
 
       it "extracts non-empty guard and -1 size delta for pop" do
@@ -51,6 +52,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.size_delta).to eq(1)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:append)
+        expect(result.command_confidence).to eq(:high)
       end
 
       it "recognizes dequeue-like removal" do
@@ -115,6 +117,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_field).to eq("entries")
         expect(result.transition_kind).to eq(:size_no_change)
         expect(result.result_position).to be_nil
+        expect(result.command_confidence).to eq(:medium)
       end
     end
 
@@ -144,8 +147,10 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(take_front.transition_kind).to eq(:dequeue)
         expect(take_front.result_position).to eq(:first)
+        expect(take_front.command_confidence).to eq(:high)
         expect(drop_last.transition_kind).to eq(:pop)
         expect(drop_last.result_position).to eq(:last)
+        expect(drop_last.command_confidence).to eq(:high)
       end
     end
 
@@ -170,6 +175,30 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(result.state_field).to eq("target")
         expect(result.scalar_update_kind).to eq(:replace_like)
+        expect(result.command_confidence).to eq(:medium)
+      end
+    end
+
+    context "with weak transition evidence only" do
+      let(:source) do
+        <<~ALLOY
+          module weak
+
+          sig Box {
+            value: one Int
+          }
+
+          pred MaybeChange[b, b': Box] {
+            b' = b
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "marks the predicate as low-confidence for command extraction" do
+        result = analyzer.analyze(spec.predicates.first)
+
+        expect(result.command_confidence).to eq(:low)
       end
     end
   end

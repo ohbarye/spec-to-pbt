@@ -14,7 +14,8 @@ module SpecToPbt
     :requires_non_empty_state,
     :transition_kind,
     :result_position,
-    :scalar_update_kind
+    :scalar_update_kind,
+    :command_confidence
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
@@ -27,8 +28,9 @@ module SpecToPbt
     # @rbs transition_kind: Symbol?
     # @rbs result_position: Symbol?
     # @rbs scalar_update_kind: Symbol?
+    # @rbs command_confidence: Symbol
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -58,6 +60,7 @@ module SpecToPbt
       requires_non_empty_state = requires_non_empty_state?(predicate.body)
 
       transition_kind = infer_transition_kind(predicate.name, predicate.body, size_delta, requires_non_empty_state)
+      scalar_update_kind = infer_scalar_update_kind(predicate.body, state_field, state_field_multiplicity)
 
       StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
@@ -70,7 +73,8 @@ module SpecToPbt
         requires_non_empty_state:,
         transition_kind:,
         result_position: infer_result_position(predicate.name, transition_kind),
-        scalar_update_kind: infer_scalar_update_kind(predicate.body, state_field, state_field_multiplicity)
+        scalar_update_kind:,
+        command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind)
       )
     end
 
@@ -182,6 +186,22 @@ module SpecToPbt
       return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*#\w+/)
 
       nil
+    end
+
+    # @rbs predicate_name: String
+    # @rbs transition_kind: Symbol?
+    # @rbs size_delta: Integer?
+    # @rbs requires_non_empty_state: bool
+    # @rbs scalar_update_kind: Symbol?
+    # @rbs return: Symbol
+    def infer_command_confidence(predicate_name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind)
+      return :high if predicate_name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/)
+      return :high if [:append, :pop, :dequeue].include?(transition_kind)
+      return :medium if transition_kind == :size_no_change
+      return :medium if !scalar_update_kind.nil?
+      return :medium if !size_delta.nil? || requires_non_empty_state
+
+      :low
     end
 
     # @rbs predicate_name: String
