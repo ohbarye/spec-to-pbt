@@ -55,7 +55,7 @@ module SpecToPbt
       size_delta = infer_size_delta(predicate.body)
       requires_non_empty_state = requires_non_empty_state?(predicate.body)
 
-      transition_kind = infer_transition_kind(predicate.name, size_delta, requires_non_empty_state)
+      transition_kind = infer_transition_kind(predicate.name, predicate.body, size_delta, requires_non_empty_state)
 
       StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
@@ -138,13 +138,17 @@ module SpecToPbt
     end
 
     # @rbs predicate_name: String
+    # @rbs body: String
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
     # @rbs return: Symbol?
-    def infer_transition_kind(predicate_name, size_delta, requires_non_empty_state)
+    def infer_transition_kind(predicate_name, body, size_delta, requires_non_empty_state)
       return :append if size_delta == 1
-      return :dequeue if size_delta == -1 && predicate_name.match?(/\ADequeue/i)
-      return :pop if size_delta == -1 && requires_non_empty_state
+      if size_delta == -1
+        return :dequeue if dequeue_like_text?(predicate_name, body)
+        return :pop if pop_like_text?(predicate_name, body)
+        return :pop if requires_non_empty_state
+      end
       return :size_no_change if size_delta == 0
 
       nil
@@ -160,6 +164,22 @@ module SpecToPbt
       return :last if predicate_name.match?(/\A(?:Pop|Remove|Delete|Get)/i)
 
       nil
+    end
+
+    # @rbs predicate_name: String
+    # @rbs body: String
+    # @rbs return: bool
+    def dequeue_like_text?(predicate_name, body)
+      text = "#{predicate_name} #{body}"
+      text.match?(/(?:dequeue|shift|front|head|first)/i)
+    end
+
+    # @rbs predicate_name: String
+    # @rbs body: String
+    # @rbs return: bool
+    def pop_like_text?(predicate_name, body)
+      text = "#{predicate_name} #{body}"
+      text.match?(/(?:pop|drop.*last|remove.*last|tail|back|end|last)/i)
     end
 
     # @rbs value: String

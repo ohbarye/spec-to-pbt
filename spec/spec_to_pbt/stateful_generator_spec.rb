@@ -189,5 +189,32 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected size to stay the same")
       end
     end
+
+    context "with a scalar state field" do
+      let(:source) do
+        <<~ALLOY
+          module workflow
+
+          sig Machine {
+            value: one Int
+          }
+
+          sig Token {}
+
+          pred Step[m, m': Machine, t: Token] {
+            #m'.value = add[#m.value, 1]
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "mentions the inferred state field in scalar verify guidance" do
+        code = generator.generate
+
+        expect(code).to include('state_field="value"')
+        expect(code).to include("replace array-based checks with scalar/domain checks")
+        expect(code).to include("Inferred state target: Machine#value")
+      end
+    end
   end
 end

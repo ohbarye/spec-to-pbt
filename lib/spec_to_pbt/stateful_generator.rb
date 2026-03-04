@@ -380,6 +380,7 @@ module SpecToPbt
 
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
+        lines << "      # Inferred state target: #{state_target_label(analysis)}"
         lines << "      [sut, args] && nil"
         lines << "    end"
         return lines
@@ -563,6 +564,15 @@ module SpecToPbt
         "      state # TODO: model transition",
         "    end"
       ]
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: String
+    def state_target_label(analysis)
+      return "unknown" unless analysis
+      return analysis.state_type.to_s if analysis.state_field.nil?
+
+      "#{analysis.state_type}##{analysis.state_field}"
     end
 
     # @rbs body: String

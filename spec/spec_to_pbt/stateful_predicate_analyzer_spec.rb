@@ -116,5 +116,36 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.result_position).to be_nil
       end
     end
+
+    context "with body-driven removal semantics but non-verb predicate names" do
+      let(:source) do
+        <<~ALLOY
+          module bag
+
+          sig Bag {
+            elems: seq Int
+          }
+
+          pred TakeFront[b, b': Bag] {
+            #b.elems > 0 implies #b'.elems = sub[#b.elems, 1]
+          }
+
+          pred DropLast[b, b': Bag] {
+            #b.elems > 0 implies #b'.elems = sub[#b.elems, 1]
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "uses body+name hints to distinguish dequeue-like from pop-like removals" do
+        take_front = analyzer.analyze(spec.predicates.find { |p| p.name == "TakeFront" })
+        drop_last = analyzer.analyze(spec.predicates.find { |p| p.name == "DropLast" })
+
+        expect(take_front.transition_kind).to eq(:dequeue)
+        expect(take_front.result_position).to eq(:first)
+        expect(drop_last.transition_kind).to eq(:pop)
+        expect(drop_last.result_position).to eq(:last)
+      end
+    end
   end
 end
