@@ -105,8 +105,8 @@ module SpecToPbt
     # @rbs body: String
     # @rbs return: Integer?
     def infer_size_delta(body)
-      return 1 if body.match?(/#\w+'?\.\w+\s*=\s*add\[/)
-      return -1 if body.match?(/#\w+'?\.\w+\s*=\s*sub\[/)
+      return 1 if body.match?(/#\w+'?\.\w+\s*=\s*(?:add\[|#\w+\.?\w*\s*\+\s*1)/)
+      return -1 if body.match?(/#\w+'?\.\w+\s*=\s*(?:sub\[|#\w+\.?\w*\s*-\s*1)/)
       return 0 if body.match?(/#\w+'?\.\w+\s*=\s*#\w+\.?\w*/)
 
       nil
@@ -141,7 +141,7 @@ module SpecToPbt
     # @rbs body: String
     # @rbs return: bool
     def requires_non_empty_state?(body)
-      body.match?(/#\w+\.?\w*\s*>\s*0/)
+      body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
     end
 
     # @rbs predicate_name: String
@@ -181,9 +181,9 @@ module SpecToPbt
       return nil if state_field.nil?
       return nil if ["seq", "set"].include?(state_field_multiplicity)
 
-      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*add\[/)
-      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*sub\[/)
-      return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*#\w+/)
+      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*(?:add\[|#\w+\.?#{Regexp.escape(state_field)}\s*\+\s*1)/)
+      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*(?:sub\[|#\w+\.?#{Regexp.escape(state_field)}\s*-\s*1)/)
+      return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*#?\w+/)
 
       nil
     end

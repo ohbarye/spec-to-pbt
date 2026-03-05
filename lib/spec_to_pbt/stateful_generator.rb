@@ -214,6 +214,7 @@ module SpecToPbt
 
       [
         "  class #{class_name}",
+        *command_confidence_hint_lines(analysis),
         "    def name",
         "      :#{method_name}",
         "    end",
@@ -367,7 +368,7 @@ module SpecToPbt
         "      # Alloy predicate body (preview): #{body_preview.inspect}"
       ]
       if analysis
-        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}"
+        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}"
       end
       if related_assertions.any?
         lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"
@@ -615,6 +616,17 @@ module SpecToPbt
       return false unless analysis
 
       !analysis.transition_kind.nil? || !analysis.size_delta.nil? || analysis.requires_non_empty_state
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def command_confidence_hint_lines(analysis)
+      return [] if analysis.command_confidence == :high
+
+      [
+        "    # Analyzer command confidence: #{analysis.command_confidence}",
+        "    # TODO: confirm this predicate should be modeled as a command"
+      ]
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

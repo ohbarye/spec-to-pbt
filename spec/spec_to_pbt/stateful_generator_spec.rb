@@ -295,6 +295,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("class AdvanceCommand")
         expect(code).to include("class StableCommand")
+        expect(code).to include("command_confidence=:medium")
+        expect(code).to include("TODO: confirm this predicate should be modeled as a command")
       end
     end
 

@@ -66,7 +66,7 @@ RSpec.describe "bag (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b.elems > 0 implies #b'.elems = sub[#b.elems, 1]"
-      # Analyzer hints: state_field="elems", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil
+      # Analyzer hints: state_field="elems", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high
       # Related Alloy property predicates: TakeFront
       # Related property predicate pattern hints: size, ordering
       # Suggested verify order:

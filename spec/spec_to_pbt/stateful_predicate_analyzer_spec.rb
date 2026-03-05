@@ -179,6 +179,60 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with arithmetic-style size transitions" do
+      let(:source) do
+        <<~ALLOY
+          module arithmetic
+
+          sig Counter {
+            value: one Int
+          }
+
+          pred Inc[c, c': Counter] {
+            #c'.value = #c.value + 1
+          }
+
+          pred Dec[c, c': Counter] {
+            #c'.value = #c.value - 1
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "recognizes +1/-1 style transitions" do
+        inc = analyzer.analyze(spec.predicates.find { |p| p.name == "Inc" })
+        dec = analyzer.analyze(spec.predicates.find { |p| p.name == "Dec" })
+
+        expect(inc.size_delta).to eq(1)
+        expect(inc.scalar_update_kind).to eq(:increment_like)
+        expect(dec.size_delta).to eq(-1)
+        expect(dec.scalar_update_kind).to eq(:decrement_like)
+      end
+    end
+
+    context "with scalar replacement without # prefix on rhs" do
+      let(:source) do
+        <<~ALLOY
+          module thermostat
+
+          sig Thermostat {
+            target: one Int
+          }
+
+          pred SetTarget[t, t': Thermostat, next: Int] {
+            #t'.target = next
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "still treats rhs assignment as replace-like" do
+        result = analyzer.analyze(spec.predicates.first)
+
+        expect(result.scalar_update_kind).to eq(:replace_like)
+      end
+    end
+
     context "with weak transition evidence only" do
       let(:source) do
         <<~ALLOY
