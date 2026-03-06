@@ -20,7 +20,7 @@ RSpec.describe "Stateful generated scaffold E2E" do
     FileUtils.rm_rf(output_dir)
   end
 
-  it "runs a generated stateful scaffold through Pbt.assert using a local pbt checkout" do
+  it "runs a generated stateful scaffold through Pbt.assert using the local ../pbt main checkout by default" do
     unless Dir.exist?(pbt_repo_dir)
       skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
     end

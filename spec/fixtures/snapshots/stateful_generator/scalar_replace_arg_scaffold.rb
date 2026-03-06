@@ -2,9 +2,9 @@
 
 require "pbt"
 require "rspec"
-require_relative "workflow_impl"
+require_relative "thermostat_impl"
 
-RSpec.describe "workflow (stateful scaffold)" do
+RSpec.describe "thermostat (stateful scaffold)" do
   it "wires a stateful PBT scaffold (customize before enabling)" do
     unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
       skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
@@ -12,17 +12,17 @@ RSpec.describe "workflow (stateful scaffold)" do
 
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
-        model: WorkflowModel.new,
-        sut: -> { WorkflowImpl.new },
+        model: ThermostatModel.new,
+        sut: -> { ThermostatImpl.new },
         max_steps: 20
       )
     end
   end
 
-  class WorkflowModel
+  class ThermostatModel
     def initialize
       @commands = [
-        StepCommand.new
+        SetTargetCommand.new
       ]
     end
 
@@ -35,13 +35,15 @@ RSpec.describe "workflow (stateful scaffold)" do
     end
   end
 
-  class StepCommand
+  class SetTargetCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
     def name
-      :step
+      :set_target
     end
 
     def arguments
-      Pbt.integer # placeholder for Token
+      Pbt.integer
     end
 
     def applicable?(_state)
@@ -49,31 +51,31 @@ RSpec.describe "workflow (stateful scaffold)" do
     end
 
     def next_state(state, _args)
-      state # TODO: increment Machine#value based on args/result
+      state # TODO: replace Thermostat#target using args
     end
 
     def run!(sut, args)
       if args.nil?
-        sut.public_send(:step)
+        sut.public_send(:set_target)
       elsif args.is_a?(Array)
-        sut.public_send(:step, *args)
+        sut.public_send(:set_target, *args)
       else
-        sut.public_send(:step, args)
+        sut.public_send(:set_target, args)
       end
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#m'.value=add[#m.value,1]"
-      # Analyzer hints: state_field="value", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:increment
+      # Alloy predicate body (preview): "#t'.target=next"
+      # Analyzer hints: state_field="target", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Machine#value
-      # TODO: verify incremented value for Machine#value
-      # Example shape: after_state should reflect a monotonic +1 style update
+      # Inferred state target: Thermostat#target
+      # TODO: verify replaced value for Thermostat#target using args
+      # Example shape: compare the inferred target against the command argument
       [sut, args] && nil
     end
   end

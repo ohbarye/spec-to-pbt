@@ -4,8 +4,6 @@
 
 module SpecToPbt
   # Generates a stateful PBT scaffold that targets `Pbt.stateful`.
-  # This is intentionally a scaffold (not a complete translator): it emits
-  # a runnable skeleton with TODO placeholders for model transitions and SUT wiring.
   class StatefulGenerator
     PRIMITIVE_TYPES = ["Int", "String"].freeze #: Array[String]
     EXCLUDED_COMMAND_PATTERNS = [:roundtrip, :ordering, :invariant, :idempotent, :empty].freeze #: Array[Symbol]
@@ -46,7 +44,7 @@ module SpecToPbt
       lines << "    def initialize"
       lines << "      @commands = ["
       command_class_names.each_with_index do |class_name, index|
-        suffix = (index == command_class_names.length - 1) ? "" : ","
+        suffix = index == command_class_names.length - 1 ? "" : ","
         lines << "        #{class_name}.new#{suffix}"
       end
       lines << "      ]"
@@ -93,16 +91,6 @@ module SpecToPbt
       "#{camelize(module_name)}Impl.new"
     end
 
-    # @rbs return: Array[String]
-    def signature_names
-      @signature_names ||= @spec.signatures.map(&:name) #: Array[String]
-    end
-
-    # @rbs return: String?
-    def state_signature_name
-      @state_signature_name ||= signature_names.find { |name| name == camelize(module_name) }
-    end
-
     # @rbs return: Array[Predicate]
     def selected_command_predicates
       @selected_command_predicates ||= @spec.predicates.select { |predicate| command_like_predicate?(predicate) } #: Array[Predicate]
@@ -123,37 +111,18 @@ module SpecToPbt
       "nil # TODO: replace with a domain-specific scalar/model state"
     end
 
-    # Heuristic only: parser is regex-based and loses some Alloy syntax (e.g. primed vars),
-    # so use predicate names + body shape to emit a useful scaffold instead of pretending exact semantics.
     # @rbs predicate: Predicate
     # @rbs return: bool
     def command_like_predicate?(predicate)
       analysis = predicate_analysis(predicate)
-      patterns = PropertyPattern.detect(predicate.name, predicate.body)
+      patterns = PropertyPattern.detect(predicate.name, predicate.normalized_body)
       return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
       return false if property_like_name?(predicate.name)
       return false if analysis.command_confidence == :low
-      return true if transition_evidence?(analysis)
 
-      verb_like_name?(predicate.name) || transition_like_body?(predicate.body)
-    end
-
-    # @rbs name: String
-    # @rbs return: bool
-    def verb_like_name?(name)
-      name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/)
-    end
-
-    # @rbs name: String
-    # @rbs return: bool
-    def property_like_name?(name)
-      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
-    end
-
-    # @rbs body: String
-    # @rbs return: bool
-    def transition_like_body?(body)
-      body.include?("'") && body.match?(/[#=]/)
+      [:append, :pop, :dequeue, :size_no_change].include?(analysis.transition_kind) ||
+        analysis.state_update_shape != :unknown ||
+        analysis.guard_kind != :none
     end
 
     # @rbs predicate: Predicate
@@ -168,10 +137,10 @@ module SpecToPbt
       params = argument_params(predicate)
       return "Pbt.nil" if params.empty?
 
-      arbitaries = params.map { |param| arbitrary_code_for(param[:type]) }
-      return arbitaries.first if arbitaries.size == 1
+      arbitraries = params.map { |param| arbitrary_code_for(param[:type]) }
+      return arbitraries.first if arbitraries.size == 1
 
-      "Pbt.tuple(#{arbitaries.join(', ')})"
+      "Pbt.tuple(#{arbitraries.join(', ')})"
     end
 
     # @rbs type_name: String
@@ -187,12 +156,10 @@ module SpecToPbt
     # @rbs return: Symbol
     def command_behavior(predicate)
       analysis = predicate_analysis(predicate)
-      return analysis.transition_kind if analysis.transition_kind
-
-      name = predicate.name
-      return :append if name.match?(/\A(?:Push|Enqueue|Add|Insert|Put)/)
-      return :dequeue if name.match?(/\ADequeue/)
-      return :pop if name.match?(/\A(?:Pop|Remove|Delete|Get)/)
+      return :append if [:append, :append_like].include?(analysis.state_update_shape) || analysis.transition_kind == :append
+      return :dequeue if analysis.state_update_shape == :remove_first || analysis.transition_kind == :dequeue
+      return :pop if analysis.state_update_shape == :remove_last || analysis.transition_kind == :pop
+      return :size_no_change if analysis.state_update_shape == :preserve_size || analysis.transition_kind == :size_no_change
 
       :unknown
     end
@@ -210,7 +177,7 @@ module SpecToPbt
       method_name = method_name_for(predicate)
       analysis = predicate_analysis(predicate)
       behavior = command_behavior(predicate)
-      body_preview = predicate.body.lines.map(&:strip).reject(&:empty?).join(" ")
+      body_preview = predicate.normalized_body
 
       [
         "  class #{class_name}",
@@ -223,13 +190,13 @@ module SpecToPbt
         "      #{arguments_code(predicate)}",
         "    end",
         "",
-        *applicable_lines(behavior, method_name),
+        *applicable_lines(analysis, method_name),
         "",
-        *next_state_lines(behavior, analysis),
+        *next_state_lines(analysis, behavior),
         "",
         *run_lines(method_name),
         "",
-        *verify_lines(behavior, predicate.name, body_preview),
+        *verify_lines(analysis, behavior, body_preview),
         "  end"
       ]
     end
@@ -266,71 +233,102 @@ module SpecToPbt
       ]
     end
 
-    # @rbs behavior: Symbol
+    # @rbs analysis: StatefulPredicateAnalysis
     # @rbs method_name: String
     # @rbs return: Array[String]
-    def applicable_lines(behavior, method_name)
-      analysis = predicate_analysis_by_method_name(method_name)
-      if analysis&.requires_non_empty_state || [:pop, :dequeue].include?(behavior)
-        unless collection_like_state?(analysis)
-          return [
-            "    def applicable?(_state)",
-            "      true # TODO: infer a scalar/domain-specific precondition",
-            "    end"
-          ]
-        end
+    def applicable_lines(analysis, method_name)
+      return [
+        "    def applicable?(state)",
+        "      !state.empty? # inferred precondition for #{method_name}",
+        "    end"
+      ] if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
 
-        [
-          "    def applicable?(state)",
-          "      !state.empty? # inferred precondition for #{method_name}",
-          "    end"
-        ]
-      else
-        [
-          "    def applicable?(_state)",
-          "      true",
-          "    end"
-        ]
-      end
+      return [
+        "    def applicable?(_state)",
+        "      true # TODO: infer a scalar/domain-specific precondition",
+        "    end"
+      ] if analysis.guard_kind != :none
+
+      [
+        "    def applicable?(_state)",
+        "      true",
+        "    end"
+      ]
     end
 
-    # @rbs behavior: Symbol
     # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs behavior: Symbol
     # @rbs return: Array[String]
-    def next_state_lines(behavior, analysis)
-      return generic_next_state_lines(analysis) unless collection_like_state?(analysis)
+    def next_state_lines(analysis, behavior)
+      return scalar_next_state_lines(analysis) unless collection_like_state?(analysis)
 
       case behavior
       when :append
         [
           "    def next_state(state, args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state + [args]",
-          "    end"
+          "      state + [args]"
         ]
       when :pop
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state[0...-1]",
-          "    end"
+          "      state[0...-1]"
         ]
       when :dequeue
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state.drop(1)",
-          "    end"
+          "      state.drop(1)"
         ]
       when :size_no_change
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state # inferred size-preserving transition (customize shape change if needed)",
-          "    end"
+          "      state # TODO: preserve size while refining element/order changes"
         ]
       else
         generic_next_state_lines(analysis)
+      end + ["    end"]
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def scalar_next_state_lines(analysis)
+      guidance =
+        case analysis.state_update_shape
+        when :increment
+          "increment #{state_target_label(analysis)} based on args/result"
+        when :decrement
+          "decrement #{state_target_label(analysis)} based on args/result"
+        when :replace_with_arg
+          "replace #{state_target_label(analysis)} using args"
+        when :replace_value
+          "replace #{state_target_label(analysis)} using args/result"
+        when :preserve_value
+          "keep #{state_target_label(analysis)} stable unless other domain state changes"
+        else
+          scalar_update_guidance(analysis)
+        end
+
+      [
+        "    def next_state(state, _args)",
+        "      state # TODO: #{guidance}",
+        "    end"
+      ]
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: Array[String]
+    def generic_next_state_lines(analysis)
+      if analysis && !collection_like_state?(analysis)
+        scalar_next_state_lines(analysis)
+      else
+        [
+          "    def next_state(state, _args)",
+          "      state # TODO: model transition (analyzer could not infer a collection-safe update)",
+          "    end"
+        ]
       end
     end
 
@@ -350,40 +348,29 @@ module SpecToPbt
       ]
     end
 
+    # @rbs analysis: StatefulPredicateAnalysis
     # @rbs behavior: Symbol
-    # @rbs predicate_name: String
     # @rbs body_preview: String
     # @rbs return: Array[String]
-    def verify_lines(behavior, predicate_name, body_preview)
-      analysis = predicate_analysis_by_name(predicate_name)
-      related_assertions = related_assertions_for(predicate_name)
-      related_facts = related_facts_for(predicate_name)
-      assertion_fact_hints = assertion_fact_pattern_hints(predicate_name)
-      related_property_predicates = related_property_predicates_for(predicate_name)
-      related_property_predicate_hints = related_property_predicate_pattern_hints(predicate_name)
-
+    def verify_lines(analysis, behavior, body_preview)
       lines = [
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
         "      # TODO: translate predicate semantics into postcondition checks",
-        "      # Alloy predicate body (preview): #{body_preview.inspect}"
+        "      # Alloy predicate body (preview): #{body_preview.inspect}",
+        "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}, guard_kind=#{analysis.guard_kind.inspect}, rhs_source_kind=#{analysis.rhs_source_kind.inspect}, state_update_shape=#{analysis.state_update_shape.inspect}"
       ]
-      if analysis
-        lines << "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}"
+
+      if analysis.related_assertion_names.any?
+        lines << "      # Related Alloy assertions: #{analysis.related_assertion_names.join(', ')}"
       end
-      if related_assertions.any?
-        lines << "      # Related Alloy assertions: #{related_assertions.join(', ')}"
+      if analysis.related_fact_names.any?
+        lines << "      # Related Alloy facts: #{analysis.related_fact_names.join(', ')}"
       end
-      if related_facts.any?
-        lines << "      # Related Alloy facts: #{related_facts.join(', ')}"
+      if analysis.related_predicate_names.any?
+        lines << "      # Related Alloy property predicates: #{analysis.related_predicate_names.join(', ')}"
       end
-      if assertion_fact_hints.any?
-        lines << "      # Assertion/fact pattern hints: #{assertion_fact_hints.map(&:to_s).join(', ')}"
-      end
-      if related_property_predicates.any?
-        lines << "      # Related Alloy property predicates: #{related_property_predicates.join(', ')}"
-      end
-      if related_property_predicate_hints.any?
-        lines << "      # Related property predicate pattern hints: #{related_property_predicate_hints.map(&:to_s).join(', ')}"
+      if analysis.related_pattern_hints.any?
+        lines << "      # Related pattern hints: #{analysis.related_pattern_hints.map(&:to_s).join(', ')}"
       end
       lines << "      # Suggested verify order:"
       lines << "      # 1. Command-specific postconditions"
@@ -393,113 +380,78 @@ module SpecToPbt
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
         lines << "      # Inferred state target: #{state_target_label(analysis)}"
-        lines << "      # TODO: #{scalar_verify_guidance(analysis)}"
+        lines.concat(scalar_verify_body(analysis))
         lines << "      [sut, args] && nil"
         lines << "    end"
         return lines
       end
 
       lines << "      # Inferred collection target: #{state_target_label(analysis)}"
-
-      if analysis && analysis.size_delta == 0
-        lines.concat([
-          "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length"
-        ])
-      end
-
-      case behavior
-      when :append
-        lines.concat([
-          "      expected_size = before_state.length + 1",
-          "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
-        ])
-      when :pop
-        expected_expr = expected_result_expr_for(analysis, fallback: "before_state.last")
-        lines.concat([
-          "      expected = #{expected_expr}",
-          "      raise \"Expected popped value to match model\" unless result == expected",
-          "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
-        ])
-      when :dequeue
-        expected_expr = expected_result_expr_for(analysis, fallback: "before_state.first")
-        lines.concat([
-          "      expected = #{expected_expr}",
-          "      raise \"Expected dequeued value to match model\" unless result == expected",
-          "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
-        ])
-      else
-        lines << "      # TODO: add concrete checks for #{predicate_name}"
-      end
-
+      lines.concat(collection_verify_body(analysis, behavior))
       lines << "      [sut, args] && nil"
       lines << "    end"
       lines
     end
 
-    # @rbs predicate_name: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs behavior: Symbol
     # @rbs return: Array[String]
-    def related_assertions_for(predicate_name)
-      analysis = predicate_analysis_by_name(predicate_name)
-      @spec.assertions.filter_map do |assertion|
-        next unless references_predicate?(assertion.body, predicate_name)
-        next unless related_text_matches_analysis?(assertion.body, analysis)
+    def collection_verify_body(analysis, behavior)
+      lines = [] #: Array[String]
+      lines << "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length" if analysis.state_update_shape == :preserve_size
 
-        assertion.name
+      case behavior
+      when :append
+        lines << "      expected_size = before_state.length + 1"
+        lines << "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
+      when :pop
+        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.last')}"
+        lines << "      raise \"Expected popped value to match model\" unless result == expected"
+        lines << "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+      when :dequeue
+        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.first')}"
+        lines << "      raise \"Expected dequeued value to match model\" unless result == expected"
+        lines << "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+      else
+        lines << "      # TODO: add concrete collection checks for #{analysis.predicate_name}"
       end
+
+      lines
     end
 
-    # @rbs predicate_name: String
+    # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
-    def related_facts_for(predicate_name)
-      analysis = predicate_analysis_by_name(predicate_name)
-      @spec.facts.filter_map do |fact|
-        next unless references_predicate?(fact.body, predicate_name)
-        next unless related_text_matches_analysis?(fact.body, analysis)
-
-        fact.name || "<anonymous fact>"
-      end
-    end
-
-    # @rbs predicate_name: String
-    # @rbs return: Array[Symbol]
-    def assertion_fact_pattern_hints(predicate_name)
-      analysis = predicate_analysis_by_name(predicate_name)
-      texts = [] #: Array[String]
-
-      @spec.assertions.each do |assertion|
-        next unless references_predicate?(assertion.body, predicate_name)
-        next unless related_text_matches_analysis?(assertion.body, analysis)
-
-        texts << "#{assertion.name} #{assertion.body}"
-      end
-      @spec.facts.each do |fact|
-        next unless references_predicate?(fact.body, predicate_name)
-        next unless related_text_matches_analysis?(fact.body, analysis)
-
-        fact_name = fact.name || ""
-        texts << "#{fact_name} #{fact.body}".strip
-      end
-
-      texts.flat_map { |text| PropertyPattern.detect("", text) }.uniq
-    end
-
-    # @rbs predicate_name: String
-    # @rbs return: Array[Predicate]
-    def related_property_predicates(predicate_name)
-      command_pred = @spec.predicates.find { |predicate| predicate.name == predicate_name }
-      return [] unless command_pred
-
-      analysis = predicate_analysis(command_pred)
-      state_types = [analysis.state_type].compact
-      state_types = state_param_types_for(command_pred) if state_types.empty?
-      return [] if state_types.empty?
-
-      @spec.predicates.select do |predicate|
-        next false if predicate.name == predicate_name
-        next false if command_like_predicate?(predicate)
-        next false unless related_predicate_matches_analysis?(predicate, analysis)
-
-        predicate.params.any? { |param| state_types.include?(param[:type]) }
+    def scalar_verify_body(analysis)
+      case analysis.state_update_shape
+      when :increment
+        [
+          "      # TODO: verify incremented value for #{state_target_label(analysis)}",
+          "      # Example shape: after_state should reflect a monotonic +1 style update"
+        ]
+      when :decrement
+        [
+          "      # TODO: verify decremented value for #{state_target_label(analysis)}",
+          "      # Example shape: after_state should reflect a monotonic -1 style update"
+        ]
+      when :replace_with_arg
+        [
+          "      # TODO: verify replaced value for #{state_target_label(analysis)} using args",
+          "      # Example shape: compare the inferred target against the command argument"
+        ]
+      when :replace_value
+        [
+          "      # TODO: verify replaced value for #{state_target_label(analysis)}",
+          "      # Example shape: compare the inferred target against args/result"
+        ]
+      when :preserve_value
+        [
+          "      # TODO: verify preserved value for #{state_target_label(analysis)}",
+          "      # Example shape: assert the inferred target remains unchanged"
+        ]
+      else
+        [
+          "      # TODO: #{scalar_verify_guidance(analysis)}"
+        ]
       end
     end
 
@@ -508,59 +460,6 @@ module SpecToPbt
     def predicate_analysis(predicate)
       @predicate_analyses ||= {} #: Hash[String, StatefulPredicateAnalysis]
       @predicate_analyses[predicate.name] ||= @predicate_analyzer.analyze(predicate)
-    end
-
-    # @rbs predicate_name: String
-    # @rbs return: StatefulPredicateAnalysis?
-    def predicate_analysis_by_name(predicate_name)
-      predicate = @spec.predicates.find { |item| item.name == predicate_name }
-      predicate ? predicate_analysis(predicate) : nil
-    end
-
-    # @rbs method_name: String
-    # @rbs return: StatefulPredicateAnalysis?
-    def predicate_analysis_by_method_name(method_name)
-      predicate = @spec.predicates.find { |item| underscore(item.name) == method_name }
-      predicate ? predicate_analysis(predicate) : nil
-    end
-
-    # @rbs predicate_name: String
-    # @rbs return: Array[String]
-    def related_property_predicates_for(predicate_name)
-      related_property_predicates(predicate_name).map(&:name)
-    end
-
-    # @rbs predicate_name: String
-    # @rbs return: Array[Symbol]
-    def related_property_predicate_pattern_hints(predicate_name)
-      related_property_predicates(predicate_name)
-        .flat_map { |predicate| PropertyPattern.detect(predicate.name, predicate.body) }
-        .uniq
-    end
-
-    # @rbs predicate: Predicate
-    # @rbs return: Array[String]
-    def state_param_types_for(predicate)
-      primed_state_types = [] #: Array[String]
-      params_by_name = predicate.params.to_h { |param| [param[:name], param] }
-
-      predicate.params.each do |param|
-        name = param[:name]
-        next unless name.end_with?("'")
-
-        base_name = name.delete_suffix("'")
-        base_param = params_by_name[base_name]
-        next unless base_param
-        next unless base_param[:type] == param[:type]
-
-        primed_state_types << param[:type]
-      end
-
-      if primed_state_types.empty? && state_signature_name
-        [state_signature_name]
-      else
-        primed_state_types.uniq
-      end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis?
@@ -584,23 +483,6 @@ module SpecToPbt
       ["seq", "set"].include?(analysis.state_field_multiplicity)
     end
 
-    # @rbs return: Array[String]
-    def generic_next_state_lines(analysis)
-      if analysis && !collection_like_state?(analysis)
-        [
-          "    def next_state(state, _args)",
-          "      state # TODO: #{scalar_update_guidance(analysis)}",
-          "    end"
-        ]
-      else
-        [
-          "    def next_state(state, _args)",
-          "      state # TODO: model transition (analyzer could not infer a collection-safe update)",
-          "    end"
-        ]
-      end
-    end
-
     # @rbs analysis: StatefulPredicateAnalysis?
     # @rbs return: String
     def state_target_label(analysis)
@@ -608,14 +490,6 @@ module SpecToPbt
       return analysis.state_type.to_s if analysis.state_field.nil?
 
       "#{analysis.state_type}##{analysis.state_field}"
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def transition_evidence?(analysis)
-      return false unless analysis
-
-      !analysis.transition_kind.nil? || !analysis.size_delta.nil? || analysis.requires_non_empty_state
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -632,13 +506,15 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def scalar_update_guidance(analysis)
-      case analysis.scalar_update_kind
-      when :replace_like
+      case analysis.state_update_shape
+      when :replace_with_arg
+        "replace #{state_target_label(analysis)} using args"
+      when :replace_value
         "replace #{state_target_label(analysis)} using args/result"
-      when :increment_like
-        "update #{state_target_label(analysis)} based on args/result"
-      when :decrement_like
-        "decrease #{state_target_label(analysis)} based on args/result"
+      when :increment
+        "increment #{state_target_label(analysis)} based on args/result"
+      when :decrement
+        "decrement #{state_target_label(analysis)} based on args/result"
       else
         "update #{state_target_label(analysis)} based on args/result"
       end
@@ -649,48 +525,24 @@ module SpecToPbt
     def scalar_verify_guidance(analysis)
       return "verify scalar/domain-specific postconditions" unless analysis
 
-      case analysis.scalar_update_kind
-      when :replace_like
+      case analysis.state_update_shape
+      when :replace_with_arg, :replace_value
         "verify replaced value for #{state_target_label(analysis)}"
-      when :increment_like
+      when :increment
         "verify incremented value for #{state_target_label(analysis)}"
-      when :decrement_like
+      when :decrement
         "verify decremented value for #{state_target_label(analysis)}"
+      when :preserve_value
+        "verify preserved value for #{state_target_label(analysis)}"
       else
         "verify scalar/domain-specific postconditions for #{state_target_label(analysis)}"
       end
     end
 
-    # @rbs text: String
-    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs name: String
     # @rbs return: bool
-    def related_text_matches_analysis?(text, analysis)
-      return true unless analysis
-
-      state_matches = analysis.state_type.nil? || text.match?(/\b#{Regexp.escape(analysis.state_type)}\b/)
-      field_matches = analysis.state_field.nil? || text.match?(/\b#{Regexp.escape(analysis.state_field)}\b/)
-
-      state_matches || field_matches
-    end
-
-    # @rbs predicate: Predicate
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def related_predicate_matches_analysis?(predicate, analysis)
-      return true unless analysis
-
-      predicate_analysis = predicate_analysis(predicate)
-      return true if predicate_analysis.state_type == analysis.state_type
-      return true if predicate_analysis.state_field == analysis.state_field && !analysis.state_field.nil?
-
-      related_text_matches_analysis?(predicate.body, analysis)
-    end
-
-    # @rbs body: String
-    # @rbs predicate_name: String
-    # @rbs return: bool
-    def references_predicate?(body, predicate_name)
-      body.match?(/\b#{Regexp.escape(predicate_name)}\s*\[/)
+    def property_like_name?(name)
+      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
     end
 
     # @rbs value: String

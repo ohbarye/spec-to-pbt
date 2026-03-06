@@ -66,12 +66,11 @@ RSpec.describe "stack (stateful scaffold)" do
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#s'.elements = add[#s.elements, 1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high
+      # Alloy predicate body (preview): "#s'.elements=add[#s.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:append_like
       # Related Alloy assertions: StackProperties
-      # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
-      # Related property predicate pattern hints: roundtrip, size, empty, ordering
+      # Related pattern hints: roundtrip, size, empty, ordering
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -113,12 +112,11 @@ RSpec.describe "stack (stateful scaffold)" do
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#s.elements > 0 implies #s'.elements = sub[#s.elements, 1]"
-      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high
+      # Alloy predicate body (preview): "#s.elements>0 implies#s'.elements=sub[#s.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_last
       # Related Alloy assertions: StackProperties
-      # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
-      # Related property predicate pattern hints: roundtrip, size, empty, ordering
+      # Related pattern hints: roundtrip, size, empty, ordering
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts

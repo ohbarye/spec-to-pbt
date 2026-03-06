@@ -129,6 +129,7 @@ bundle exec steep check
 ### Stateful Development Notes
 
 - The main stateful integration path uses the local `pbt` checkout at `../pbt` by default
+- `../pbt` is expected to track the user's local `main` branch unless `PBT_REPO_DIR` is overridden
 - Override with `PBT_REPO_DIR=/path/to/pbt` if needed
 - Stateful scaffold execution in generated specs is gated by:
   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
@@ -137,6 +138,7 @@ bundle exec steep check
   - snapshot specs
   - API contract specs
   - generated scaffold E2E
+  - `pbt main` call-shape drift detection via contract/E2E coverage
 
 ### Type Annotations
 

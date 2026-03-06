@@ -21,7 +21,10 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.requires_non_empty_state).to be(false)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:append)
+        expect(result.state_update_shape).to eq(:append_like)
         expect(result.command_confidence).to eq(:high)
+        expect(result.related_predicate_names).to eq(["PushPopIdentity", "IsEmpty", "LIFO"])
+        expect(result.related_assertion_names).to eq(["StackProperties"])
       end
 
       it "extracts non-empty guard and -1 size delta for pop" do
@@ -32,9 +35,11 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.argument_params).to eq([])
         expect(result.size_delta).to eq(-1)
         expect(result.requires_non_empty_state).to be(true)
+        expect(result.guard_kind).to eq(:non_empty)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:pop)
         expect(result.result_position).to eq(:last)
+        expect(result.state_update_shape).to eq(:remove_last)
       end
     end
 
@@ -52,6 +57,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.size_delta).to eq(1)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:append)
+        expect(result.state_update_shape).to eq(:append_like)
         expect(result.command_confidence).to eq(:high)
       end
 
@@ -64,6 +70,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:dequeue)
         expect(result.result_position).to eq(:first)
+        expect(result.state_update_shape).to eq(:remove_first)
       end
     end
 
@@ -93,6 +100,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_field_multiplicity).to eq("one")
         expect(result.transition_kind).to eq(:append)
         expect(result.scalar_update_kind).to eq(:increment_like)
+        expect(result.state_update_shape).to eq(:increment)
       end
     end
 
@@ -117,6 +125,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.state_field).to eq("entries")
         expect(result.transition_kind).to eq(:size_no_change)
         expect(result.result_position).to be_nil
+        expect(result.state_update_shape).to eq(:preserve_size)
         expect(result.command_confidence).to eq(:medium)
       end
     end
@@ -148,9 +157,11 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(take_front.transition_kind).to eq(:dequeue)
         expect(take_front.result_position).to eq(:first)
         expect(take_front.command_confidence).to eq(:high)
+        expect(take_front.state_update_shape).to eq(:remove_first)
         expect(drop_last.transition_kind).to eq(:pop)
         expect(drop_last.result_position).to eq(:last)
         expect(drop_last.command_confidence).to eq(:high)
+        expect(drop_last.state_update_shape).to eq(:remove_last)
       end
     end
 
@@ -175,6 +186,8 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(result.state_field).to eq("target")
         expect(result.scalar_update_kind).to eq(:replace_like)
+        expect(result.rhs_source_kind).to eq(:arg)
+        expect(result.state_update_shape).to eq(:replace_with_arg)
         expect(result.command_confidence).to eq(:medium)
       end
     end
@@ -205,8 +218,10 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(inc.size_delta).to eq(1)
         expect(inc.scalar_update_kind).to eq(:increment_like)
+        expect(inc.state_update_shape).to eq(:increment)
         expect(dec.size_delta).to eq(-1)
         expect(dec.scalar_update_kind).to eq(:decrement_like)
+        expect(dec.state_update_shape).to eq(:decrement)
       end
     end
 
@@ -230,6 +245,8 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         result = analyzer.analyze(spec.predicates.first)
 
         expect(result.scalar_update_kind).to eq(:replace_like)
+        expect(result.rhs_source_kind).to eq(:arg)
+        expect(result.state_update_shape).to eq(:replace_with_arg)
       end
     end
 
@@ -253,6 +270,32 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         result = analyzer.analyze(spec.predicates.first)
 
         expect(result.command_confidence).to eq(:low)
+        expect(result.state_update_shape).to eq(:unknown)
+      end
+    end
+
+    context "with scalar no-op preservation" do
+      let(:source) do
+        <<~ALLOY
+          module noop
+
+          sig Box {
+            value: one Int
+          }
+
+          pred Keep[b, b': Box] {
+            #b'.value = #b.value
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "distinguishes preserve-value updates from replacement" do
+        result = analyzer.analyze(spec.predicates.first)
+
+        expect(result.rhs_source_kind).to eq(:state_field)
+        expect(result.state_update_shape).to eq(:preserve_value)
+        expect(result.command_confidence).to eq(:medium)
       end
     end
   end

@@ -31,32 +31,38 @@ module SpecToPbt
   # @rbs name: String
   # @rbs params: Array[Hash[Symbol, String]]
   # @rbs body: String
-  Predicate = Data.define(:name, :params, :body) do
+  # @rbs normalized_body: String
+  Predicate = Data.define(:name, :params, :body, :normalized_body) do
     # @rbs name: String
     # @rbs params: Array[Hash[Symbol, String]]
     # @rbs body: String
+    # @rbs normalized_body: String
     # @rbs return: void
-    def initialize(name:, params: [], body: "") = super
+    def initialize(name:, params: [], body: "", normalized_body: body) = super
   end
 
   # Represents an Alloy assertion
   # @rbs name: String
   # @rbs body: String
-  Assertion = Data.define(:name, :body) do
+  # @rbs normalized_body: String
+  Assertion = Data.define(:name, :body, :normalized_body) do
     # @rbs name: String
     # @rbs body: String
+    # @rbs normalized_body: String
     # @rbs return: void
-    def initialize(name:, body: "") = super
+    def initialize(name:, body: "", normalized_body: body) = super
   end
 
   # Represents an Alloy fact
   # @rbs name: String?
   # @rbs body: String
-  Fact = Data.define(:name, :body) do
+  # @rbs normalized_body: String
+  Fact = Data.define(:name, :body, :normalized_body) do
     # @rbs name: String?
     # @rbs body: String
+    # @rbs normalized_body: String
     # @rbs return: void
-    def initialize(name: nil, body: "") = super
+    def initialize(name: nil, body: "", normalized_body: body) = super
   end
 
   # Represents an Alloy specification
@@ -133,14 +139,15 @@ module SpecToPbt
           {
             name: pred.name,
             params: pred.params,
-            body: pred.body
+            body: pred.body,
+            normalized_body: pred.normalized_body
           }
         end,
         assertions: spec.assertions.map do |a|
-          { name: a.name, body: a.body }
+          { name: a.name, body: a.body, normalized_body: a.normalized_body }
         end,
         facts: spec.facts.map do |f|
-          { name: f.name, body: f.body }
+          { name: f.name, body: f.body, normalized_body: f.normalized_body }
         end
       }
     end
@@ -197,7 +204,8 @@ module SpecToPbt
     def parse_predicates(source)
       source.scan(PRED_PATTERN).map do |name, params_str, body|
         params = parse_params(params_str.to_s)
-        Predicate.new(name: name.to_s, params:, body: body.to_s.strip)
+        raw_body = body.to_s.strip
+        Predicate.new(name: name.to_s, params:, body: raw_body, normalized_body: normalize_body(raw_body))
       end
     end
 
@@ -219,7 +227,8 @@ module SpecToPbt
     # @rbs return: Array[Assertion]
     def parse_assertions(source)
       source.scan(ASSERT_PATTERN).map do |name, body|
-        Assertion.new(name: name.to_s, body: body.to_s.strip)
+        raw_body = body.to_s.strip
+        Assertion.new(name: name.to_s, body: raw_body, normalized_body: normalize_body(raw_body))
       end
     end
 
@@ -230,8 +239,18 @@ module SpecToPbt
       source.scan(FACT_PATTERN).map do |name, body|
         name_str = name.to_s
         fact_name = name_str.empty? ? nil : name_str
-        Fact.new(name: fact_name, body: body.to_s.strip)
+        raw_body = body.to_s.strip
+        Fact.new(name: fact_name, body: raw_body, normalized_body: normalize_body(raw_body))
       end
+    end
+
+    # @rbs body: String
+    # @rbs return: String
+    def normalize_body(body)
+      body
+        .gsub(/\s+/, " ")
+        .gsub(/\s*([=+\-#\[\]\{\}\(\),.:|<>])\s*/, '\1')
+        .strip
     end
   end
 end

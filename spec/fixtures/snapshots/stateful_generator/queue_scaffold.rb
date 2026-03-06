@@ -66,12 +66,11 @@ RSpec.describe "queue (stateful scaffold)" do
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#q'.elements = add[#q.elements, 1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high
+      # Alloy predicate body (preview): "#q'.elements=add[#q.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:append_like
       # Related Alloy assertions: QueueProperties
-      # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
-      # Related property predicate pattern hints: size, empty, ordering
+      # Related pattern hints: size, empty, ordering
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -113,12 +112,11 @@ RSpec.describe "queue (stateful scaffold)" do
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#q.elements > 0 implies #q'.elements = sub[#q.elements, 1]"
-      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high
+      # Alloy predicate body (preview): "#q.elements>0 implies#q'.elements=sub[#q.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_first
       # Related Alloy assertions: QueueProperties
-      # Assertion/fact pattern hints: empty
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
-      # Related property predicate pattern hints: size, empty, ordering
+      # Related pattern hints: size, empty, ordering
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts

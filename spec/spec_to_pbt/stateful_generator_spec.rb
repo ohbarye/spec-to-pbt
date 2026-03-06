@@ -62,14 +62,15 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include("# Related Alloy assertions: StackProperties")
-        expect(code).to include("# Assertion/fact pattern hints: empty")
+        expect(code).to include("# Related pattern hints:")
+        expect(code).to include("empty")
       end
 
       it "adds sibling property predicate hints for the same state domain" do
         code = generator.generate
 
         expect(code).to include("# Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO")
-        expect(code).to include("# Related property predicate pattern hints:")
+        expect(code).to include("# Related pattern hints:")
         expect(code).to include("roundtrip")
         expect(code).to include("empty")
         expect(code).to include("ordering")
@@ -91,7 +92,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state.drop(1)")
         expect(code).to include("Expected dequeued value to match model")
         expect(code).to include("# Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO")
-        expect(code).to include("# Related property predicate pattern hints:")
+        expect(code).to include("# Related pattern hints:")
         expect(code).to include("empty")
         expect(code).to include("ordering")
       end
@@ -134,8 +135,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("class StepCommand")
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
         expect(code).to include("nil # TODO: replace with a domain-specific scalar/model state")
-        expect(code).not_to include("Pbt.tuple(Pbt.integer, Pbt.integer, Pbt.integer)")
-        expect(code).to include("state # TODO: update Machine#value based on args/result")
+        expect(code).not_to include("Pbt.tuple(")
+        expect(code).to include("state # TODO: increment Machine#value based on args/result")
         expect(code).not_to include("state + [args]")
       end
     end
@@ -186,7 +187,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include('transition_kind=:size_no_change')
-        expect(code).to include('state_field="entries"')
+        expect(code).to include('state_update_shape=:preserve_size')
         expect(code).to include("Expected size to stay the same")
       end
     end
@@ -215,8 +216,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('state_field="value"')
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
-        expect(code).to include("TODO: update Machine#value based on args/result")
-        expect(code).to include("scalar_update_kind=:increment_like")
+        expect(code).to include("TODO: verify incremented value for Machine#value")
+        expect(code).to include("state_update_shape=:increment")
       end
     end
 
@@ -239,9 +240,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits replacement-oriented scalar guidance" do
         code = generator.generate
 
-        expect(code).to include('scalar_update_kind=:replace_like')
-        expect(code).to include("TODO: replace Thermostat#target using args/result")
-        expect(code).to include("TODO: verify replaced value for Thermostat#target")
+        expect(code).to include('rhs_source_kind=:arg')
+        expect(code).to include('state_update_shape=:replace_with_arg')
+        expect(code).to include("TODO: verify replaced value for Thermostat#target using args")
       end
     end
 
@@ -264,9 +265,34 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits decrement-oriented scalar guidance" do
         code = generator.generate
 
-        expect(code).to include('scalar_update_kind=:decrement_like')
-        expect(code).to include("TODO: decrease Counter#value based on args/result")
+        expect(code).to include('state_update_shape=:decrement')
+        expect(code).to include("TODO: decrement Counter#value based on args/result")
         expect(code).to include("TODO: verify decremented value for Counter#value")
+      end
+    end
+
+    context "with a preserve-value scalar state update" do
+      let(:source) do
+        <<~ALLOY
+          module box
+
+          sig Box {
+            value: one Int
+          }
+
+          pred Keep[b, b': Box] {
+            #b'.value = #b.value
+          }
+        ALLOY
+      end
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "emits preserve-value scalar guidance" do
+        code = generator.generate
+
+        expect(code).to include('state_update_shape=:preserve_value')
+        expect(code).to include("keep Box#value stable unless other domain state changes")
+        expect(code).to include("TODO: verify preserved value for Box#value")
       end
     end
 

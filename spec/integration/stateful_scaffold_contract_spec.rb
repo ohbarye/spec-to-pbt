@@ -20,7 +20,7 @@ RSpec.describe "Stateful scaffold contract" do
     FileUtils.rm_rf(output_dir)
   end
 
-  it "matches the expected Pbt.stateful API and command protocol" do
+  it "matches the expected Pbt.stateful API and command protocol used against pbt main" do
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"

@@ -52,7 +52,7 @@ RSpec.describe "cache (stateful scaffold)" do
 
     def next_state(state, _args)
       # Inferred transition target: Cache#entries
-      state # inferred size-preserving transition (customize shape change if needed)
+      state # TODO: preserve size while refining element/order changes
     end
 
     def run!(sut, args)
@@ -67,15 +67,15 @@ RSpec.describe "cache (stateful scaffold)" do
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#c'.entries = #c.entries"
-      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:medium
+      # Alloy predicate body (preview): "#c'.entries=#c.entries"
+      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_size
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
       # Inferred collection target: Cache#entries
       raise "Expected size to stay the same" unless after_state.length == before_state.length
-      # TODO: add concrete checks for Rewrite
+      # TODO: add concrete collection checks for Rewrite
       [sut, args] && nil
     end
   end

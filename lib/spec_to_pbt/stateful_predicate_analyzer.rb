@@ -15,7 +15,14 @@ module SpecToPbt
     :transition_kind,
     :result_position,
     :scalar_update_kind,
-    :command_confidence
+    :command_confidence,
+    :guard_kind,
+    :rhs_source_kind,
+    :state_update_shape,
+    :related_predicate_names,
+    :related_assertion_names,
+    :related_fact_names,
+    :related_pattern_hints
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
@@ -29,8 +36,15 @@ module SpecToPbt
     # @rbs result_position: Symbol?
     # @rbs scalar_update_kind: Symbol?
     # @rbs command_confidence: Symbol
+    # @rbs guard_kind: Symbol
+    # @rbs rhs_source_kind: Symbol
+    # @rbs state_update_shape: Symbol
+    # @rbs related_predicate_names: Array[String]
+    # @rbs related_assertion_names: Array[String]
+    # @rbs related_fact_names: Array[String]
+    # @rbs related_pattern_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -41,11 +55,14 @@ module SpecToPbt
       @spec = spec #: Spec
       @signature_names = spec.signatures.map(&:name) #: Array[String]
       @module_state_name = spec.module_name&.then { |name| camelize(name) } #: String?
+      @analyses = {} #: Hash[String, StatefulPredicateAnalysis]
     end
 
     # @rbs predicate: Predicate
     # @rbs return: StatefulPredicateAnalysis
     def analyze(predicate)
+      return @analyses[predicate.name] if @analyses.key?(predicate.name)
+
       state_param_names, state_type = infer_state_params(predicate)
       argument_params = predicate.params.reject do |param|
         @signature_names.include?(param[:name]) || state_param_names.include?(param[:name])
@@ -54,27 +71,54 @@ module SpecToPbt
         argument_params = argument_params.reject { |param| param[:type] == state_type && state_param_names.include?(param[:name]) }
       end
 
-      state_field = infer_state_field(predicate.body, state_param_names)
+      body = normalized_body_for(predicate)
+      state_field = infer_state_field(body, state_param_names)
       state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
-      size_delta = infer_size_delta(predicate.body)
-      requires_non_empty_state = requires_non_empty_state?(predicate.body)
+      size_delta = infer_size_delta(body)
+      guard_kind = infer_guard_kind(body)
+      requires_non_empty_state = guard_kind != :none
+      transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state)
+      scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
+      rhs_source_kind = infer_rhs_source_kind(body, predicate, state_field)
+      state_update_shape = infer_state_update_shape(
+        state_field_multiplicity: state_field_multiplicity,
+        size_delta: size_delta,
+        transition_kind: transition_kind,
+        scalar_update_kind: scalar_update_kind,
+        rhs_source_kind: rhs_source_kind,
+        body: body,
+        state_field: state_field
+      )
 
-      transition_kind = infer_transition_kind(predicate.name, predicate.body, size_delta, requires_non_empty_state)
-      scalar_update_kind = infer_scalar_update_kind(predicate.body, state_field, state_field_multiplicity)
-
-      StatefulPredicateAnalysis.new(
+      analysis = StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
-        state_param_names:,
-        state_type:,
-        argument_params:,
-        state_field:,
-        state_field_multiplicity:,
-        size_delta:,
-        requires_non_empty_state:,
-        transition_kind:,
+        state_param_names: state_param_names,
+        state_type: state_type,
+        argument_params: argument_params,
+        state_field: state_field,
+        state_field_multiplicity: state_field_multiplicity,
+        size_delta: size_delta,
+        requires_non_empty_state: requires_non_empty_state,
+        transition_kind: transition_kind,
         result_position: infer_result_position(predicate.name, transition_kind),
-        scalar_update_kind:,
-        command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind)
+        scalar_update_kind: scalar_update_kind,
+        command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
+        guard_kind: guard_kind,
+        rhs_source_kind: rhs_source_kind,
+        state_update_shape: state_update_shape
+      )
+      @analyses[predicate.name] = analysis
+
+      related_predicates = related_predicate_names_for(predicate, analysis)
+      related_assertions = related_assertion_names_for(predicate, analysis)
+      related_facts = related_fact_names_for(predicate, analysis)
+      related_pattern_hints = related_pattern_hints_for(related_predicates, related_assertions, related_facts)
+
+      @analyses[predicate.name] = analysis.with(
+        related_predicate_names: related_predicates,
+        related_assertion_names: related_assertions,
+        related_fact_names: related_facts,
+        related_pattern_hints: related_pattern_hints
       )
     end
 
@@ -102,14 +146,32 @@ module SpecToPbt
       [state_params, (state_params.empty? ? nil : @module_state_name)]
     end
 
+    # @rbs predicate: Predicate
+    # @rbs return: String
+    def normalized_body_for(predicate)
+      if predicate.respond_to?(:normalized_body) && !predicate.normalized_body.to_s.empty?
+        predicate.normalized_body.to_s
+      else
+        normalize_text(predicate.body)
+      end
+    end
+
     # @rbs body: String
     # @rbs return: Integer?
     def infer_size_delta(body)
-      return 1 if body.match?(/#\w+'?\.\w+\s*=\s*(?:add\[|#\w+\.?\w*\s*\+\s*1)/)
-      return -1 if body.match?(/#\w+'?\.\w+\s*=\s*(?:sub\[|#\w+\.?\w*\s*-\s*1)/)
-      return 0 if body.match?(/#\w+'?\.\w+\s*=\s*#\w+\.?\w*/)
+      return 1 if body.match?(/#\w+'?\.\w+=(?:add\[|#\w+\.?\w*\+1)/)
+      return -1 if body.match?(/#\w+'?\.\w+=(?:sub\[|#\w+\.?\w*-1)/)
+      return 0 if body.match?(/#\w+'?\.\w+=#\w+\.?\w*/)
 
       nil
+    end
+
+    # @rbs body: String
+    # @rbs return: Symbol
+    def infer_guard_kind(body)
+      return :non_empty if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
+
+      :none
     end
 
     # @rbs body: String
@@ -136,12 +198,6 @@ module SpecToPbt
 
       field = signature.fields.find { |item| item.name == state_field }
       field&.multiplicity
-    end
-
-    # @rbs body: String
-    # @rbs return: bool
-    def requires_non_empty_state?(body)
-      body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
     end
 
     # @rbs predicate_name: String
@@ -181,11 +237,56 @@ module SpecToPbt
       return nil if state_field.nil?
       return nil if ["seq", "set"].include?(state_field_multiplicity)
 
-      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*(?:add\[|#\w+\.?#{Regexp.escape(state_field)}\s*\+\s*1)/)
-      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*(?:sub\[|#\w+\.?#{Regexp.escape(state_field)}\s*-\s*1)/)
-      return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}\s*=\s*#?\w+/)
+      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add\[|#\w+\.?#{Regexp.escape(state_field)}\+1)/)
+      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:sub\[|#\w+\.?#{Regexp.escape(state_field)}-1)/)
+      return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+/)
 
       nil
+    end
+
+    # @rbs body: String
+    # @rbs predicate: Predicate
+    # @rbs state_field: String?
+    # @rbs return: Symbol
+    def infer_rhs_source_kind(body, predicate, state_field)
+      return :unknown if state_field.nil?
+
+      predicate.params.each do |param|
+        next if param[:name].end_with?("'")
+        next if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+\.#{Regexp.escape(state_field)}/)
+
+        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param[:name])}\b/)
+      end
+
+      return :state_field if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}/)
+
+      :unknown
+    end
+
+    # @rbs state_field_multiplicity: String?
+    # @rbs size_delta: Integer?
+    # @rbs transition_kind: Symbol?
+    # @rbs scalar_update_kind: Symbol?
+    # @rbs rhs_source_kind: Symbol
+    # @rbs body: String
+    # @rbs state_field: String?
+    # @rbs return: Symbol
+    def infer_state_update_shape(state_field_multiplicity:, size_delta:, transition_kind:, scalar_update_kind:, rhs_source_kind:, body:, state_field:)
+      if ["seq", "set"].include?(state_field_multiplicity)
+        return :append_like if size_delta == 1
+        return :remove_first if transition_kind == :dequeue
+        return :remove_last if transition_kind == :pop
+        return :preserve_size if size_delta == 0
+        return :unknown
+      end
+
+      return :preserve_value if state_field && body.match?(/\A#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}\z/)
+      return :increment if scalar_update_kind == :increment_like
+      return :decrement if scalar_update_kind == :decrement_like
+      return :replace_with_arg if scalar_update_kind == :replace_like && rhs_source_kind == :arg
+      return :replace_value if scalar_update_kind == :replace_like
+
+      :unknown
     end
 
     # @rbs predicate_name: String
@@ -193,15 +294,138 @@ module SpecToPbt
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
     # @rbs scalar_update_kind: Symbol?
+    # @rbs state_update_shape: Symbol
     # @rbs return: Symbol
-    def infer_command_confidence(predicate_name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind)
+    def infer_command_confidence(predicate_name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape)
       return :high if predicate_name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/)
       return :high if [:append, :pop, :dequeue].include?(transition_kind)
+      return :high if [:append_like, :remove_first, :remove_last].include?(state_update_shape)
       return :medium if transition_kind == :size_no_change
+      return :medium if [:increment, :decrement, :replace_with_arg, :replace_value, :preserve_value].include?(state_update_shape)
       return :medium if !scalar_update_kind.nil?
       return :medium if !size_delta.nil? || requires_non_empty_state
 
       :low
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_predicate_names_for(predicate, analysis)
+      @spec.predicates.filter_map do |other|
+        next if other.name == predicate.name
+        next if command_analysis_like?(core_analysis_for(other)) && !property_like_name?(other.name)
+
+        other_analysis = core_analysis_for(other)
+        next unless related_analysis?(other_analysis, analysis.state_type, analysis.state_field)
+
+        other.name
+      end
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_assertion_names_for(predicate, analysis)
+      @spec.assertions.filter_map do |assertion|
+        next unless related_text?(assertion, predicate.name, analysis.state_type, analysis.state_field)
+
+        assertion.name
+      end
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_fact_names_for(predicate, analysis)
+      @spec.facts.filter_map do |fact|
+        next unless related_text?(fact, predicate.name, analysis.state_type, analysis.state_field)
+
+        fact.name || "<anonymous fact>"
+      end
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: StatefulPredicateAnalysis
+    def core_analysis_for(predicate)
+      existing = @analyses[predicate.name]
+      return existing if existing
+
+      analyze(predicate).with(
+        related_predicate_names: [],
+        related_assertion_names: [],
+        related_fact_names: [],
+        related_pattern_hints: []
+      )
+    end
+
+    # @rbs related_predicates: Array[String]
+    # @rbs related_assertions: Array[String]
+    # @rbs related_facts: Array[String]
+    # @rbs return: Array[Symbol]
+    def related_pattern_hints_for(related_predicates, related_assertions, related_facts)
+      predicate_texts = related_predicates.filter_map do |name|
+        predicate = @spec.predicates.find { |item| item.name == name }
+        predicate && "#{predicate.name} #{normalized_body_for(predicate)}"
+      end
+      assertion_texts = related_assertions.filter_map do |name|
+        assertion = @spec.assertions.find { |item| item.name == name }
+        assertion && "#{assertion.name} #{normalize_text(assertion.normalized_body)}"
+      end
+      fact_texts = related_facts.filter_map do |name|
+        fact = @spec.facts.find { |item| (item.name || "<anonymous fact>") == name }
+        fact && "#{fact.name} #{normalize_text(fact.normalized_body)}"
+      end
+
+      (predicate_texts + assertion_texts + fact_texts)
+        .flat_map { |text| PropertyPattern.detect("", text) }
+        .uniq
+    end
+
+    # @rbs predicate: Predicate
+    # @rbs return: bool
+    def looks_like_command?(predicate)
+      return false if property_like_name?(predicate.name)
+
+      body = normalized_body_for(predicate)
+      PropertyPattern.detect(predicate.name, body).empty? &&
+        (body.include?("'") || predicate.name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/))
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: bool
+    def related_analysis?(analysis, state_type, state_field)
+      return true if !state_type.nil? && analysis.state_type == state_type
+      return true if !state_field.nil? && analysis.state_field == state_field
+
+      false
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def command_analysis_like?(analysis)
+      return true if [:append, :pop, :dequeue, :size_no_change].include?(analysis.transition_kind)
+      return true if [:append_like, :remove_first, :remove_last, :preserve_size].include?(analysis.state_update_shape)
+
+      false
+    end
+
+    # @rbs entry: Assertion | Fact
+    # @rbs predicate_name: String
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: bool
+    def related_text?(entry, predicate_name, state_type, state_field)
+      body = normalize_text(entry.normalized_body)
+      return true if body.match?(/\b#{Regexp.escape(predicate_name)}\[/)
+
+      type_match = !state_type.nil? && body.match?(/\b#{Regexp.escape(state_type)}\b/)
+      field_match = !state_field.nil? && body.match?(/\b#{Regexp.escape(state_field)}\b/)
+      pattern_match = PropertyPattern.detect("", body).any?
+
+      (type_match || field_match) && pattern_match
     end
 
     # @rbs predicate_name: String
@@ -220,10 +444,22 @@ module SpecToPbt
       text.match?(/(?:pop|drop.*last|remove.*last|tail|back|end|last)/i)
     end
 
+    # @rbs name: String
+    # @rbs return: bool
+    def property_like_name?(name)
+      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
+    end
+
     # @rbs value: String
     # @rbs return: String
     def camelize(value)
       value.to_s.split(/[^a-zA-Z0-9]+/).reject(&:empty?).map { |part| part[0].upcase + part[1..] }.join
+    end
+
+    # @rbs value: String
+    # @rbs return: String
+    def normalize_text(value)
+      value.to_s.gsub(/\s+/, " ").strip
     end
   end
 end

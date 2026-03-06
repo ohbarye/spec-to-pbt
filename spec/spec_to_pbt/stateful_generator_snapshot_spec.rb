@@ -11,7 +11,10 @@ RSpec.describe "SpecToPbt::StatefulGenerator snapshots" do
     "sort" => "sort.als",
     "workflow_scalar" => "workflow_scalar.als",
     "cache_size_preserving" => "cache_size_preserving.als",
-    "bag_body_removal" => "bag_body_removal.als"
+    "bag_body_removal" => "bag_body_removal.als",
+    "scalar_replace_arg" => "scalar_replace_arg.als",
+    "scalar_preserve_value" => "scalar_preserve_value.als",
+    "weak_ambiguous" => "weak_ambiguous.als"
   }.each do |name, fixture_name|
     it "matches the #{name} scaffold snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

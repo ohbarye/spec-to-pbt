@@ -162,6 +162,43 @@ RSpec.describe SpecToPbt::Parser do
           { name: "v", type: "Value" }
         ])
       end
+
+      it "stores a normalized predicate body for analyzer use" do
+        step_pred = parser.spec.predicates.find { |p| p.name == "Step" }
+
+        expect(step_pred.normalized_body).to eq("#s'=add[#s,1]")
+      end
+    end
+
+    context "with spaced assertion/fact bodies" do
+      let(:source) do
+        <<~ALLOY
+          module sample
+
+          sig Box { value: one Int }
+
+          pred Step[b, b': Box] {
+            #b'.value = #b.value
+          }
+
+          assert Stable {
+            all b, b': Box |
+              Step[b, b']
+          }
+
+          fact UsesStep {
+            all b, b': Box |
+              Step[b, b']
+          }
+        ALLOY
+      end
+
+      before { parser.parse(source) }
+
+      it "stores normalized bodies for assertions and facts" do
+        expect(parser.spec.assertions.first.normalized_body).to eq("all b,b':Box|Step[b,b']")
+        expect(parser.spec.facts.first.normalized_body).to eq("all b,b':Box|Step[b,b']")
+      end
     end
   end
 

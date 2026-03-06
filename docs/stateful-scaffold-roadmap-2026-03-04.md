@@ -73,6 +73,7 @@ Completed:
 Remaining:
 
 - keep contract coverage aligned with `pbt` as needed
+- keep default `../pbt` integration aligned with `pbt` main call shape
 
 ### 4. Stateful scaffold quality improves
 
@@ -101,6 +102,7 @@ Remaining:
 - improve operation inference from predicate bodies
 - improve generated `next_state` guidance for scalar/domain-specific transitions
 - reduce command extraction and related-hint noise further
+- keep fixture/snapshot coverage growing with new analyzer shapes
 
 ### 5. Reduce Alloy-specific coupling
 
