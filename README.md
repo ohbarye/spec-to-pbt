@@ -130,6 +130,7 @@ Useful stateful fixtures to try:
 For current stateful work and roadmap details, see:
 
 - [docs/stateful-scaffold-roadmap-2026-03-04.md](docs/stateful-scaffold-roadmap-2026-03-04.md)
+- [docs/pbt-stateful-api-feedback-2026-03-07.md](docs/pbt-stateful-api-feedback-2026-03-07.md)
 
 ## Supported Alloy Syntax
 
