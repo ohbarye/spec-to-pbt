@@ -403,6 +403,12 @@ module SpecToPbt
     # @rbs return: Array[String]
     def collection_verify_body(analysis, behavior)
       lines = [] #: Array[String]
+      if analysis.derived_verify_hints.include?(:respect_non_empty_guard) && [:pop, :dequeue].include?(behavior)
+        lines << "      raise \"Expected non-empty state before removal\" if before_state.empty?"
+      end
+      if analysis.derived_verify_hints.include?(:check_empty_semantics) && analysis.state_update_shape == :preserve_size
+        lines << "      raise \"Expected empty-state semantics to stay aligned\" unless after_state.empty? == before_state.empty?"
+      end
       lines << "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length" if analysis.state_update_shape == :preserve_size
 
       case behavior
@@ -450,8 +456,8 @@ module SpecToPbt
         ]
       when :preserve_value
         [
-          "      # TODO: verify preserved value for #{state_target_label(analysis)}",
-          "      # Example shape: assert the inferred target remains unchanged"
+          "      raise \"Expected preserved value for #{state_target_label(analysis)}\" unless after_state == before_state",
+          "      # Example shape: replace this equality check with a narrower field-level assertion if needed"
         ]
       else
         [

@@ -134,6 +134,7 @@ RSpec.describe "stack (stateful scaffold)" do
       # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
       # Derived from related property patterns: verify paired-command roundtrip behavior against sibling commands
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      raise "Expected non-empty state before removal" if before_state.empty?
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

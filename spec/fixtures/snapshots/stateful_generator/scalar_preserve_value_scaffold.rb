@@ -74,8 +74,8 @@ RSpec.describe "box (stateful scaffold)" do
       # 3. Related property predicates
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Box#value
-      # TODO: verify preserved value for Box#value
-      # Example shape: assert the inferred target remains unchanged
+      raise "Expected preserved value for Box#value" unless after_state == before_state
+      # Example shape: replace this equality check with a narrower field-level assertion if needed
       [sut, args] && nil
     end
   end

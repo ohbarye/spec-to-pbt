@@ -74,6 +74,7 @@ RSpec.describe "bag (stateful scaffold)" do
       # 3. Related property predicates
       # Inferred collection target: Bag#elems
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      raise "Expected non-empty state before removal" if before_state.empty?
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

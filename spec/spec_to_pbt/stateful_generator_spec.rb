@@ -296,7 +296,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include('state_update_shape=:preserve_value')
         expect(code).to include("keep Box#value stable unless other domain state changes")
-        expect(code).to include("TODO: verify preserved value for Box#value")
+        expect(code).to include('raise "Expected preserved value for Box#value" unless after_state == before_state')
       end
     end
 
@@ -366,6 +366,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("1. Command-specific postconditions")
         expect(code).to include("2. Related Alloy assertions/facts")
         expect(code).to include("3. Related property predicates")
+        expect(code).to include('raise "Expected non-empty state before removal" if before_state.empty?')
       end
     end
   end
