@@ -415,10 +415,21 @@ module SpecToPbt
       when :append
         lines << "      expected_size = before_state.length + 1"
         lines << "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
+        if analysis.derived_verify_hints.include?(:check_ordering_semantics)
+          lines << "      raise \"Expected appended argument to become the newest element\" unless after_state.last == args"
+        end
+        if roundtrip_restore_after_append?(analysis)
+          lines << "      restored_state = after_state[0...-1]"
+          lines << "      raise \"Expected append/remove-last roundtrip to restore the previous model state\" unless restored_state == before_state"
+        end
       when :pop
         lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.last')}"
         lines << "      raise \"Expected popped value to match model\" unless result == expected"
         lines << "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+        if roundtrip_restore_after_pop?(analysis)
+          lines << "      restored_state = after_state + [result]"
+          lines << "      raise \"Expected remove-last/append roundtrip to restore the previous model state\" unless restored_state == before_state"
+        end
       when :dequeue
         lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.first')}"
         lines << "      raise \"Expected dequeued value to match model\" unless result == expected"
@@ -428,6 +439,44 @@ module SpecToPbt
       end
 
       lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def roundtrip_restore_after_append?(analysis)
+      analysis.derived_verify_hints.include?(:check_roundtrip_pairing) &&
+        sibling_command_behaviors_for(analysis).include?(:pop)
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def roundtrip_restore_after_pop?(analysis)
+      analysis.derived_verify_hints.include?(:check_roundtrip_pairing) &&
+        analysis.state_update_shape == :remove_last &&
+        sibling_command_behaviors_for(analysis).include?(:append)
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[Symbol]
+    def sibling_command_behaviors_for(analysis)
+      @spec.properties.filter_map do |predicate|
+        next if predicate.name == analysis.predicate_name
+
+        candidate_analysis = predicate_analysis(predicate)
+        next unless candidate_analysis.state_type == analysis.state_type
+        next unless candidate_analysis.command_confidence != :low
+
+        case candidate_analysis.state_update_shape
+        when :append_like then :append
+        when :remove_last then :pop
+        when :remove_first then :dequeue
+        else
+          case candidate_analysis.transition_kind
+          when :append, :pop, :dequeue then candidate_analysis.transition_kind
+          else nil
+          end
+        end
+      end.uniq
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

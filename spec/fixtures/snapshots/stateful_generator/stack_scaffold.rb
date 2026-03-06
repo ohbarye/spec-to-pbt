@@ -84,6 +84,9 @@ RSpec.describe "stack (stateful scaffold)" do
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
+      raise "Expected appended argument to become the newest element" unless after_state.last == args
+      restored_state = after_state[0...-1]
+      raise "Expected append/remove-last roundtrip to restore the previous model state" unless restored_state == before_state
       [sut, args] && nil
     end
   end
@@ -138,6 +141,8 @@ RSpec.describe "stack (stateful scaffold)" do
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
+      restored_state = after_state + [result]
+      raise "Expected remove-last/append roundtrip to restore the previous model state" unless restored_state == before_state
       [sut, args] && nil
     end
   end

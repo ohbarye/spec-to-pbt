@@ -83,6 +83,7 @@ RSpec.describe "queue (stateful scaffold)" do
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
+      raise "Expected appended argument to become the newest element" unless after_state.last == args
       [sut, args] && nil
     end
   end
