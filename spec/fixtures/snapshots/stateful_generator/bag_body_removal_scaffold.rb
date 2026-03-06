@@ -52,6 +52,32 @@ RSpec.describe "bag (stateful scaffold)" do
       command_config(command_name)[:verify_override]
     end
 
+    def state_reader
+      config.fetch(:verify_context, {})[:state_reader] || config[:state_reader]
+    end
+
+    def observed_state(sut)
+      reader = state_reader
+      reader ? reader.call(sut) : nil
+    end
+
+    def call_verify_override(command_name, **kwargs)
+      override = verify_override(command_name)
+      return false unless override
+
+      payload = kwargs.merge(observed_state: observed_state(kwargs[:sut]))
+      if override.parameters.any? { |kind, _name| kind == :keyrest }
+        override.call(**payload)
+      else
+        accepted = override.parameters.filter_map do |kind, name|
+          name if [:keyreq, :key].include?(kind)
+        end
+        accepted_payload = accepted.empty? ? {} : payload.select { |key, _value| accepted.include?(key) }
+        override.call(**accepted_payload)
+      end
+      true
+    end
+
     def before_run_hook
       config[:before_run]
     end
@@ -136,10 +162,14 @@ RSpec.describe "bag (stateful scaffold)" do
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
-      if (override = BagPbtSupport.verify_override(name))
-        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)
-        return nil
-      end
+      return nil if BagPbtSupport.call_verify_override(
+        name,
+        before_state: before_state,
+        after_state: after_state,
+        args: args,
+        result: result,
+        sut: sut
+      )
       # Inferred collection target: Bag#elems
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       raise "Expected non-empty state before removal" if before_state.empty?

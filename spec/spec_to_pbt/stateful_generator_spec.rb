@@ -62,7 +62,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected remove-last/append roundtrip to restore the previous model state")
         expect(code).to include("Inferred collection target: Stack#elements")
         expect(code).to include("adapt_args(name, args)")
-        expect(code).to include("verify_override(name)")
+        expect(code).to include("call_verify_override(")
+        expect(code).to include("observed_state(sut)")
       end
 
       it "adds assertion/fact hints to verify! comments" do
@@ -396,6 +397,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("method: :push_adds_element")
         expect(code).to include("Suggested real API method: :push")
         expect(code).to include("verify_override:")
+        expect(code).to include("observed_state:")
+        expect(code).to include("state_reader: nil")
       end
     end
   end

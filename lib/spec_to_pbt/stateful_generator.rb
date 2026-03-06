@@ -435,10 +435,14 @@ module SpecToPbt
       lines << "      # 1. Command-specific postconditions"
       lines << "      # 2. Related Alloy assertions/facts"
       lines << "      # 3. Related property predicates"
-      lines << "      if (override = #{support_module_name}.verify_override(name))"
-      lines << "        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)"
-      lines << "        return nil"
-      lines << "      end"
+      lines << "      return nil if #{support_module_name}.call_verify_override("
+      lines << "        name,"
+      lines << "        before_state: before_state,"
+      lines << "        after_state: after_state,"
+      lines << "        args: args,"
+      lines << "        result: result,"
+      lines << "        sut: sut"
+      lines << "      )"
 
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
@@ -579,6 +583,32 @@ module SpecToPbt
         "      command_config(command_name)[:verify_override]",
         "    end",
         "",
+        "    def state_reader",
+        "      config.fetch(:verify_context, {})[:state_reader] || config[:state_reader]",
+        "    end",
+        "",
+        "    def observed_state(sut)",
+        "      reader = state_reader",
+        "      reader ? reader.call(sut) : nil",
+        "    end",
+        "",
+        "    def call_verify_override(command_name, **kwargs)",
+        "      override = verify_override(command_name)",
+        "      return false unless override",
+        "",
+        "      payload = kwargs.merge(observed_state: observed_state(kwargs[:sut]))",
+        "      if override.parameters.any? { |kind, _name| kind == :keyrest }",
+        "        override.call(**payload)",
+        "      else",
+        "        accepted = override.parameters.filter_map do |kind, name|",
+        "          name if [:keyreq, :key].include?(kind)",
+        "        end",
+        "        accepted_payload = accepted.empty? ? {} : payload.select { |key, _value| accepted.include?(key) }",
+        "        override.call(**accepted_payload)",
+        "      end",
+        "      true",
+        "    end",
+        "",
         "    def before_run_hook",
         "      config[:before_run]",
         "    end",
@@ -606,7 +636,7 @@ module SpecToPbt
       lines << "      # arg_adapter: ->(args) { args },"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state) { true },"
-      lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:) { nil }"
+      lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }"
       lines << "    }#{suffix}"
       lines
     end

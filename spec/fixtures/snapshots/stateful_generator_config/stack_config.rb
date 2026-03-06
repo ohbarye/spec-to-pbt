@@ -13,7 +13,7 @@ StackPbtConfig = {
       # arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state) { true },
-      # verify_override: ->(before_state:, after_state:, args:, result:, sut:) { nil }
+      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }
     },
     pop_removes_element: {
       method: :pop_removes_element,
@@ -21,7 +21,7 @@ StackPbtConfig = {
       # arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state) { true },
-      # verify_override: ->(before_state:, after_state:, args:, result:, sut:) { nil }
+      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }
     }
   },
   verify_context: {

@@ -70,14 +70,22 @@ The config can map spec command names to real Ruby APIs, for example:
 StackPbtConfig = {
   sut_factory: -> { Stack.new },
   command_mappings: {
-    push_adds_element: { method: :push },
+    push_adds_element: {
+      method: :push,
+      verify_override: ->(after_state:, observed_state:) do
+        raise "Expected SUT state to match model" unless observed_state == after_state
+      end
+    },
     pop_removes_element: { method: :pop }
   },
   verify_context: {
-    state_reader: nil
+    state_reader: ->(sut) { sut.to_a }
   }
 }
 ```
+
+`verify_override` receives the normal verification inputs plus `observed_state:` when
+`verify_context[:state_reader]` is configured.
 
 The scaffold now includes analyzer-driven hints such as:
 
