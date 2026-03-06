@@ -39,6 +39,16 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       adapter ? adapter.call(args) : args
     end
 
+    def model_args(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def scalar_model_arg(command_name, args)
+      payload = model_args(command_name, args)
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
     def adapt_result(command_name, result)
       adapter = command_config(command_name)[:result_adapter]
       adapter ? adapter.call(result) : result
@@ -105,13 +115,12 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def initialize
       @commands = [
         EnqueueCommand.new,
-        DequeueCommand.new,
-        IsFullCommand.new
+        DequeueCommand.new
       ]
     end
 
     def initial_state
-      nil # TODO: replace with a domain-specific scalar/model state
+      [] # TODO: replace with a domain-specific collection state
     end
 
     def commands(_state)
@@ -131,7 +140,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return override.call(state) if override
-      true
+      true # TODO: inferred capacity/fullness guard for enqueue; use applicable_override or enrich the model state
     end
 
     def next_state(state, args)
@@ -158,11 +167,11 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q.elements<#q.capacity implies#q'.elements=add[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:append_like
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:below_capacity, rhs_source_kind=:unknown, state_update_shape=:append_like
       # Related Alloy assertions: QueueBounds
-      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty
+      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
       # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -177,6 +186,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       )
       # Inferred collection target: Queue#elements
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       expected_size = before_state.length + 1
@@ -226,9 +236,9 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       # Alloy predicate body (preview): "#q.elements>0 implies#q'.elements=sub[#q.elements,1]"
       # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_first
       # Related Alloy assertions: QueueBounds
-      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty
+      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
       # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -243,80 +253,13 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       )
       # Inferred collection target: Queue#elements
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       raise "Expected non-empty state before removal" if before_state.empty?
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
-      [sut, args] && nil
-    end
-  end
-
-  class IsFullCommand
-    # Analyzer command confidence: medium
-    # TODO: confirm this predicate should be modeled as a command
-    def name
-      :is_full
-    end
-
-    def arguments
-      Pbt.array(Pbt.integer) # placeholder for Queue
-    end
-
-    def applicable?(state)
-      override = BoundedQueuePbtSupport.applicable_override(name)
-      return override.call(state) if override
-      true
-    end
-
-    def next_state(state, _args)
-      state # TODO: replace #elements using args
-    end
-
-    def run!(sut, args)
-      BoundedQueuePbtSupport.before_run_hook&.call(sut)
-      payload = BoundedQueuePbtSupport.adapt_args(name, args)
-      method_name = BoundedQueuePbtSupport.resolve_method_name(name, :is_full)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
-      end
-      adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
-      BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
-      adapted_result
-    end
-
-    def verify!(before_state:, after_state:, args:, result:, sut:)
-      # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#q.elements=#q.capacity"
-      # Analyzer hints: state_field="elements", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
-      # Related Alloy assertions: QueueBounds
-      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty
-      # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_size_semantics
-      # Suggested verify order:
-      # 1. Command-specific postconditions
-      # 2. Related Alloy assertions/facts
-      # 3. Related property predicates
-      return nil if BoundedQueuePbtSupport.call_verify_override(
-        name,
-        before_state: before_state,
-        after_state: after_state,
-        args: args,
-        result: result,
-        sut: sut
-      )
-      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: #elements
-      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
-      # Derived from related property patterns: verify empty-state semantics for the inferred target
-      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # TODO: verify replaced value for #elements using args
-      # Example shape: compare the inferred target against the command argument
       [sut, args] && nil
     end
   end

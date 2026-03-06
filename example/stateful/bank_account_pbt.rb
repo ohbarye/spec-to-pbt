@@ -44,6 +44,12 @@ RSpec.describe "bank_account (stateful scaffold)" do
       reader ? reader.call(sut) : nil
     end
 
+    def model_arg(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter]
+      payload = adapter ? adapter.call(args) : args
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
     def call_verify_override(command_name, **kwargs)
       override = verify_override(command_name)
       return false unless override
@@ -86,11 +92,11 @@ RSpec.describe "bank_account (stateful scaffold)" do
 
   class DepositCommand
     def name
-      :deposit
+      :deposit_amount
     end
 
     def arguments
-      Pbt.nil
+      Pbt.integer
     end
 
     def applicable?(state)
@@ -100,12 +106,14 @@ RSpec.describe "bank_account (stateful scaffold)" do
       true
     end
 
-    def next_state(state, _args)
-      state + 1
+    def next_state(state, args)
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      state + amount
     end
 
-    def run!(sut, _args)
-      sut.public_send(BankAccountPbtSupport.resolve_method_name(name, :deposit))
+    def run!(sut, args)
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      sut.public_send(BankAccountPbtSupport.resolve_method_name(name, :deposit_amount), amount)
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
@@ -118,7 +126,8 @@ RSpec.describe "bank_account (stateful scaffold)" do
         sut: sut
       )
 
-      raise "Expected deposit to increase balance by 1" unless after_state == before_state + 1
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      raise "Expected deposit to increase balance by amount" unless after_state == before_state + amount
       nil
     end
   end
@@ -157,7 +166,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
         sut: sut
       )
 
-      raise "Expected non-zero balance before withdrawal" if before_state <= 0
+      raise "Expected sufficient balance before withdrawal" if before_state <= 0
       raise "Expected withdraw to decrease balance by 1" unless after_state == before_state - 1
       nil
     end

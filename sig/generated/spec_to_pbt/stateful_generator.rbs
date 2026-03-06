@@ -1,0 +1,186 @@
+# Generated from lib/spec_to_pbt/stateful_generator.rb with RBS::Inline
+
+module SpecToPbt
+  # Generates a stateful PBT scaffold that targets `Pbt.stateful`.
+  class StatefulGenerator
+    PRIMITIVE_TYPES: Array[String]
+
+    EXCLUDED_COMMAND_PATTERNS: Array[Symbol]
+
+    # @rbs spec: untyped
+    # @rbs return: void
+    def initialize: (untyped spec) -> void
+
+    # @rbs return: String
+    def generate: () -> String
+
+    # @rbs return: String
+    def generate_config: () -> String
+
+    private
+
+    # @rbs return: String
+    def module_name: () -> String
+
+    # @rbs return: String
+    def model_class_name: () -> String
+
+    # @rbs return: String
+    def sut_factory_code: () -> String
+
+    # @rbs return: String
+    def config_constant_name: () -> String
+
+    # @rbs return: String
+    def config_file_basename: () -> String
+
+    # @rbs return: String
+    def support_module_name: () -> String
+
+    # @rbs return: Array[Core::Entity]
+    def selected_command_predicates: () -> Array[Core::Entity]
+
+    # @rbs return: Array[String]
+    def command_class_names: () -> Array[String]
+
+    # @rbs return: String
+    def initial_state_code: () -> String
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: bool
+    def command_like_predicate?: (Core::Entity predicate) -> bool
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Array[Core::Parameter]
+    def argument_params: (Core::Entity predicate) -> Array[Core::Parameter]
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: String
+    def arguments_code: (Core::Entity predicate) -> String
+
+    # @rbs type_name: String
+    # @rbs return: String
+    def arbitrary_code_for: (String type_name) -> String
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Symbol
+    def command_behavior: (Core::Entity predicate) -> Symbol
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: String
+    def method_name_for: (Core::Entity predicate) -> String
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Array[String]
+    def command_class_lines: (Core::Entity predicate) -> Array[String]
+
+    # @rbs return: Array[String]
+    def generated_command_fallback_lines: () -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs method_name: String
+    # @rbs return: Array[String]
+    def applicable_lines: (StatefulPredicateAnalysis analysis, String method_name) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs behavior: Symbol
+    # @rbs return: Array[String]
+    def next_state_lines: (StatefulPredicateAnalysis analysis, Symbol behavior) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def scalar_next_state_lines: (StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: Array[String]
+    def generic_next_state_lines: (StatefulPredicateAnalysis? analysis) -> Array[String]
+
+    # @rbs method_name: String
+    # @rbs return: Array[String]
+    def run_lines: (String method_name) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs behavior: Symbol
+    # @rbs body_preview: String
+    # @rbs return: Array[String]
+    def verify_lines: (StatefulPredicateAnalysis analysis, Symbol behavior, String body_preview) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs behavior: Symbol
+    # @rbs return: Array[String]
+    def collection_verify_body: (StatefulPredicateAnalysis analysis, Symbol behavior) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def roundtrip_restore_after_append?: (StatefulPredicateAnalysis analysis) -> bool
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def roundtrip_restore_after_pop?: (StatefulPredicateAnalysis analysis) -> bool
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[Symbol]
+    def sibling_command_behaviors_for: (StatefulPredicateAnalysis analysis) -> Array[Symbol]
+
+    # @rbs return: Array[String]
+    def config_support_lines: () -> Array[String]
+
+    # @rbs predicate: Core::Entity
+    # @rbs suffix: String
+    # @rbs return: Array[String]
+    def config_command_lines: (Core::Entity predicate, String suffix) -> Array[String]
+
+    # @rbs predicate_name: String
+    # @rbs return: Symbol?
+    def suggested_api_method_name: (String predicate_name) -> Symbol?
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def scalar_verify_body: (StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def derived_verify_comment_lines: (StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: StatefulPredicateAnalysis
+    def predicate_analysis: (Core::Entity predicate) -> StatefulPredicateAnalysis
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs fallback: String
+    # @rbs return: String
+    def expected_result_expr_for: (StatefulPredicateAnalysis? analysis, fallback: String) -> String
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def collection_like_state?: (StatefulPredicateAnalysis? analysis) -> bool
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: String
+    def state_target_label: (StatefulPredicateAnalysis? analysis) -> String
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def command_confidence_hint_lines: (StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def scalar_update_guidance: (StatefulPredicateAnalysis analysis) -> String
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: String
+    def scalar_verify_guidance: (StatefulPredicateAnalysis? analysis) -> String
+
+    # @rbs name: String
+    # @rbs return: bool
+    def property_like_name?: (String name) -> bool
+
+    # @rbs value: String
+    # @rbs return: String
+    def camelize: (String value) -> String
+
+    # @rbs value: String
+    # @rbs return: String
+    def underscore: (String value) -> String
+  end
+end

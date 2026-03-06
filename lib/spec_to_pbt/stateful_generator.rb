@@ -297,6 +297,8 @@ module SpecToPbt
       ]
       if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
         lines << "      !state.empty? # inferred precondition for #{method_name}"
+      elsif collection_like_state?(analysis) && analysis.guard_kind == :below_capacity
+        lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
       elsif analysis.guard_kind != :none
         lines << "      true # TODO: infer a scalar/domain-specific precondition"
       else
@@ -361,11 +363,33 @@ module SpecToPbt
           scalar_update_guidance(analysis)
         end
 
-      [
-        "    def next_state(state, _args)",
-        "      state # TODO: #{guidance}",
-        "    end"
-      ]
+      if analysis.state_update_shape == :increment && analysis.rhs_source_kind == :arg
+        [
+          "    def next_state(state, args)",
+          "      delta = #{support_module_name}.scalar_model_arg(name, args)",
+          "      state + delta",
+          "    end"
+        ]
+      elsif analysis.state_update_shape == :decrement && analysis.rhs_source_kind == :arg
+        [
+          "    def next_state(state, args)",
+          "      delta = #{support_module_name}.scalar_model_arg(name, args)",
+          "      state - delta",
+          "    end"
+        ]
+      elsif analysis.state_update_shape == :replace_with_arg
+        [
+          "    def next_state(_state, args)",
+          "      #{support_module_name}.scalar_model_arg(name, args)",
+          "    end"
+        ]
+      else
+        [
+          "    def next_state(state, _args)",
+          "      state # TODO: #{guidance}",
+          "    end"
+        ]
+      end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis?
@@ -570,6 +594,16 @@ module SpecToPbt
         "      adapter ? adapter.call(args) : args",
         "    end",
         "",
+        "    def model_args(command_name, args)",
+        "      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]",
+        "      adapter ? adapter.call(args) : args",
+        "    end",
+        "",
+        "    def scalar_model_arg(command_name, args)",
+        "      payload = model_args(command_name, args)",
+        "      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload",
+        "    end",
+        "",
         "    def adapt_result(command_name, result)",
         "      adapter = command_config(command_name)[:result_adapter]",
         "      adapter ? adapter.call(result) : result",
@@ -634,6 +668,7 @@ module SpecToPbt
         lines << "      # Suggested real API method: :#{suggested_method}"
       end
       lines << "      # arg_adapter: ->(args) { args },"
+      lines << "      # model_arg_adapter: ->(args) { args },"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state) { true },"
       lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }"
@@ -658,19 +693,33 @@ module SpecToPbt
     def scalar_verify_body(analysis)
       case analysis.state_update_shape
       when :increment
-        [
-          "      # TODO: verify incremented value for #{state_target_label(analysis)}",
-          "      # Example shape: after_state should reflect a monotonic +1 style update"
-        ]
+        if analysis.rhs_source_kind == :arg
+          [
+            "      delta = #{support_module_name}.scalar_model_arg(name, args)",
+            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_state == before_state + delta"
+          ]
+        else
+          [
+            "      # TODO: verify incremented value for #{state_target_label(analysis)}",
+            "      # Example shape: after_state should reflect a monotonic +1 style update"
+          ]
+        end
       when :decrement
-        [
-          "      # TODO: verify decremented value for #{state_target_label(analysis)}",
-          "      # Example shape: after_state should reflect a monotonic -1 style update"
-        ]
+        if analysis.rhs_source_kind == :arg
+          [
+            "      delta = #{support_module_name}.scalar_model_arg(name, args)",
+            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_state == before_state - delta"
+          ]
+        else
+          [
+            "      # TODO: verify decremented value for #{state_target_label(analysis)}",
+            "      # Example shape: after_state should reflect a monotonic -1 style update"
+          ]
+        end
       when :replace_with_arg
         [
-          "      # TODO: verify replaced value for #{state_target_label(analysis)} using args",
-          "      # Example shape: compare the inferred target against the command argument"
+          "      expected = #{support_module_name}.scalar_model_arg(name, args)",
+          "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless after_state == expected"
         ]
       when :replace_value
         [
@@ -695,6 +744,9 @@ module SpecToPbt
       lines = [] #: Array[String]
       if analysis.derived_verify_hints.include?(:respect_non_empty_guard)
         lines << "      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks"
+      end
+      if analysis.derived_verify_hints.include?(:respect_capacity_guard)
+        lines << "      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks"
       end
       if analysis.derived_verify_hints.include?(:check_empty_semantics)
         lines << "      # Derived from related property patterns: verify empty-state semantics for the inferred target"
@@ -799,7 +851,7 @@ module SpecToPbt
     # @rbs name: String
     # @rbs return: bool
     def property_like_name?(name)
-      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
+      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty|IsFull|Full)\z/i)
     end
 
     # @rbs value: String

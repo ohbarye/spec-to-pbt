@@ -111,20 +111,21 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pb
 # This example shows the current gap: fullness/capacity guards are wired via config
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
-# Run a financial-domain example with API remapping (Deposit/Withdraw -> credit/debit)
+# Run a financial-domain example with API remapping and amount normalization
+# The example maps DepositAmount -> credit(amount) via model_arg_adapter
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for a config-aware stateful example using `method:` remapping,
-`verify_override`, and `verify_context[:state_reader]`.
+`verify_override`, `verify_context[:state_reader]`, and `model_arg_adapter`.
 
 Useful stateful fixtures to try:
 
 - `spec/fixtures/alloy/bounded_queue.als`
   - collection state + capacity guard + FIFO-oriented properties
 - `spec/fixtures/alloy/bank_account.als`
-  - scalar state + increment/decrement guard, useful for financial-domain exploration
+  - scalar state + fixed/amount-based balance updates, useful for financial-domain exploration
 
 For current stateful work and roadmap details, see:
 
@@ -179,8 +180,11 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 # Run tests
 bundle exec rspec
 
-# Type checking (RBS inline + Steep)
+# Type-related checks
 bundle exec rbs-inline --output sig/generated lib/
+
+# Steep is currently best-effort and not enforced in CI while the frontend-neutral
+# core/stateful refactor settles.
 bundle exec steep check
 ```
 

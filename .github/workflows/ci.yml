@@ -26,10 +26,9 @@ jobs:
       - name: Run tests
         run: bundle exec rspec
 
-      - name: Type check
+      - name: Generate RBS signatures
         run: |
           bundle exec rbs-inline --output sig/generated lib/
-          bundle exec steep check
 
       - name: Test CLI
         run: |

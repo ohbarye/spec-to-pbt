@@ -62,6 +62,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected remove-last/append roundtrip to restore the previous model state")
         expect(code).to include("Inferred collection target: Stack#elements")
         expect(code).to include("adapt_args(name, args)")
+        expect(code).to include("scalar_model_arg(command_name, args)")
         expect(code).to include("call_verify_override(")
         expect(code).to include("observed_state(sut)")
       end
@@ -109,6 +110,20 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("respect the non-empty guard before removal-style checks")
         expect(code).to include("empty")
         expect(code).to include("ordering")
+      end
+    end
+
+    context "with bounded queue spec" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/bounded_queue.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "surfaces capacity/fullness guard guidance for enqueue-like commands" do
+        code = generator.generate
+
+        expect(code).to include("inferred capacity/fullness guard for enqueue")
+        expect(code).to include("Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull")
+        expect(code).to include("respect capacity/fullness guards before append-style checks")
       end
     end
 
@@ -235,6 +250,24 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with bank-account style amount updates" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/bank_account.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "emits scalar arg-aware next_state and verify guidance" do
+        code = generator.generate
+
+        expect(code).to include("class DepositAmountCommand")
+        expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
+        expect(code).to include("state + delta")
+        expect(code).to include("Expected incremented value for Account#balance")
+        expect(code).to include("class WithdrawAmountCommand")
+        expect(code).to include("state - delta")
+        expect(code).to include("Expected decremented value for Account#balance")
+      end
+    end
+
     context "with a replace-like scalar state update" do
       let(:source) do
         <<~ALLOY
@@ -256,7 +289,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include('rhs_source_kind=:arg')
         expect(code).to include('state_update_shape=:replace_with_arg')
-        expect(code).to include("TODO: verify replaced value for Thermostat#target using args")
+        expect(code).to include("Expected replaced value for Thermostat#target")
       end
     end
 
@@ -396,6 +429,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("push_adds_element: {")
         expect(code).to include("method: :push_adds_element")
         expect(code).to include("Suggested real API method: :push")
+        expect(code).to include("model_arg_adapter:")
         expect(code).to include("verify_override:")
         expect(code).to include("observed_state:")
         expect(code).to include("state_reader: nil")

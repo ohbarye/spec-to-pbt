@@ -39,6 +39,16 @@ RSpec.describe "bank_account (stateful scaffold)" do
       adapter ? adapter.call(args) : args
     end
 
+    def model_args(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def scalar_model_arg(command_name, args)
+      payload = model_args(command_name, args)
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
     def adapt_result(command_name, result)
       adapter = command_config(command_name)[:result_adapter]
       adapter ? adapter.call(result) : result
@@ -105,7 +115,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def initialize
       @commands = [
         DepositCommand.new,
-        WithdrawCommand.new
+        DepositAmountCommand.new,
+        WithdrawCommand.new,
+        WithdrawAmountCommand.new
       ]
     end
 
@@ -158,7 +170,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Alloy predicate body (preview): "#a'.balance=#a.balance+1"
       # Analyzer hints: state_field="balance", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:increment
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -179,6 +191,72 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # TODO: verify incremented value for Account#balance
       # Example shape: after_state should reflect a monotonic +1 style update
+      [sut, args] && nil
+    end
+  end
+
+  class DepositAmountCommand
+    def name
+      :deposit_amount
+    end
+
+    def arguments
+      Pbt.integer
+    end
+
+    def applicable?(state)
+      override = BankAccountPbtSupport.applicable_override(name)
+      return override.call(state) if override
+      true
+    end
+
+    def next_state(state, args)
+      delta = BankAccountPbtSupport.scalar_model_arg(name, args)
+      state + delta
+    end
+
+    def run!(sut, args)
+      BankAccountPbtSupport.before_run_hook&.call(sut)
+      payload = BankAccountPbtSupport.adapt_args(name, args)
+      method_name = BankAccountPbtSupport.resolve_method_name(name, :deposit_amount)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
+      else
+        sut.public_send(method_name, payload)
+      end
+      adapted_result = BankAccountPbtSupport.adapt_result(name, result)
+      BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
+    end
+
+    def verify!(before_state:, after_state:, args:, result:, sut:)
+      # TODO: translate predicate semantics into postcondition checks
+      # Alloy predicate body (preview): "#a'.balance=add[#a.balance,amount]"
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
+      # Related Alloy assertions: AccountProperties
+      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
+      # Related pattern hints: size
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
+      return nil if BankAccountPbtSupport.call_verify_override(
+        name,
+        before_state: before_state,
+        after_state: after_state,
+        args: args,
+        result: result,
+        sut: sut
+      )
+      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
+      # Inferred state target: Account#balance
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      delta = BankAccountPbtSupport.scalar_model_arg(name, args)
+      raise "Expected incremented value for Account#balance" unless after_state == before_state + delta
       [sut, args] && nil
     end
   end
@@ -223,7 +301,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Alloy predicate body (preview): "#a.balance>0 implies#a'.balance=#a.balance-1"
       # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:state_field, state_update_shape=:decrement
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -244,6 +322,74 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # TODO: verify decremented value for Account#balance
       # Example shape: after_state should reflect a monotonic -1 style update
+      [sut, args] && nil
+    end
+  end
+
+  class WithdrawAmountCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
+    def name
+      :withdraw_amount
+    end
+
+    def arguments
+      Pbt.integer
+    end
+
+    def applicable?(state)
+      override = BankAccountPbtSupport.applicable_override(name)
+      return override.call(state) if override
+      true
+    end
+
+    def next_state(state, args)
+      delta = BankAccountPbtSupport.scalar_model_arg(name, args)
+      state - delta
+    end
+
+    def run!(sut, args)
+      BankAccountPbtSupport.before_run_hook&.call(sut)
+      payload = BankAccountPbtSupport.adapt_args(name, args)
+      method_name = BankAccountPbtSupport.resolve_method_name(name, :withdraw_amount)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
+      else
+        sut.public_send(method_name, payload)
+      end
+      adapted_result = BankAccountPbtSupport.adapt_result(name, result)
+      BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
+    end
+
+    def verify!(before_state:, after_state:, args:, result:, sut:)
+      # TODO: translate predicate semantics into postcondition checks
+      # Alloy predicate body (preview): "#a.balance>=amount implies#a'.balance=sub[#a.balance,amount]"
+      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Related Alloy assertions: AccountProperties
+      # Related Alloy property predicates: DepositWithdrawIdentity, NonNegative
+      # Related pattern hints: size
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
+      return nil if BankAccountPbtSupport.call_verify_override(
+        name,
+        before_state: before_state,
+        after_state: after_state,
+        args: args,
+        result: result,
+        sut: sut
+      )
+      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
+      # Inferred state target: Account#balance
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      delta = BankAccountPbtSupport.scalar_model_arg(name, args)
+      raise "Expected decremented value for Account#balance" unless after_state == before_state - delta
       [sut, args] && nil
     end
   end

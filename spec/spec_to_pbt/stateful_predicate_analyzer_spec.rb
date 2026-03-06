@@ -80,7 +80,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       let(:source) { File.read(File.expand_path("../fixtures/alloy/bounded_queue.als", __dir__)) }
       let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
-      it "retains queue semantics while keeping the core queue transition inference stable" do
+      it "retains queue semantics while surfacing fullness-related sibling hints" do
         enqueue = analyzer.analyze(spec.predicates.find { |p| p.name == "Enqueue" })
         dequeue = analyzer.analyze(spec.predicates.find { |p| p.name == "Dequeue" })
 
@@ -88,7 +88,9 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(enqueue.state_field).to eq("elements")
         expect(enqueue.transition_kind).to eq(:append)
         expect(enqueue.state_update_shape).to eq(:append_like)
-        expect(enqueue.related_predicate_names).to eq(["EnqueueDequeueIdentity", "IsEmpty"])
+        expect(enqueue.guard_kind).to eq(:below_capacity)
+        expect(enqueue.related_predicate_names).to include("EnqueueDequeueIdentity", "IsEmpty", "IsFull")
+        expect(enqueue.derived_verify_hints).to include(:respect_capacity_guard)
         expect(enqueue.related_assertion_names).to eq(["QueueBounds"])
         expect(dequeue.guard_kind).to eq(:non_empty)
         expect(dequeue.transition_kind).to eq(:dequeue)
@@ -251,19 +253,30 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       let(:source) { File.read(File.expand_path("../fixtures/alloy/bank_account.als", __dir__)) }
       let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
-      it "recognizes deposit and withdraw as scalar balance updates" do
+      it "recognizes fixed and amount-based balance updates" do
         deposit = analyzer.analyze(spec.predicates.find { |p| p.name == "Deposit" })
+        deposit_amount = analyzer.analyze(spec.predicates.find { |p| p.name == "DepositAmount" })
         withdraw = analyzer.analyze(spec.predicates.find { |p| p.name == "Withdraw" })
+        withdraw_amount = analyzer.analyze(spec.predicates.find { |p| p.name == "WithdrawAmount" })
 
         expect(deposit.state_type).to eq("Account")
         expect(deposit.state_field).to eq("balance")
         expect(deposit.state_field_multiplicity).to eq("one")
         expect(deposit.scalar_update_kind).to eq(:increment_like)
         expect(deposit.state_update_shape).to eq(:increment)
-        expect(deposit.related_predicate_names).to include("DepositWithdrawIdentity", "NonNegative")
+        expect(deposit.related_predicate_names).to include("WithdrawAmount", "DepositWithdrawIdentity", "NonNegative")
+        expect(deposit_amount.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "amount", type: "Int" }])
+        expect(deposit_amount.scalar_update_kind).to eq(:increment_like)
+        expect(deposit_amount.rhs_source_kind).to eq(:arg)
+        expect(deposit_amount.state_update_shape).to eq(:increment)
         expect(withdraw.guard_kind).to eq(:non_empty)
         expect(withdraw.scalar_update_kind).to eq(:decrement_like)
         expect(withdraw.state_update_shape).to eq(:decrement)
+        expect(withdraw_amount.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "amount", type: "Int" }])
+        expect(withdraw_amount.guard_kind).to eq(:none)
+        expect(withdraw_amount.scalar_update_kind).to eq(:decrement_like)
+        expect(withdraw_amount.rhs_source_kind).to eq(:arg)
+        expect(withdraw_amount.state_update_shape).to eq(:decrement)
         expect(withdraw.related_assertion_names).to eq(["AccountProperties"])
       end
     end

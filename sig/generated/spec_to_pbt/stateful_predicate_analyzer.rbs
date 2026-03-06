@@ -1,0 +1,214 @@
+# Generated from lib/spec_to_pbt/stateful_predicate_analyzer.rb with RBS::Inline
+
+module SpecToPbt
+  class StatefulPredicateAnalysis < Data
+    attr_reader predicate_name(): untyped
+
+    attr_reader state_param_names(): untyped
+
+    attr_reader state_type(): untyped
+
+    attr_reader argument_params(): untyped
+
+    attr_reader state_field(): untyped
+
+    attr_reader state_field_multiplicity(): untyped
+
+    attr_reader size_delta(): untyped
+
+    attr_reader requires_non_empty_state(): untyped
+
+    attr_reader transition_kind(): untyped
+
+    attr_reader result_position(): untyped
+
+    attr_reader scalar_update_kind(): untyped
+
+    attr_reader command_confidence(): untyped
+
+    attr_reader guard_kind(): untyped
+
+    attr_reader rhs_source_kind(): untyped
+
+    attr_reader state_update_shape(): untyped
+
+    attr_reader related_predicate_names(): untyped
+
+    attr_reader related_assertion_names(): untyped
+
+    attr_reader related_fact_names(): untyped
+
+    attr_reader related_pattern_hints(): untyped
+
+    attr_reader derived_verify_hints(): untyped
+
+    def self.new: (untyped predicate_name, untyped state_param_names, untyped state_type, untyped argument_params, untyped state_field, untyped state_field_multiplicity, untyped size_delta, untyped requires_non_empty_state, untyped transition_kind, untyped result_position, untyped scalar_update_kind, untyped command_confidence, untyped guard_kind, untyped rhs_source_kind, untyped state_update_shape, untyped related_predicate_names, untyped related_assertion_names, untyped related_fact_names, untyped related_pattern_hints, untyped derived_verify_hints) -> instance
+                | (predicate_name: untyped, state_param_names: untyped, state_type: untyped, argument_params: untyped, state_field: untyped, state_field_multiplicity: untyped, size_delta: untyped, requires_non_empty_state: untyped, transition_kind: untyped, result_position: untyped, scalar_update_kind: untyped, command_confidence: untyped, guard_kind: untyped, rhs_source_kind: untyped, state_update_shape: untyped, related_predicate_names: untyped, related_assertion_names: untyped, related_fact_names: untyped, related_pattern_hints: untyped, derived_verify_hints: untyped) -> instance
+
+    def self.members: () -> [ :predicate_name, :state_param_names, :state_type, :argument_params, :state_field, :state_field_multiplicity, :size_delta, :requires_non_empty_state, :transition_kind, :result_position, :scalar_update_kind, :command_confidence, :guard_kind, :rhs_source_kind, :state_update_shape, :related_predicate_names, :related_assertion_names, :related_fact_names, :related_pattern_hints, :derived_verify_hints ]
+
+    def members: () -> [ :predicate_name, :state_param_names, :state_type, :argument_params, :state_field, :state_field_multiplicity, :size_delta, :requires_non_empty_state, :transition_kind, :result_position, :scalar_update_kind, :command_confidence, :guard_kind, :rhs_source_kind, :state_update_shape, :related_predicate_names, :related_assertion_names, :related_fact_names, :related_pattern_hints, :derived_verify_hints ]
+  end
+
+  # Extracts minimal stateful command hints from a predicate body.
+  class StatefulPredicateAnalyzer
+    # @rbs spec: untyped
+    # @rbs return: void
+    def initialize: (untyped spec) -> void
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: StatefulPredicateAnalysis
+    def analyze: (Core::Entity predicate) -> StatefulPredicateAnalysis
+
+    private
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Array[Array[String] | String?]
+    def infer_state_params: (Core::Entity predicate) -> Array[Array[String] | String?]
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: String
+    def normalized_body_for: (Core::Entity predicate) -> String
+
+    # @rbs body: String
+    # @rbs return: Integer?
+    def infer_size_delta: (String body) -> Integer?
+
+    # @rbs body: String
+    # @rbs return: Symbol
+    def infer_guard_kind: (String body) -> Symbol
+
+    # @rbs body: String
+    # @rbs state_param_names: Array[String]
+    # @rbs return: String?
+    def infer_state_field: (String body, Array[String] state_param_names) -> String?
+
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: String?
+    def infer_state_field_multiplicity: (String? state_type, String? state_field) -> String?
+
+    # @rbs predicate_name: String
+    # @rbs body: String
+    # @rbs size_delta: Integer?
+    # @rbs requires_non_empty_state: bool
+    # @rbs return: Symbol?
+    def infer_transition_kind: (String predicate_name, String body, Integer? size_delta, bool requires_non_empty_state) -> Symbol?
+
+    # @rbs predicate_name: String
+    # @rbs transition_kind: Symbol?
+    # @rbs return: Symbol?
+    def infer_result_position: (String predicate_name, Symbol? transition_kind) -> Symbol?
+
+    # @rbs body: String
+    # @rbs state_field: String?
+    # @rbs state_field_multiplicity: String?
+    # @rbs return: Symbol?
+    def infer_scalar_update_kind: (String body, String? state_field, String? state_field_multiplicity) -> Symbol?
+
+    # @rbs body: String
+    # @rbs predicate: Core::Entity
+    # @rbs state_field: String?
+    # @rbs return: Symbol
+    def infer_rhs_source_kind: (String body, Core::Entity predicate, String? state_field) -> Symbol
+
+    # @rbs state_field_multiplicity: String?
+    # @rbs size_delta: Integer?
+    # @rbs transition_kind: Symbol?
+    # @rbs scalar_update_kind: Symbol?
+    # @rbs rhs_source_kind: Symbol
+    # @rbs body: String
+    # @rbs state_field: String?
+    # @rbs return: Symbol
+    def infer_state_update_shape: (state_field_multiplicity: String?, size_delta: Integer?, transition_kind: Symbol?, scalar_update_kind: Symbol?, rhs_source_kind: Symbol, body: String, state_field: String?) -> Symbol
+
+    # @rbs predicate_name: String
+    # @rbs transition_kind: Symbol?
+    # @rbs size_delta: Integer?
+    # @rbs requires_non_empty_state: bool
+    # @rbs scalar_update_kind: Symbol?
+    # @rbs state_update_shape: Symbol
+    # @rbs return: Symbol
+    def infer_command_confidence: (String predicate_name, Symbol? transition_kind, Integer? size_delta, bool requires_non_empty_state, Symbol? scalar_update_kind, Symbol state_update_shape) -> Symbol
+
+    # @rbs predicate: Core::Entity
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_predicate_names_for: (Core::Entity predicate, StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs predicate: Core::Entity
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_assertion_names_for: (Core::Entity predicate, StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs predicate: Core::Entity
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def related_fact_names_for: (Core::Entity predicate, StatefulPredicateAnalysis analysis) -> Array[String]
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: StatefulPredicateAnalysis
+    def core_analysis_for: (Core::Entity predicate) -> StatefulPredicateAnalysis
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs related_predicates: Array[String]
+    # @rbs related_assertions: Array[String]
+    # @rbs related_facts: Array[String]
+    # @rbs related_pattern_hints: Array[Symbol]
+    # @rbs return: Array[Symbol]
+    def derived_verify_hints_for: (analysis: StatefulPredicateAnalysis, related_predicates: Array[String], related_assertions: Array[String], related_facts: Array[String], related_pattern_hints: Array[Symbol]) -> Array[Symbol]
+
+    # @rbs related_predicates: Array[String]
+    # @rbs related_assertions: Array[String]
+    # @rbs related_facts: Array[String]
+    # @rbs return: Array[Symbol]
+    def related_pattern_hints_for: (Array[String] related_predicates, Array[String] related_assertions, Array[String] related_facts) -> Array[Symbol]
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: bool
+    def looks_like_command?: (Core::Entity predicate) -> bool
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: bool
+    def related_analysis?: (StatefulPredicateAnalysis analysis, String? state_type, String? state_field) -> bool
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def command_analysis_like?: (StatefulPredicateAnalysis analysis) -> bool
+
+    # @rbs entry: Core::Entity
+    # @rbs predicate_name: String
+    # @rbs state_type: String?
+    # @rbs state_field: String?
+    # @rbs return: bool
+    def related_text?: (Core::Entity entry, String predicate_name, String? state_type, String? state_field) -> bool
+
+    # @rbs predicate_name: String
+    # @rbs body: String
+    # @rbs return: bool
+    def dequeue_like_text?: (String predicate_name, String body) -> bool
+
+    # @rbs predicate_name: String
+    # @rbs body: String
+    # @rbs return: bool
+    def pop_like_text?: (String predicate_name, String body) -> bool
+
+    # @rbs name: String
+    # @rbs return: bool
+    def property_like_name?: (String name) -> bool
+
+    # @rbs value: String
+    # @rbs return: String
+    def camelize: (String value) -> String
+
+    # @rbs value: String
+    # @rbs return: String
+    def normalize_text: (String value) -> String
+
+    # @rbs predicate: untyped
+    # @rbs return: Core::Entity
+    def coerce_property_entity: (untyped predicate) -> Core::Entity
+  end
+end

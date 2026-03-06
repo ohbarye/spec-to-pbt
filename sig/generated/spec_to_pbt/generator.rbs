@@ -29,9 +29,9 @@ module SpecToPbt
 
     attr_reader detected_patterns: Hash[String, pattern_info]
 
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
-    def initialize: (Spec spec) -> void
+    def initialize: (untyped spec) -> void
 
     # Analyze predicates and detect patterns
     # @rbs return: Hash[String, pattern_info]

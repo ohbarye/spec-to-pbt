@@ -1,0 +1,40 @@
+# Generated from lib/spec_to_pbt/frontends/alloy/adapter.rb with RBS::Inline
+
+module SpecToPbt
+  module Frontends
+    module Alloy
+      class Adapter
+        # @rbs raw_spec: Spec
+        # @rbs return: Core::SpecDocument
+        def adapt: (Spec raw_spec) -> Core::SpecDocument
+
+        private
+
+        # @rbs signature: Signature
+        # @rbs module_name: String?
+        # @rbs return: Core::Entity
+        def adapt_signature: (Signature signature, String? module_name) -> Core::Entity
+
+        # @rbs predicate: Predicate
+        # @rbs return: Core::Entity
+        def adapt_predicate: (Predicate predicate) -> Core::Entity
+
+        # @rbs assertion: Assertion
+        # @rbs return: Core::Entity
+        def adapt_assertion: (Assertion assertion) -> Core::Entity
+
+        # @rbs fact: Fact
+        # @rbs return: Core::Entity
+        def adapt_fact: (Fact fact) -> Core::Entity
+
+        # @rbs param: Hash[Symbol, String]
+        # @rbs return: Core::Parameter
+        def adapt_param: (Hash[Symbol, String] param) -> Core::Parameter
+
+        # @rbs value: String?
+        # @rbs return: String
+        def camelize: (String? value) -> String
+      end
+    end
+  end
+end

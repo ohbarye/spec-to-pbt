@@ -39,6 +39,16 @@ RSpec.describe "thermostat (stateful scaffold)" do
       adapter ? adapter.call(args) : args
     end
 
+    def model_args(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def scalar_model_arg(command_name, args)
+      payload = model_args(command_name, args)
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
     def adapt_result(command_name, result)
       adapter = command_config(command_name)[:result_adapter]
       adapter ? adapter.call(result) : result
@@ -134,8 +144,8 @@ RSpec.describe "thermostat (stateful scaffold)" do
       true
     end
 
-    def next_state(state, _args)
-      state # TODO: replace Thermostat#target using args
+    def next_state(_state, args)
+      ThermostatPbtSupport.scalar_model_arg(name, args)
     end
 
     def run!(sut, args)
@@ -172,8 +182,8 @@ RSpec.describe "thermostat (stateful scaffold)" do
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Thermostat#target
-      # TODO: verify replaced value for Thermostat#target using args
-      # Example shape: compare the inferred target against the command argument
+      expected = ThermostatPbtSupport.scalar_model_arg(name, args)
+      raise "Expected replaced value for Thermostat#target" unless after_state == expected
       [sut, args] && nil
     end
   end

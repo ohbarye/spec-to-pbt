@@ -7,8 +7,10 @@ class BankAccountImpl
     @balance = 0
   end
 
-  def credit
-    @balance += 1
+  def credit(amount)
+    raise "amount must be positive" if amount <= 0
+
+    @balance += amount
     nil
   end
 

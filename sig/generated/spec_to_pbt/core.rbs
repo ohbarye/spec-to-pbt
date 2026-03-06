@@ -1,0 +1,93 @@
+# Generated from lib/spec_to_pbt/core.rb with RBS::Inline
+
+module SpecToPbt
+  module Core
+    class Field < Data
+      attr_reader name(): untyped
+
+      attr_reader type(): untyped
+
+      attr_reader multiplicity(): untyped
+
+      attr_reader metadata(): untyped
+
+      def self.new: (untyped name, untyped type, untyped multiplicity, untyped metadata) -> instance
+                  | (name: untyped, type: untyped, multiplicity: untyped, metadata: untyped) -> instance
+
+      def self.members: () -> [ :name, :type, :multiplicity, :metadata ]
+
+      def members: () -> [ :name, :type, :multiplicity, :metadata ]
+    end
+
+    class Parameter < Data
+      attr_reader name(): untyped
+
+      attr_reader type(): untyped
+
+      attr_reader role(): untyped
+
+      attr_reader metadata(): untyped
+
+      def self.new: (untyped name, untyped type, untyped role, untyped metadata) -> instance
+                  | (name: untyped, type: untyped, role: untyped, metadata: untyped) -> instance
+
+      def self.members: () -> [ :name, :type, :role, :metadata ]
+
+      def members: () -> [ :name, :type, :role, :metadata ]
+    end
+
+    class Entity < Data
+      attr_reader name(): untyped
+
+      attr_reader kind(): untyped
+
+      attr_reader params(): untyped
+
+      attr_reader fields(): untyped
+
+      attr_reader raw_text(): untyped
+
+      attr_reader normalized_text(): untyped
+
+      attr_reader metadata(): untyped
+
+      def self.new: (untyped name, untyped kind, untyped params, untyped fields, untyped raw_text, untyped normalized_text, untyped metadata) -> instance
+                  | (name: untyped, kind: untyped, params: untyped, fields: untyped, raw_text: untyped, normalized_text: untyped, metadata: untyped) -> instance
+
+      def self.members: () -> [ :name, :kind, :params, :fields, :raw_text, :normalized_text, :metadata ]
+
+      def members: () -> [ :name, :kind, :params, :fields, :raw_text, :normalized_text, :metadata ]
+    end
+
+    class SpecDocument < Data
+      attr_reader name(): untyped
+
+      attr_reader entities(): untyped
+
+      attr_reader types(): untyped
+
+      attr_reader properties(): untyped
+
+      attr_reader assertions(): untyped
+
+      attr_reader facts(): untyped
+
+      attr_reader source_format(): untyped
+
+      attr_reader metadata(): untyped
+
+      def self.new: (untyped name, untyped entities, untyped types, untyped properties, untyped assertions, untyped facts, untyped source_format, untyped metadata) -> instance
+                  | (name: untyped, entities: untyped, types: untyped, properties: untyped, assertions: untyped, facts: untyped, source_format: untyped, metadata: untyped) -> instance
+
+      def self.members: () -> [ :name, :entities, :types, :properties, :assertions, :facts, :source_format, :metadata ]
+
+      def members: () -> [ :name, :entities, :types, :properties, :assertions, :facts, :source_format, :metadata ]
+    end
+
+    module Coercion
+      # @rbs spec: untyped
+      # @rbs return: SpecDocument
+      def self?.call: (untyped spec) -> SpecDocument
+    end
+  end
+end

@@ -1,7 +1,7 @@
 # Generated from lib/spec_to_pbt/type_inferrer.rb with RBS::Inline
 
 module SpecToPbt
-  # Infers Pbt generator code from Alloy signature definitions
+  # Infers Pbt generator code from the frontend-neutral core type definitions.
   class TypeInferrer
     # Multiplicity to collection type mapping
     MULTIPLICITY_MAP: Hash[String, Symbol]
@@ -9,9 +9,9 @@ module SpecToPbt
     # Basic Alloy types to Pbt generator code
     TYPE_MAP: Hash[String, String]
 
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
-    def initialize: (Spec spec) -> void
+    def initialize: (untyped spec) -> void
 
     # Generate Pbt generator code for a given signature name and multiplicity
     # @rbs sig_name: String
@@ -32,8 +32,7 @@ module SpecToPbt
     # @rbs return: String
     def wrap_with_multiplicity: (String base, String multiplicity) -> String
 
-    # Build signature name to Signature mapping
-    # @rbs return: Hash[String, Signature]
-    def build_sig_map: () -> Hash[String, Signature]
+    # @rbs return: Hash[String, Core::Entity]
+    def build_type_map: () -> Hash[String, Core::Entity]
   end
 end

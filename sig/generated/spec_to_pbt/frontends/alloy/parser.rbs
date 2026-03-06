@@ -1,0 +1,70 @@
+# Generated from lib/spec_to_pbt/frontends/alloy/parser.rb with RBS::Inline
+
+module SpecToPbt
+  module Frontends
+    module Alloy
+      class Parser
+        SIG_PATTERN: Regexp
+
+        FIELD_PATTERN: Regexp
+
+        PRED_PATTERN: Regexp
+
+        PARAM_PATTERN: Regexp
+
+        ASSERT_PATTERN: Regexp
+
+        FACT_PATTERN: Regexp
+
+        MODULE_PATTERN: Regexp
+
+        attr_reader spec: Spec?
+
+        # @rbs return: void
+        def initialize: () -> void
+
+        # @rbs source: String
+        # @rbs return: Spec
+        def parse: (String source) -> Spec
+
+        private
+
+        # @rbs source: String
+        # @rbs return: String
+        def remove_comments: (String source) -> String
+
+        # @rbs source: String
+        # @rbs return: String?
+        def parse_module: (String source) -> String?
+
+        # @rbs source: String
+        # @rbs return: Array[Signature]
+        def parse_signatures: (String source) -> Array[Signature]
+
+        # @rbs fields_str: String
+        # @rbs return: Array[Field]
+        def parse_fields: (String fields_str) -> Array[Field]
+
+        # @rbs source: String
+        # @rbs return: Array[Predicate]
+        def parse_predicates: (String source) -> Array[Predicate]
+
+        # @rbs params_str: String
+        # @rbs return: Array[Hash[Symbol, String]]
+        def parse_params: (String params_str) -> Array[Hash[Symbol, String]]
+
+        # @rbs source: String
+        # @rbs return: Array[Assertion]
+        def parse_assertions: (String source) -> Array[Assertion]
+
+        # @rbs source: String
+        # @rbs return: Array[Fact]
+        def parse_facts: (String source) -> Array[Fact]
+
+        # @rbs body: String
+        # @rbs return: String
+        def normalize_body: (String body) -> String
+      end
+    end
+  end
+end

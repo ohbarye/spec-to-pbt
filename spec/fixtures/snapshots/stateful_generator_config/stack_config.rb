@@ -11,6 +11,7 @@ StackPbtConfig = {
       method: :push_adds_element,
       # Suggested real API method: :push
       # arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state) { true },
       # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }
@@ -19,6 +20,7 @@ StackPbtConfig = {
       method: :pop_removes_element,
       # Suggested real API method: :pop
       # arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state) { true },
       # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }

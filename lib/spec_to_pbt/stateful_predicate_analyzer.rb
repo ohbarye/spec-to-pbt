@@ -181,6 +181,7 @@ module SpecToPbt
     # @rbs return: Symbol
     def infer_guard_kind(body)
       return :non_empty if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
+      return :below_capacity if body.match?(/#\w+\.\w+\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
 
       :none
     end
@@ -248,8 +249,8 @@ module SpecToPbt
       return nil if state_field.nil?
       return nil if ["seq", "set"].include?(state_field_multiplicity)
 
-      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add\[|#\w+\.?#{Regexp.escape(state_field)}\+1)/)
-      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:sub\[|#\w+\.?#{Regexp.escape(state_field)}-1)/)
+      return :increment_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add\[#\w+\.#{Regexp.escape(state_field)},#?\w+\]|#\w+\.?#{Regexp.escape(state_field)}\+(?:1|#?\w+))/)
+      return :decrement_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:sub\[#\w+\.#{Regexp.escape(state_field)},#?\w+\]|#\w+\.?#{Regexp.escape(state_field)}-(?:1|#?\w+))/)
       return :replace_like if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+/)
 
       nil
@@ -267,6 +268,8 @@ module SpecToPbt
         next if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+\.#{Regexp.escape(state_field)}/)
 
         return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
+        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add|sub)\[#\w+\.#{Regexp.escape(state_field)},#?#{Regexp.escape(param.name)}\]/)
+        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}[+-]#?#{Regexp.escape(param.name)}\b/)
       end
 
       return :state_field if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}/)
@@ -396,6 +399,7 @@ module SpecToPbt
       end
 
       hints << :respect_non_empty_guard if analysis.guard_kind == :non_empty || related_texts.any? { |text| text.match?(/not ?IsEmpty|>0|>=1/i) }
+      hints << :respect_capacity_guard if analysis.guard_kind == :below_capacity || related_texts.any? { |text| text.match?(/IsFull|capacity|limit|max(?:imum)?/i) }
       hints << :check_empty_semantics if related_pattern_hints.include?(:empty)
       hints << :check_ordering_semantics if related_pattern_hints.include?(:ordering)
       hints << :check_roundtrip_pairing if related_pattern_hints.include?(:roundtrip)
@@ -492,7 +496,7 @@ module SpecToPbt
     # @rbs name: String
     # @rbs return: bool
     def property_like_name?(name)
-      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty)\z/i)
+      name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty|IsFull|Full)\z/i)
     end
 
     # @rbs value: String

@@ -1,0 +1,9 @@
+# Generated from lib/spec_to_pbt/stateful_config_name.rb with RBS::Inline
+
+module SpecToPbt
+  class StatefulConfigName
+    # @rbs spec_name: String?
+    # @rbs return: Hash[Symbol, String]
+    def self.for: (String? spec_name) -> Hash[Symbol, String]
+  end
+end

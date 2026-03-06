@@ -39,6 +39,16 @@ RSpec.describe "bag (stateful scaffold)" do
       adapter ? adapter.call(args) : args
     end
 
+    def model_args(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def scalar_model_arg(command_name, args)
+      payload = model_args(command_name, args)
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
     def adapt_result(command_name, result)
       adapter = command_config(command_name)[:result_adapter]
       adapter ? adapter.call(result) : result
