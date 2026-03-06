@@ -3,8 +3,64 @@
 require "pbt"
 require "rspec"
 require_relative "box_impl"
+require_relative "box_pbt_config" if File.exist?(File.expand_path("box_pbt_config.rb", __dir__))
+
+if File.exist?(File.expand_path("box_pbt_config.rb", __dir__)) && !defined?(::BoxPbtConfig)
+  raise "Expected BoxPbtConfig to be defined in box_pbt_config.rb"
+end
 
 RSpec.describe "box (stateful scaffold)" do
+  # Regeneration-safe customization:
+  # - edit box_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit box_impl.rb for implementation behavior
+  # - edit this scaffold only for one-off refinements when needed
+
+  module BoxPbtSupport
+    module_function
+
+    def config
+      defined?(::BoxPbtConfig) ? ::BoxPbtConfig : {}
+    end
+
+    def sut_factory(default_factory)
+      config.fetch(:sut_factory, default_factory)
+    end
+
+    def command_config(command_name)
+      config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def resolve_method_name(command_name, default_method_name)
+      command_config(command_name).fetch(:method, default_method_name)
+    end
+
+    def adapt_args(command_name, args)
+      adapter = command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def adapt_result(command_name, result)
+      adapter = command_config(command_name)[:result_adapter]
+      adapter ? adapter.call(result) : result
+    end
+
+    def applicable_override(command_name)
+      command_config(command_name)[:applicable_override]
+    end
+
+    def verify_override(command_name)
+      command_config(command_name)[:verify_override]
+    end
+
+    def before_run_hook
+      config[:before_run]
+    end
+
+    def after_run_hook
+      config[:after_run]
+    end
+  end
+
   it "wires a stateful PBT scaffold (customize before enabling)" do
     unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
       skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
@@ -13,7 +69,7 @@ RSpec.describe "box (stateful scaffold)" do
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: BoxModel.new,
-        sut: -> { BoxImpl.new },
+        sut: -> { BoxPbtSupport.sut_factory(-> { BoxImpl.new }).call },
         max_steps: 20
       )
     end
@@ -46,7 +102,9 @@ RSpec.describe "box (stateful scaffold)" do
       Pbt.nil
     end
 
-    def applicable?(_state)
+    def applicable?(state)
+      override = BoxPbtSupport.applicable_override(name)
+      return override.call(state) if override
       true
     end
 
@@ -55,13 +113,19 @@ RSpec.describe "box (stateful scaffold)" do
     end
 
     def run!(sut, args)
-      if args.nil?
-        sut.public_send(:keep)
-      elsif args.is_a?(Array)
-        sut.public_send(:keep, *args)
+      BoxPbtSupport.before_run_hook&.call(sut)
+      payload = BoxPbtSupport.adapt_args(name, args)
+      method_name = BoxPbtSupport.resolve_method_name(name, :keep)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
       else
-        sut.public_send(:keep, args)
+        sut.public_send(method_name, payload)
       end
+      adapted_result = BoxPbtSupport.adapt_result(name, result)
+      BoxPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
@@ -72,6 +136,10 @@ RSpec.describe "box (stateful scaffold)" do
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
+      if (override = BoxPbtSupport.verify_override(name))
+        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Box#value
       raise "Expected preserved value for Box#value" unless after_state == before_state

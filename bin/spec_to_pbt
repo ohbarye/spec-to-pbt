@@ -18,6 +18,10 @@ OptionParser.new do |opts|
     options[:stateful] = true
   end
 
+  opts.on("--with-config", "Generate a companion Ruby config file for stateful SUT wiring") do
+    options[:with_config] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -48,6 +52,11 @@ parser = SpecToPbt::Parser.new
 raw_spec = parser.parse(source)
 spec = SpecToPbt::Frontends::Alloy::Adapter.new.adapt(raw_spec)
 
+if options[:with_config] && !options[:stateful]
+  warn "Error: --with-config is only supported with --stateful"
+  exit 1
+end
+
 # Generate PBT code
 generator = if options[:stateful]
   SpecToPbt::StatefulGenerator.new(spec)
@@ -67,3 +76,14 @@ output_file = File.join(options[:output_dir], "#{base}_pbt.rb")
 File.write(output_file, pbt_code)
 
 puts "Generated: #{output_file}"
+
+if options[:stateful] && options[:with_config]
+  config_output_file = File.join(options[:output_dir], "#{File.basename(input_file, '.als')}_pbt_config.rb")
+
+  if File.exist?(config_output_file)
+    puts "Skipped existing config: #{config_output_file}"
+  else
+    File.write(config_output_file, generator.generate_config)
+    puts "Generated: #{config_output_file}"
+  end
+end

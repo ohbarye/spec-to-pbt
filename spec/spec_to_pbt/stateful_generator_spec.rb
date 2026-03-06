@@ -22,6 +22,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Pbt.stateful(")
         expect(code).to include("worker: :none")
         expect(code).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
+        expect(code).to include('require_relative "stack_pbt_config" if File.exist?')
+        expect(code).to include("edit stack_pbt_config.rb for SUT wiring and durable API mapping")
       end
 
       it "generates a model class for the module" do
@@ -46,6 +48,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("Pbt.integer # placeholder for Element")
         expect(code).to include("def arguments\n      Pbt.nil\n    end")
+        expect(code).to include("resolve_method_name(name, :push_adds_element)")
       end
 
       it "generates more concrete preconditions and postconditions for common commands" do
@@ -58,7 +61,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected popped value to match model")
         expect(code).to include("Expected remove-last/append roundtrip to restore the previous model state")
         expect(code).to include("Inferred collection target: Stack#elements")
-        expect(code).to include("sut.public_send(:push_adds_element, args)")
+        expect(code).to include("adapt_args(name, args)")
+        expect(code).to include("verify_override(name)")
       end
 
       it "adds assertion/fact hints to verify! comments" do
@@ -372,6 +376,26 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("2. Related Alloy assertions/facts")
         expect(code).to include("3. Related property predicates")
         expect(code).to include('raise "Expected non-empty state before removal" if before_state.empty?')
+      end
+    end
+  end
+
+  describe "#generate_config" do
+    context "with stack spec" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/stack.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "generates a companion Ruby config file for SUT mapping" do
+        code = generator.generate_config
+
+        expect(code).to include("StackPbtConfig = {")
+        expect(code).to include("sut_factory: -> { StackImpl.new }")
+        expect(code).to include("push_adds_element: {")
+        expect(code).to include("method: :push_adds_element")
+        expect(code).to include("Suggested real API method: :push")
+        expect(code).to include("verify_override:")
       end
     end
   end

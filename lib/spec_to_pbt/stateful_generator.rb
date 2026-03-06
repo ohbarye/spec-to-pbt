@@ -24,8 +24,20 @@ module SpecToPbt
       lines << 'require "pbt"'
       lines << 'require "rspec"'
       lines << %(require_relative "#{module_name}_impl")
+      lines << %(require_relative "#{config_file_basename}" if File.exist?(File.expand_path("#{config_file_basename}.rb", __dir__)))
+      lines << ""
+      lines << %(if File.exist?(File.expand_path("#{config_file_basename}.rb", __dir__)) && !defined?(::#{config_constant_name}))
+      lines << %(  raise "Expected #{config_constant_name} to be defined in #{config_file_basename}.rb")
+      lines << "end"
       lines << ""
       lines << %(RSpec.describe "#{module_name} (stateful scaffold)" do)
+      lines << "  # Regeneration-safe customization:"
+      lines << "  # - edit #{config_file_basename}.rb for SUT wiring and durable API mapping"
+      lines << "  # - edit #{module_name}_impl.rb for implementation behavior"
+      lines << "  # - edit this scaffold only for one-off refinements when needed"
+      lines << ""
+      lines.concat(config_support_lines)
+      lines << ""
       lines << "  it \"wires a stateful PBT scaffold (customize before enabling)\" do"
       lines << '    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"'
       lines << '      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"'
@@ -34,7 +46,7 @@ module SpecToPbt
       lines << "    Pbt.assert(worker: :none, num_runs: 5, seed: 1) do"
       lines << "      Pbt.stateful("
       lines << "        model: #{model_class_name}.new,"
-      lines << "        sut: -> { #{sut_factory_code} },"
+      lines << "        sut: -> { #{support_module_name}.sut_factory(-> { #{sut_factory_code} }).call },"
       lines << "        max_steps: 20"
       lines << "      )"
       lines << "    end"
@@ -74,6 +86,32 @@ module SpecToPbt
       lines.join("\n")
     end
 
+    # @rbs return: String
+    def generate_config
+      lines = [] #: Array[String]
+      lines << "# frozen_string_literal: true"
+      lines << ""
+      lines << "# Regeneration-safe customization file for #{module_name} stateful scaffold."
+      lines << "# Edit this file to map spec command names to your real Ruby API."
+      lines << "# This file is user-owned and should not be overwritten automatically."
+      lines << ""
+      lines << "#{config_constant_name} = {"
+      lines << "  sut_factory: -> { #{sut_factory_code} },"
+      lines << "  command_mappings: {"
+      selected_command_predicates.each_with_index do |predicate, index|
+        suffix = index == selected_command_predicates.length - 1 ? "" : ","
+        lines.concat(config_command_lines(predicate, suffix))
+      end
+      lines << "  },"
+      lines << "  verify_context: {"
+      lines << "    state_reader: nil"
+      lines << "  }"
+      lines << "  # before_run: ->(sut) { },"
+      lines << "  # after_run: ->(sut, result) { }"
+      lines << "}"
+      lines.join("\n")
+    end
+
     private
 
     # @rbs return: String
@@ -89,6 +127,21 @@ module SpecToPbt
     # @rbs return: String
     def sut_factory_code
       "#{camelize(module_name)}Impl.new"
+    end
+
+    # @rbs return: String
+    def config_constant_name
+      StatefulConfigName.for(module_name)[:constant_name]
+    end
+
+    # @rbs return: String
+    def config_file_basename
+      StatefulConfigName.for(module_name)[:file_basename]
+    end
+
+    # @rbs return: String
+    def support_module_name
+      "#{camelize(module_name)}PbtSupport"
     end
 
     # @rbs return: Array[Core::Entity]
@@ -237,23 +290,20 @@ module SpecToPbt
     # @rbs method_name: String
     # @rbs return: Array[String]
     def applicable_lines(analysis, method_name)
-      return [
+      lines = [
         "    def applicable?(state)",
-        "      !state.empty? # inferred precondition for #{method_name}",
-        "    end"
-      ] if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-
-      return [
-        "    def applicable?(_state)",
-        "      true # TODO: infer a scalar/domain-specific precondition",
-        "    end"
-      ] if analysis.guard_kind != :none
-
-      [
-        "    def applicable?(_state)",
-        "      true",
-        "    end"
+        "      override = #{support_module_name}.applicable_override(name)",
+        "      return override.call(state) if override"
       ]
+      if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+        lines << "      !state.empty? # inferred precondition for #{method_name}"
+      elsif analysis.guard_kind != :none
+        lines << "      true # TODO: infer a scalar/domain-specific precondition"
+      else
+        lines << "      true"
+      end
+      lines << "    end"
+      lines
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -337,13 +387,19 @@ module SpecToPbt
     def run_lines(method_name)
       [
         "    def run!(sut, args)",
-        "      if args.nil?",
-        "        sut.public_send(:#{method_name})",
-        "      elsif args.is_a?(Array)",
-        "        sut.public_send(:#{method_name}, *args)",
+        "      #{support_module_name}.before_run_hook&.call(sut)",
+        "      payload = #{support_module_name}.adapt_args(name, args)",
+        "      method_name = #{support_module_name}.resolve_method_name(name, :#{method_name})",
+        "      result = if payload.nil?",
+        "        sut.public_send(method_name)",
+        "      elsif payload.is_a?(Array)",
+        "        sut.public_send(method_name, *payload)",
         "      else",
-        "        sut.public_send(:#{method_name}, args)",
+        "        sut.public_send(method_name, payload)",
         "      end",
+        "      adapted_result = #{support_module_name}.adapt_result(name, result)",
+        "      #{support_module_name}.after_run_hook&.call(sut, adapted_result)",
+        "      adapted_result",
         "    end"
       ]
     end
@@ -379,6 +435,10 @@ module SpecToPbt
       lines << "      # 1. Command-specific postconditions"
       lines << "      # 2. Related Alloy assertions/facts"
       lines << "      # 3. Related property predicates"
+      lines << "      if (override = #{support_module_name}.verify_override(name))"
+      lines << "        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)"
+      lines << "        return nil"
+      lines << "      end"
 
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
@@ -477,6 +537,90 @@ module SpecToPbt
           end
         end
       end.uniq
+    end
+
+    # @rbs return: Array[String]
+    def config_support_lines
+      [
+        "  module #{support_module_name}",
+        "    module_function",
+        "",
+        "    def config",
+        "      defined?(::#{config_constant_name}) ? ::#{config_constant_name} : {}",
+        "    end",
+        "",
+        "    def sut_factory(default_factory)",
+        "      config.fetch(:sut_factory, default_factory)",
+        "    end",
+        "",
+        "    def command_config(command_name)",
+        "      config.fetch(:command_mappings, {}).fetch(command_name, {})",
+        "    end",
+        "",
+        "    def resolve_method_name(command_name, default_method_name)",
+        "      command_config(command_name).fetch(:method, default_method_name)",
+        "    end",
+        "",
+        "    def adapt_args(command_name, args)",
+        "      adapter = command_config(command_name)[:arg_adapter]",
+        "      adapter ? adapter.call(args) : args",
+        "    end",
+        "",
+        "    def adapt_result(command_name, result)",
+        "      adapter = command_config(command_name)[:result_adapter]",
+        "      adapter ? adapter.call(result) : result",
+        "    end",
+        "",
+        "    def applicable_override(command_name)",
+        "      command_config(command_name)[:applicable_override]",
+        "    end",
+        "",
+        "    def verify_override(command_name)",
+        "      command_config(command_name)[:verify_override]",
+        "    end",
+        "",
+        "    def before_run_hook",
+        "      config[:before_run]",
+        "    end",
+        "",
+        "    def after_run_hook",
+        "      config[:after_run]",
+        "    end",
+        "  end"
+      ]
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs suffix: String
+    # @rbs return: Array[String]
+    def config_command_lines(predicate, suffix)
+      method_name = method_name_for(predicate)
+      suggested_method = suggested_api_method_name(predicate.name)
+      lines = [
+        "    #{method_name}: {",
+        "      method: :#{method_name},"
+      ]
+      if !suggested_method.nil? && suggested_method != method_name.to_sym
+        lines << "      # Suggested real API method: :#{suggested_method}"
+      end
+      lines << "      # arg_adapter: ->(args) { args },"
+      lines << "      # result_adapter: ->(result) { result },"
+      lines << "      # applicable_override: ->(state) { true },"
+      lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:) { nil }"
+      lines << "    }#{suffix}"
+      lines
+    end
+
+    # @rbs predicate_name: String
+    # @rbs return: Symbol?
+    def suggested_api_method_name(predicate_name)
+      return :push if predicate_name.match?(/\APush/i)
+      return :pop if predicate_name.match?(/\APop/i)
+      return :enqueue if predicate_name.match?(/\AEnqueue/i)
+      return :dequeue if predicate_name.match?(/\ADequeue/i)
+      return :set_target if predicate_name.match?(/\ASetTarget/i)
+
+      nil
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

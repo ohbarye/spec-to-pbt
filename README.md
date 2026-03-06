@@ -21,6 +21,9 @@ bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
 # Generate a stateful PBT scaffold (experimental)
 bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
 
+# Generate a stateful scaffold plus a durable SUT mapping config
+bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
+
 # Run generated tests (requires *_impl.rb file in same directory)
 bundle exec rspec generated/sort_pbt.rb
 
@@ -46,9 +49,35 @@ For `--stateful`, the generated file is intentionally a scaffold rather than a s
 It is expected that you will:
 
 - provide a `*_impl.rb` implementation object
-- customize model state representation
-- refine `next_state`
-- refine `verify!`
+- customize model state representation as needed
+- refine `next_state` when domain semantics need more than the inferred model update
+- refine `verify!` when domain-specific checks go beyond the generated safe assertions
+- prefer editing `*_pbt_config.rb` for durable SUT wiring when using `--with-config`
+
+With `--stateful --with-config`, the generator also emits a companion Ruby config file
+that is intended to survive regeneration:
+
+- `*_pbt.rb`
+  - regenerate freely
+- `*_pbt_config.rb`
+  - user-owned SUT wiring and API mapping
+- `*_impl.rb`
+  - user-owned implementation
+
+The config can map spec command names to real Ruby APIs, for example:
+
+```ruby
+StackPbtConfig = {
+  sut_factory: -> { Stack.new },
+  command_mappings: {
+    push_adds_element: { method: :push },
+    pop_removes_element: { method: :pop }
+  },
+  verify_context: {
+    state_reader: nil
+  }
+}
+```
 
 The scaffold now includes analyzer-driven hints such as:
 
@@ -110,6 +139,7 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 ### Code Generation
 - Module name is used as the operation name (generic approach)
 - `--stateful` generation is a scaffold (command extraction + analyzer-driven hints + TODOs), not a semantics-preserving translator
+- `--stateful --with-config` improves SUT connectivity but still relies on explicit user-owned Ruby wiring
 - No generation of counterexample shrinking hints
 - Stateless generated code may require a manual `*_impl.rb` file with helpers such as `invariant?`
 - Stateless generation still assumes generic pattern-compatible inputs in several places

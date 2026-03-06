@@ -119,4 +119,96 @@ RSpec.describe "Stateful scaffold contract" do
     expect(stdout).to include("1 example")
     expect(stdout).to include("0 failures")
   end
+
+  it "respects config-driven Ruby API remapping" do
+    input_file = File.join(fixtures_dir, "stack.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "stack_pbt.rb")
+    config_file = File.join(output_dir, "stack_pbt_config.rb")
+    impl_file = File.join(output_dir, "stack_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class StackImpl
+        def initialize
+          @values = []
+        end
+
+        def push(value)
+          @values << value
+          nil
+        end
+
+        def pop
+          @values.pop
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      StackPbtConfig = {
+        sut_factory: -> { StackImpl.new },
+        command_mappings: {
+          push_adds_element: { method: :push },
+          pop_removes_element: { method: :pop }
+        },
+        verify_context: {
+          state_reader: nil
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        define_singleton_method(:nil) { nil }
+
+        def self.integer = 1
+        def self.string = "x"
+        def self.array(value) = [value]
+        def self.tuple(*values) = values
+
+        def self.assert(worker:, num_runs:, seed:)
+          raise "unexpected assert kwargs" unless worker == :none && num_runs == 5 && seed == 1
+
+          yield
+        end
+
+        def self.stateful(model:, sut:, max_steps:, **extra)
+          raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
+
+          state = model.initial_state
+          command = model.commands(state).first
+          args = command.arguments
+          after_state = command.next_state(state, args)
+          result = command.run!(sut.call, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: sut.call)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Generated config-aware scaffold contract run failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
 end

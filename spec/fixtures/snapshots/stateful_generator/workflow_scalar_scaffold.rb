@@ -3,8 +3,64 @@
 require "pbt"
 require "rspec"
 require_relative "workflow_impl"
+require_relative "workflow_pbt_config" if File.exist?(File.expand_path("workflow_pbt_config.rb", __dir__))
+
+if File.exist?(File.expand_path("workflow_pbt_config.rb", __dir__)) && !defined?(::WorkflowPbtConfig)
+  raise "Expected WorkflowPbtConfig to be defined in workflow_pbt_config.rb"
+end
 
 RSpec.describe "workflow (stateful scaffold)" do
+  # Regeneration-safe customization:
+  # - edit workflow_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit workflow_impl.rb for implementation behavior
+  # - edit this scaffold only for one-off refinements when needed
+
+  module WorkflowPbtSupport
+    module_function
+
+    def config
+      defined?(::WorkflowPbtConfig) ? ::WorkflowPbtConfig : {}
+    end
+
+    def sut_factory(default_factory)
+      config.fetch(:sut_factory, default_factory)
+    end
+
+    def command_config(command_name)
+      config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def resolve_method_name(command_name, default_method_name)
+      command_config(command_name).fetch(:method, default_method_name)
+    end
+
+    def adapt_args(command_name, args)
+      adapter = command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def adapt_result(command_name, result)
+      adapter = command_config(command_name)[:result_adapter]
+      adapter ? adapter.call(result) : result
+    end
+
+    def applicable_override(command_name)
+      command_config(command_name)[:applicable_override]
+    end
+
+    def verify_override(command_name)
+      command_config(command_name)[:verify_override]
+    end
+
+    def before_run_hook
+      config[:before_run]
+    end
+
+    def after_run_hook
+      config[:after_run]
+    end
+  end
+
   it "wires a stateful PBT scaffold (customize before enabling)" do
     unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
       skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
@@ -13,7 +69,7 @@ RSpec.describe "workflow (stateful scaffold)" do
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: WorkflowModel.new,
-        sut: -> { WorkflowImpl.new },
+        sut: -> { WorkflowPbtSupport.sut_factory(-> { WorkflowImpl.new }).call },
         max_steps: 20
       )
     end
@@ -44,7 +100,9 @@ RSpec.describe "workflow (stateful scaffold)" do
       Pbt.integer # placeholder for Token
     end
 
-    def applicable?(_state)
+    def applicable?(state)
+      override = WorkflowPbtSupport.applicable_override(name)
+      return override.call(state) if override
       true
     end
 
@@ -53,13 +111,19 @@ RSpec.describe "workflow (stateful scaffold)" do
     end
 
     def run!(sut, args)
-      if args.nil?
-        sut.public_send(:step)
-      elsif args.is_a?(Array)
-        sut.public_send(:step, *args)
+      WorkflowPbtSupport.before_run_hook&.call(sut)
+      payload = WorkflowPbtSupport.adapt_args(name, args)
+      method_name = WorkflowPbtSupport.resolve_method_name(name, :step)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
       else
-        sut.public_send(:step, args)
+        sut.public_send(method_name, payload)
       end
+      adapted_result = WorkflowPbtSupport.adapt_result(name, result)
+      WorkflowPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
@@ -70,6 +134,10 @@ RSpec.describe "workflow (stateful scaffold)" do
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
+      if (override = WorkflowPbtSupport.verify_override(name))
+        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Machine#value
       # TODO: verify incremented value for Machine#value

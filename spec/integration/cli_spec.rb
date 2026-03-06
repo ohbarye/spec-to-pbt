@@ -101,6 +101,32 @@ RSpec.describe "CLI" do
       expect(content).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
       expect(content).to include("Pbt.integer # placeholder for Element")
     end
+
+    it "generates a companion config file with --with-config" do
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Generated:")
+
+      config_file = File.join(output_dir, "stack_pbt_config.rb")
+      expect(File.exist?(config_file)).to be(true)
+
+      content = File.read(config_file)
+      expect(content).to include("StackPbtConfig = {")
+      expect(content).to include("sut_factory:")
+      expect(content).to include("command_mappings:")
+    end
+
+    it "does not overwrite an existing config file" do
+      config_file = File.join(output_dir, "stack_pbt_config.rb")
+      File.write(config_file, "# user-owned config\n")
+
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Skipped existing config:")
+      expect(File.read(config_file)).to eq("# user-owned config\n")
+    end
   end
 
   describe "error handling" do
@@ -116,6 +142,14 @@ RSpec.describe "CLI" do
 
       expect(status.success?).to be(false)
       expect(stderr).to include("No input file")
+    end
+
+    it "fails when --with-config is used without --stateful" do
+      input_file = File.join(fixtures_dir, "stack.als")
+      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--with-config", "-o", output_dir)
+
+      expect(status.success?).to be(false)
+      expect(stderr).to include("--with-config is only supported with --stateful")
     end
   end
 

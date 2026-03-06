@@ -3,8 +3,64 @@
 require "pbt"
 require "rspec"
 require_relative "bag_impl"
+require_relative "bag_pbt_config" if File.exist?(File.expand_path("bag_pbt_config.rb", __dir__))
+
+if File.exist?(File.expand_path("bag_pbt_config.rb", __dir__)) && !defined?(::BagPbtConfig)
+  raise "Expected BagPbtConfig to be defined in bag_pbt_config.rb"
+end
 
 RSpec.describe "bag (stateful scaffold)" do
+  # Regeneration-safe customization:
+  # - edit bag_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit bag_impl.rb for implementation behavior
+  # - edit this scaffold only for one-off refinements when needed
+
+  module BagPbtSupport
+    module_function
+
+    def config
+      defined?(::BagPbtConfig) ? ::BagPbtConfig : {}
+    end
+
+    def sut_factory(default_factory)
+      config.fetch(:sut_factory, default_factory)
+    end
+
+    def command_config(command_name)
+      config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def resolve_method_name(command_name, default_method_name)
+      command_config(command_name).fetch(:method, default_method_name)
+    end
+
+    def adapt_args(command_name, args)
+      adapter = command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def adapt_result(command_name, result)
+      adapter = command_config(command_name)[:result_adapter]
+      adapter ? adapter.call(result) : result
+    end
+
+    def applicable_override(command_name)
+      command_config(command_name)[:applicable_override]
+    end
+
+    def verify_override(command_name)
+      command_config(command_name)[:verify_override]
+    end
+
+    def before_run_hook
+      config[:before_run]
+    end
+
+    def after_run_hook
+      config[:after_run]
+    end
+  end
+
   it "wires a stateful PBT scaffold (customize before enabling)" do
     unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
       skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
@@ -13,7 +69,7 @@ RSpec.describe "bag (stateful scaffold)" do
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: BagModel.new,
-        sut: -> { BagImpl.new },
+        sut: -> { BagPbtSupport.sut_factory(-> { BagImpl.new }).call },
         max_steps: 20
       )
     end
@@ -45,6 +101,8 @@ RSpec.describe "bag (stateful scaffold)" do
     end
 
     def applicable?(state)
+      override = BagPbtSupport.applicable_override(name)
+      return override.call(state) if override
       !state.empty? # inferred precondition for drop_last
     end
 
@@ -54,13 +112,19 @@ RSpec.describe "bag (stateful scaffold)" do
     end
 
     def run!(sut, args)
-      if args.nil?
-        sut.public_send(:drop_last)
-      elsif args.is_a?(Array)
-        sut.public_send(:drop_last, *args)
+      BagPbtSupport.before_run_hook&.call(sut)
+      payload = BagPbtSupport.adapt_args(name, args)
+      method_name = BagPbtSupport.resolve_method_name(name, :drop_last)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
       else
-        sut.public_send(:drop_last, args)
+        sut.public_send(method_name, payload)
       end
+      adapted_result = BagPbtSupport.adapt_result(name, result)
+      BagPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
@@ -72,6 +136,10 @@ RSpec.describe "bag (stateful scaffold)" do
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
+      if (override = BagPbtSupport.verify_override(name))
+        override.call(before_state: before_state, after_state: after_state, args: args, result: result, sut: sut)
+        return nil
+      end
       # Inferred collection target: Bag#elems
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       raise "Expected non-empty state before removal" if before_state.empty?
