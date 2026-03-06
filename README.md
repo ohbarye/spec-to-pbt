@@ -106,11 +106,25 @@ bundle exec rspec example/generated/stack_pbt.rb
 # Run a practical stateful example with config-driven API mapping
 # The example prefers a local ../pbt checkout (override with PBT_REPO_DIR if needed)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+
+# Run a bounded queue example with capacity-aware applicable_override
+# This example shows the current gap: fullness/capacity guards are wired via config
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
+
+# Run a financial-domain example with API remapping (Deposit/Withdraw -> credit/debit)
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for a config-aware stateful example using `method:` remapping,
 `verify_override`, and `verify_context[:state_reader]`.
+
+Useful stateful fixtures to try:
+
+- `spec/fixtures/alloy/bounded_queue.als`
+  - collection state + capacity guard + FIFO-oriented properties
+- `spec/fixtures/alloy/bank_account.als`
+  - scalar state + increment/decrement guard, useful for financial-domain exploration
 
 For current stateful work and roadmap details, see:
 
