@@ -102,9 +102,15 @@ Working examples are provided in `example/`:
 # Run example tests
 bundle exec rspec example/generated/sort_pbt.rb
 bundle exec rspec example/generated/stack_pbt.rb
+
+# Run a practical stateful example with config-driven API mapping
+# The example prefers a local ../pbt checkout (override with PBT_REPO_DIR if needed)
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
+See `example/stateful/` for a config-aware stateful example using `method:` remapping,
+`verify_override`, and `verify_context[:state_reader]`.
 
 For current stateful work and roadmap details, see:
 
