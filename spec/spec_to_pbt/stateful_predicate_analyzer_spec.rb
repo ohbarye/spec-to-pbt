@@ -25,6 +25,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.command_confidence).to eq(:high)
         expect(result.related_predicate_names).to eq(["PushPopIdentity", "IsEmpty", "LIFO"])
         expect(result.related_assertion_names).to eq(["StackProperties"])
+        expect(result.derived_verify_hints).to include(:check_roundtrip_pairing, :check_empty_semantics, :check_ordering_semantics)
       end
 
       it "extracts non-empty guard and -1 size delta for pop" do
@@ -40,6 +41,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.transition_kind).to eq(:pop)
         expect(result.result_position).to eq(:last)
         expect(result.state_update_shape).to eq(:remove_last)
+        expect(result.derived_verify_hints).to include(:respect_non_empty_guard)
       end
     end
 

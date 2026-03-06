@@ -22,7 +22,8 @@ module SpecToPbt
     :related_predicate_names,
     :related_assertion_names,
     :related_fact_names,
-    :related_pattern_hints
+    :related_pattern_hints,
+    :derived_verify_hints
   ) do
     # @rbs predicate_name: String
     # @rbs state_param_names: Array[String]
@@ -43,8 +44,9 @@ module SpecToPbt
     # @rbs related_assertion_names: Array[String]
     # @rbs related_fact_names: Array[String]
     # @rbs related_pattern_hints: Array[Symbol]
+    # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -113,12 +115,20 @@ module SpecToPbt
       related_assertions = related_assertion_names_for(predicate, analysis)
       related_facts = related_fact_names_for(predicate, analysis)
       related_pattern_hints = related_pattern_hints_for(related_predicates, related_assertions, related_facts)
+      derived_verify_hints = derived_verify_hints_for(
+        analysis: analysis,
+        related_predicates: related_predicates,
+        related_assertions: related_assertions,
+        related_facts: related_facts,
+        related_pattern_hints: related_pattern_hints
+      )
 
       @analyses[predicate.name] = analysis.with(
         related_predicate_names: related_predicates,
         related_assertion_names: related_assertions,
         related_fact_names: related_facts,
-        related_pattern_hints: related_pattern_hints
+        related_pattern_hints: related_pattern_hints,
+        derived_verify_hints: derived_verify_hints
       )
     end
 
@@ -355,8 +365,41 @@ module SpecToPbt
         related_predicate_names: [],
         related_assertion_names: [],
         related_fact_names: [],
-        related_pattern_hints: []
+        related_pattern_hints: [],
+        derived_verify_hints: []
       )
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs related_predicates: Array[String]
+    # @rbs related_assertions: Array[String]
+    # @rbs related_facts: Array[String]
+    # @rbs related_pattern_hints: Array[Symbol]
+    # @rbs return: Array[Symbol]
+    def derived_verify_hints_for(analysis:, related_predicates:, related_assertions:, related_facts:, related_pattern_hints:)
+      hints = [] #: Array[Symbol]
+      related_texts = [] #: Array[String]
+
+      related_predicates.each do |name|
+        predicate = @spec.predicates.find { |item| item.name == name }
+        related_texts << normalized_body_for(predicate) if predicate
+      end
+      related_assertions.each do |name|
+        assertion = @spec.assertions.find { |item| item.name == name }
+        related_texts << normalize_text(assertion.normalized_body) if assertion
+      end
+      related_facts.each do |name|
+        fact = @spec.facts.find { |item| (item.name || "<anonymous fact>") == name }
+        related_texts << normalize_text(fact.normalized_body) if fact
+      end
+
+      hints << :respect_non_empty_guard if analysis.guard_kind == :non_empty || related_texts.any? { |text| text.match?(/not ?IsEmpty|>0|>=1/i) }
+      hints << :check_empty_semantics if related_pattern_hints.include?(:empty)
+      hints << :check_ordering_semantics if related_pattern_hints.include?(:ordering)
+      hints << :check_roundtrip_pairing if related_pattern_hints.include?(:roundtrip)
+      hints << :check_size_semantics if related_pattern_hints.include?(:size)
+
+      hints.uniq
     end
 
     # @rbs related_predicates: Array[String]

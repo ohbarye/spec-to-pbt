@@ -71,11 +71,16 @@ RSpec.describe "queue (stateful scaffold)" do
       # Related Alloy assertions: QueueProperties
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
       # Related pattern hints: size, empty, ordering
+      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_ordering_semantics, check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
       # Inferred collection target: Queue#elements
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       expected_size = before_state.length + 1
       raise "Expected size to increase by 1" unless after_state.length == expected_size
       [sut, args] && nil
@@ -117,11 +122,16 @@ RSpec.describe "queue (stateful scaffold)" do
       # Related Alloy assertions: QueueProperties
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO
       # Related pattern hints: size, empty, ordering
+      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_ordering_semantics, check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
       # Inferred collection target: Queue#elements
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
       raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1

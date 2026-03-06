@@ -372,6 +372,9 @@ module SpecToPbt
       if analysis.related_pattern_hints.any?
         lines << "      # Related pattern hints: #{analysis.related_pattern_hints.map(&:to_s).join(', ')}"
       end
+      if analysis.derived_verify_hints.any?
+        lines << "      # Derived verify hints: #{analysis.derived_verify_hints.map(&:to_s).join(', ')}"
+      end
       lines << "      # Suggested verify order:"
       lines << "      # 1. Command-specific postconditions"
       lines << "      # 2. Related Alloy assertions/facts"
@@ -380,6 +383,7 @@ module SpecToPbt
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
         lines << "      # Inferred state target: #{state_target_label(analysis)}"
+        lines.concat(derived_verify_comment_lines(analysis))
         lines.concat(scalar_verify_body(analysis))
         lines << "      [sut, args] && nil"
         lines << "    end"
@@ -387,6 +391,7 @@ module SpecToPbt
       end
 
       lines << "      # Inferred collection target: #{state_target_label(analysis)}"
+      lines.concat(derived_verify_comment_lines(analysis))
       lines.concat(collection_verify_body(analysis, behavior))
       lines << "      [sut, args] && nil"
       lines << "    end"
@@ -453,6 +458,29 @@ module SpecToPbt
           "      # TODO: #{scalar_verify_guidance(analysis)}"
         ]
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def derived_verify_comment_lines(analysis)
+      lines = [] #: Array[String]
+      if analysis.derived_verify_hints.include?(:respect_non_empty_guard)
+        lines << "      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks"
+      end
+      if analysis.derived_verify_hints.include?(:check_empty_semantics)
+        lines << "      # Derived from related property patterns: verify empty-state semantics for the inferred target"
+      end
+      if analysis.derived_verify_hints.include?(:check_ordering_semantics)
+        lines << "      # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant"
+      end
+      if analysis.derived_verify_hints.include?(:check_roundtrip_pairing)
+        lines << "      # Derived from related property patterns: verify paired-command roundtrip behavior against sibling commands"
+      end
+      if analysis.derived_verify_hints.include?(:check_size_semantics)
+        lines << "      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts"
+      end
+
+      lines
     end
 
     # @rbs predicate: Predicate

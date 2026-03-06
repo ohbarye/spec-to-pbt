@@ -63,6 +63,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("# Related Alloy assertions: StackProperties")
         expect(code).to include("# Related pattern hints:")
+        expect(code).to include("# Derived verify hints:")
         expect(code).to include("empty")
       end
 
@@ -71,6 +72,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("# Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO")
         expect(code).to include("# Related pattern hints:")
+        expect(code).to include("verify paired-command roundtrip behavior against sibling commands")
+        expect(code).to include("verify ordering semantics (for example LIFO/FIFO) where relevant")
         expect(code).to include("roundtrip")
         expect(code).to include("empty")
         expect(code).to include("ordering")
@@ -93,6 +96,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected dequeued value to match model")
         expect(code).to include("# Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, FIFO")
         expect(code).to include("# Related pattern hints:")
+        expect(code).to include("respect the non-empty guard before removal-style checks")
         expect(code).to include("empty")
         expect(code).to include("ordering")
       end
