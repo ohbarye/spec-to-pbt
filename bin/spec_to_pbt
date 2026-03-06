@@ -45,7 +45,8 @@ end
 # Parse the Alloy specification
 source = File.read(input_file)
 parser = SpecToPbt::Parser.new
-spec = parser.parse(source)
+raw_spec = parser.parse(source)
+spec = SpecToPbt::Frontends::Alloy::Adapter.new.adapt(raw_spec)
 
 # Generate PBT code
 generator = if options[:stateful]

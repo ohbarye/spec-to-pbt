@@ -3,7 +3,7 @@
 # rbs_inline: enabled
 
 module SpecToPbt
-  # Infers Pbt generator code from Alloy signature definitions
+  # Infers Pbt generator code from the frontend-neutral core type definitions.
   class TypeInferrer
     # Multiplicity to collection type mapping
     MULTIPLICITY_MAP = {
@@ -19,11 +19,11 @@ module SpecToPbt
       "String" => "Pbt.string"
     }.freeze #: Hash[String, String]
 
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
     def initialize(spec)
-      @spec = spec #: Spec
-      @sig_map = build_sig_map #: Hash[String, Signature]
+      @spec = Core::Coercion.call(spec) #: Core::SpecDocument
+      @type_map = build_type_map #: Hash[String, Core::Entity]
     end
 
     # Generate Pbt generator code for a given signature name and multiplicity
@@ -45,15 +45,13 @@ module SpecToPbt
       return TYPE_MAP[sig_name] if TYPE_MAP.key?(sig_name)
 
       # Look up custom signature
-      sig = @sig_map[sig_name]
-      return "Pbt.integer" unless sig # Default for unknown types
+      entity = @type_map[sig_name]
+      return "Pbt.integer" unless entity
 
-      # Infer from signature fields
-      if sig.fields.empty?
+      if entity.fields.empty?
         "Pbt.integer"
       else
-        # Use the first field's type
-        field = sig.fields.first
+        field = entity.fields.first
         generator_for(field.type, field.multiplicity)
       end
     end
@@ -71,10 +69,9 @@ module SpecToPbt
       end
     end
 
-    # Build signature name to Signature mapping
-    # @rbs return: Hash[String, Signature]
-    def build_sig_map
-      @spec.signatures.to_h { |sig| [sig.name, sig] }
+    # @rbs return: Hash[String, Core::Entity]
+    def build_type_map
+      @spec.types.to_h { |entity| [entity.name, entity] }
     end
   end
 end

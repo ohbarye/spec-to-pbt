@@ -16,7 +16,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(result.state_param_names).to eq(["s", "s'"])
         expect(result.state_type).to eq("Stack")
-        expect(result.argument_params).to eq([{ name: "e", type: "Element" }])
+        expect(result.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "e", type: "Element" }])
         expect(result.size_delta).to eq(1)
         expect(result.requires_non_empty_state).to be(false)
         expect(result.state_field).to eq("elements")
@@ -55,7 +55,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(result.state_param_names).to eq(["q", "q'"])
         expect(result.state_type).to eq("Queue")
-        expect(result.argument_params).to eq([{ name: "e", type: "Element" }])
+        expect(result.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "e", type: "Element" }])
         expect(result.size_delta).to eq(1)
         expect(result.state_field).to eq("elements")
         expect(result.transition_kind).to eq(:append)
@@ -97,7 +97,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(result.state_param_names).to eq(["m", "m'"])
         expect(result.state_type).to eq("Machine")
-        expect(result.argument_params).to eq([{ name: "t", type: "Token" }])
+        expect(result.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "t", type: "Token" }])
         expect(result.state_field).to eq("value")
         expect(result.state_field_multiplicity).to eq("one")
         expect(result.transition_kind).to eq(:append)

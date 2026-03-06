@@ -115,6 +115,8 @@ Completed:
 - introduced `SpecToPbt::StatefulPredicateAnalyzer`
 - generation is now gradually moving from direct string heuristics toward
   analyzer-driven intermediate facts
+- introduced a frontend-neutral core document layer and an Alloy adapter so
+  generators no longer depend directly on raw Alloy parser structs
 
 Current analyzer output includes:
 

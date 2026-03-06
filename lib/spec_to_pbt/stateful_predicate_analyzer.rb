@@ -51,26 +51,27 @@ module SpecToPbt
 
   # Extracts minimal stateful command hints from a predicate body.
   class StatefulPredicateAnalyzer
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
     def initialize(spec)
-      @spec = spec #: Spec
-      @signature_names = spec.signatures.map(&:name) #: Array[String]
-      @module_state_name = spec.module_name&.then { |name| camelize(name) } #: String?
+      @spec = Core::Coercion.call(spec) #: Core::SpecDocument
+      @signature_names = @spec.types.map(&:name) #: Array[String]
+      @module_state_name = @spec.name&.then { |name| camelize(name) } #: String?
       @analyses = {} #: Hash[String, StatefulPredicateAnalysis]
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: StatefulPredicateAnalysis
     def analyze(predicate)
+      predicate = coerce_property_entity(predicate)
       return @analyses[predicate.name] if @analyses.key?(predicate.name)
 
       state_param_names, state_type = infer_state_params(predicate)
       argument_params = predicate.params.reject do |param|
-        @signature_names.include?(param[:name]) || state_param_names.include?(param[:name])
+        @signature_names.include?(param.name) || state_param_names.include?(param.name)
       end
       if state_type
-        argument_params = argument_params.reject { |param| param[:type] == state_type && state_param_names.include?(param[:name]) }
+        argument_params = argument_params.reject { |param| param.type == state_type && state_param_names.include?(param.name) }
       end
 
       body = normalized_body_for(predicate)
@@ -134,35 +135,35 @@ module SpecToPbt
 
     private
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: Array[Array[String] | String?]
     def infer_state_params(predicate)
-      params_by_name = predicate.params.to_h { |param| [param[:name], param] }
+      params_by_name = predicate.params.to_h { |param| [param.name, param] }
 
       predicate.params.each do |param|
-        next unless param[:name].end_with?("'")
+        next unless param.name.end_with?("'")
 
-        base_name = param[:name].delete_suffix("'")
+        base_name = param.name.delete_suffix("'")
         base = params_by_name[base_name]
         next unless base
-        next unless base[:type] == param[:type]
+        next unless base.type == param.type
 
-        return [[base_name, param[:name]], param[:type]]
+        return [[base_name, param.name], param.type]
       end
 
       return [[], nil] unless @module_state_name
 
-      state_params = predicate.params.select { |param| param[:type] == @module_state_name }.map { |param| param[:name] }
+      state_params = predicate.params.select { |param| param.type == @module_state_name }.map(&:name)
       [state_params, (state_params.empty? ? nil : @module_state_name)]
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: String
     def normalized_body_for(predicate)
-      if predicate.respond_to?(:normalized_body) && !predicate.normalized_body.to_s.empty?
-        predicate.normalized_body.to_s
+      if !predicate.normalized_text.to_s.empty?
+        predicate.normalized_text.to_s
       else
-        normalize_text(predicate.body)
+        normalize_text(predicate.raw_text)
       end
     end
 
@@ -203,10 +204,10 @@ module SpecToPbt
     def infer_state_field_multiplicity(state_type, state_field)
       return nil unless state_type && state_field
 
-      signature = @spec.signatures.find { |sig| sig.name == state_type }
-      return nil unless signature
+      type_entity = @spec.types.find { |item| item.name == state_type }
+      return nil unless type_entity
 
-      field = signature.fields.find { |item| item.name == state_field }
+      field = type_entity.fields.find { |item| item.name == state_field }
       field&.multiplicity
     end
 
@@ -255,17 +256,17 @@ module SpecToPbt
     end
 
     # @rbs body: String
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs state_field: String?
     # @rbs return: Symbol
     def infer_rhs_source_kind(body, predicate, state_field)
       return :unknown if state_field.nil?
 
       predicate.params.each do |param|
-        next if param[:name].end_with?("'")
+        next if param.name.end_with?("'")
         next if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+\.#{Regexp.escape(state_field)}/)
 
-        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param[:name])}\b/)
+        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
       end
 
       return :state_field if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}/)
@@ -318,11 +319,11 @@ module SpecToPbt
       :low
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def related_predicate_names_for(predicate, analysis)
-      @spec.predicates.filter_map do |other|
+      @spec.properties.filter_map do |other|
         next if other.name == predicate.name
         next if command_analysis_like?(core_analysis_for(other)) && !property_like_name?(other.name)
 
@@ -333,7 +334,7 @@ module SpecToPbt
       end
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def related_assertion_names_for(predicate, analysis)
@@ -344,20 +345,21 @@ module SpecToPbt
       end
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def related_fact_names_for(predicate, analysis)
       @spec.facts.filter_map do |fact|
         next unless related_text?(fact, predicate.name, analysis.state_type, analysis.state_field)
 
-        fact.name || "<anonymous fact>"
+        fact.name
       end
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: StatefulPredicateAnalysis
     def core_analysis_for(predicate)
+      predicate = coerce_property_entity(predicate)
       existing = @analyses[predicate.name]
       return existing if existing
 
@@ -381,16 +383,16 @@ module SpecToPbt
       related_texts = [] #: Array[String]
 
       related_predicates.each do |name|
-        predicate = @spec.predicates.find { |item| item.name == name }
+        predicate = @spec.properties.find { |item| item.name == name }
         related_texts << normalized_body_for(predicate) if predicate
       end
       related_assertions.each do |name|
         assertion = @spec.assertions.find { |item| item.name == name }
-        related_texts << normalize_text(assertion.normalized_body) if assertion
+        related_texts << normalize_text(assertion.normalized_text) if assertion
       end
       related_facts.each do |name|
-        fact = @spec.facts.find { |item| (item.name || "<anonymous fact>") == name }
-        related_texts << normalize_text(fact.normalized_body) if fact
+        fact = @spec.facts.find { |item| item.name == name }
+        related_texts << normalize_text(fact.normalized_text) if fact
       end
 
       hints << :respect_non_empty_guard if analysis.guard_kind == :non_empty || related_texts.any? { |text| text.match?(/not ?IsEmpty|>0|>=1/i) }
@@ -408,16 +410,16 @@ module SpecToPbt
     # @rbs return: Array[Symbol]
     def related_pattern_hints_for(related_predicates, related_assertions, related_facts)
       predicate_texts = related_predicates.filter_map do |name|
-        predicate = @spec.predicates.find { |item| item.name == name }
+        predicate = @spec.properties.find { |item| item.name == name }
         predicate && "#{predicate.name} #{normalized_body_for(predicate)}"
       end
       assertion_texts = related_assertions.filter_map do |name|
         assertion = @spec.assertions.find { |item| item.name == name }
-        assertion && "#{assertion.name} #{normalize_text(assertion.normalized_body)}"
+        assertion && "#{assertion.name} #{normalize_text(assertion.normalized_text)}"
       end
       fact_texts = related_facts.filter_map do |name|
-        fact = @spec.facts.find { |item| (item.name || "<anonymous fact>") == name }
-        fact && "#{fact.name} #{normalize_text(fact.normalized_body)}"
+        fact = @spec.facts.find { |item| item.name == name }
+        fact && "#{fact.name} #{normalize_text(fact.normalized_text)}"
       end
 
       (predicate_texts + assertion_texts + fact_texts)
@@ -425,7 +427,7 @@ module SpecToPbt
         .uniq
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: bool
     def looks_like_command?(predicate)
       return false if property_like_name?(predicate.name)
@@ -455,13 +457,13 @@ module SpecToPbt
       false
     end
 
-    # @rbs entry: Assertion | Fact
+    # @rbs entry: Core::Entity
     # @rbs predicate_name: String
     # @rbs state_type: String?
     # @rbs state_field: String?
     # @rbs return: bool
     def related_text?(entry, predicate_name, state_type, state_field)
-      body = normalize_text(entry.normalized_body)
+      body = normalize_text(entry.normalized_text)
       return true if body.match?(/\b#{Regexp.escape(predicate_name)}\[/)
 
       type_match = !state_type.nil? && body.match?(/\b#{Regexp.escape(state_type)}\b/)
@@ -503,6 +505,23 @@ module SpecToPbt
     # @rbs return: String
     def normalize_text(value)
       value.to_s.gsub(/\s+/, " ").strip
+    end
+
+    # @rbs predicate: untyped
+    # @rbs return: Core::Entity
+    def coerce_property_entity(predicate)
+      return predicate if predicate.is_a?(Core::Entity)
+
+      Core::Entity.new(
+        name: predicate.name,
+        kind: :property,
+        params: predicate.params.map do |param|
+          Core::Parameter.new(name: param[:name], type: param[:type], role: :unknown)
+        end,
+        raw_text: predicate.body,
+        normalized_text: predicate.respond_to?(:normalized_body) ? predicate.normalized_body : normalize_text(predicate.body),
+        metadata: {}
+      )
     end
   end
 end

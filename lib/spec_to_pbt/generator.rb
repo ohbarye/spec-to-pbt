@@ -30,10 +30,10 @@ module SpecToPbt
     attr_reader :spec #: Spec
     attr_reader :detected_patterns #: Hash[String, pattern_info]
 
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
     def initialize(spec)
-      @spec = spec
+      @spec = Core::Coercion.call(spec) #: Core::SpecDocument
       @detected_patterns = {} #: Hash[String, pattern_info]
       @type_inferrer = nil #: TypeInferrer?
       @generated_properties = [] #: Array[property_data]
@@ -42,10 +42,10 @@ module SpecToPbt
     # Analyze predicates and detect patterns
     # @rbs return: Hash[String, pattern_info]
     def analyze
-      @spec.predicates.each do |pred|
-        patterns = PropertyPattern.detect(pred.name, pred.body)
-        @detected_patterns[pred.name] = {
-          predicate: pred,
+      @spec.properties.each do |entity|
+        patterns = PropertyPattern.detect(entity.name, entity.normalized_text)
+        @detected_patterns[entity.name] = {
+          predicate: entity,
           patterns: patterns
         }
       end
@@ -139,7 +139,7 @@ module SpecToPbt
     # @rbs return: Hash[Symbol, untyped]
     def build_context(predicate)
       # Use module_name as the operation name (generic approach)
-      operation = @spec.module_name || "operation"
+      operation = @spec.name || "operation"
 
       { operation: operation } #: Hash[Symbol, untyped]
     end

@@ -157,11 +157,14 @@ end
 ```
 Alloy Spec (.als)
        ↓
-    Parser (regex-based)
+    Frontends::Alloy::Parser (regex-based)
+       ↓
+    Frontends::Alloy::Adapter
        ↓
     ┌───────────────────────────────┬────────────────────────────────┐
     │ stateless path                │ stateful path                  │
     │                               │                                │
+    │ Core::SpecDocument            │ Core::SpecDocument             │
     │ PropertyPattern.detect        │ StatefulPredicateAnalyzer      │
     │ TypeInferrer                  │ StatefulGenerator              │
     │ PatternCodeGenerator          │                                │
@@ -171,5 +174,9 @@ Alloy Spec (.als)
        ↓
     Ruby PBT code (.rb)
 ```
+
+The CLI still accepts Alloy input today, but the internal generator path now consumes
+a frontend-neutral core document via `SpecToPbt::Core` and
+`SpecToPbt::Frontends::Alloy::Adapter`.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.

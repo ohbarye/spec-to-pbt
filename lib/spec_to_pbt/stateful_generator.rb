@@ -8,12 +8,12 @@ module SpecToPbt
     PRIMITIVE_TYPES = ["Int", "String"].freeze #: Array[String]
     EXCLUDED_COMMAND_PATTERNS = [:roundtrip, :ordering, :invariant, :idempotent, :empty].freeze #: Array[Symbol]
 
-    # @rbs spec: Spec
+    # @rbs spec: untyped
     # @rbs return: void
     def initialize(spec)
-      @spec = spec #: Spec
-      @type_inferrer = TypeInferrer.new(spec) #: TypeInferrer
-      @predicate_analyzer = StatefulPredicateAnalyzer.new(spec) #: StatefulPredicateAnalyzer
+      @spec = Core::Coercion.call(spec) #: Core::SpecDocument
+      @type_inferrer = TypeInferrer.new(@spec) #: TypeInferrer
+      @predicate_analyzer = StatefulPredicateAnalyzer.new(@spec) #: StatefulPredicateAnalyzer
     end
 
     # @rbs return: String
@@ -78,7 +78,7 @@ module SpecToPbt
 
     # @rbs return: String
     def module_name
-      @spec.module_name || "operation"
+      @spec.name || "operation"
     end
 
     # @rbs return: String
@@ -91,9 +91,9 @@ module SpecToPbt
       "#{camelize(module_name)}Impl.new"
     end
 
-    # @rbs return: Array[Predicate]
+    # @rbs return: Array[Core::Entity]
     def selected_command_predicates
-      @selected_command_predicates ||= @spec.predicates.select { |predicate| command_like_predicate?(predicate) } #: Array[Predicate]
+      @selected_command_predicates ||= @spec.properties.select { |predicate| command_like_predicate?(predicate) } #: Array[Core::Entity]
     end
 
     # @rbs return: Array[String]
@@ -111,11 +111,11 @@ module SpecToPbt
       "nil # TODO: replace with a domain-specific scalar/model state"
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: bool
     def command_like_predicate?(predicate)
       analysis = predicate_analysis(predicate)
-      patterns = PropertyPattern.detect(predicate.name, predicate.normalized_body)
+      patterns = PropertyPattern.detect(predicate.name, predicate.normalized_text)
       return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
       return false if property_like_name?(predicate.name)
       return false if analysis.command_confidence == :low
@@ -125,19 +125,19 @@ module SpecToPbt
         analysis.guard_kind != :none
     end
 
-    # @rbs predicate: Predicate
-    # @rbs return: Array[Hash[Symbol, String]]
+    # @rbs predicate: Core::Entity
+    # @rbs return: Array[Core::Parameter]
     def argument_params(predicate)
       predicate_analysis(predicate).argument_params
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: String
     def arguments_code(predicate)
       params = argument_params(predicate)
       return "Pbt.nil" if params.empty?
 
-      arbitraries = params.map { |param| arbitrary_code_for(param[:type]) }
+      arbitraries = params.map { |param| arbitrary_code_for(param.type) }
       return arbitraries.first if arbitraries.size == 1
 
       "Pbt.tuple(#{arbitraries.join(', ')})"
@@ -152,7 +152,7 @@ module SpecToPbt
       "#{code} # placeholder for #{type_name}"
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: Symbol
     def command_behavior(predicate)
       analysis = predicate_analysis(predicate)
@@ -164,20 +164,20 @@ module SpecToPbt
       :unknown
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: String
     def method_name_for(predicate)
       underscore(predicate.name)
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: Array[String]
     def command_class_lines(predicate)
       class_name = "#{camelize(predicate.name)}Command"
       method_name = method_name_for(predicate)
       analysis = predicate_analysis(predicate)
       behavior = command_behavior(predicate)
-      body_preview = predicate.normalized_body
+      body_preview = predicate.normalized_text
 
       [
         "  class #{class_name}",
@@ -483,7 +483,7 @@ module SpecToPbt
       lines
     end
 
-    # @rbs predicate: Predicate
+    # @rbs predicate: Core::Entity
     # @rbs return: StatefulPredicateAnalysis
     def predicate_analysis(predicate)
       @predicate_analyses ||= {} #: Hash[String, StatefulPredicateAnalysis]
