@@ -121,9 +121,13 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "surfaces capacity/fullness guard guidance for enqueue-like commands" do
         code = generator.generate
 
-        expect(code).to include("inferred capacity/fullness guard for enqueue")
+        expect(code).to include("{ elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue")
+        expect(code).to include("state.merge(elements: state[:elements] + [args])")
         expect(code).to include("Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull")
         expect(code).to include("respect capacity/fullness guards before append-style checks")
+        expect(code).to include("before_items = before_state[:elements]")
+        expect(code).to include("before_capacity = before_state[:capacity]")
       end
     end
 
@@ -409,7 +413,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("1. Command-specific postconditions")
         expect(code).to include("2. Related Alloy assertions/facts")
         expect(code).to include("3. Related property predicates")
-        expect(code).to include('raise "Expected non-empty state before removal" if before_state.empty?')
+        expect(code).to include('raise "Expected non-empty state before removal" if before_items.empty?')
       end
     end
   end

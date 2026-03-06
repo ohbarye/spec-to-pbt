@@ -185,13 +185,15 @@ RSpec.describe "queue (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Queue#elements
+      before_items = before_state
+      after_items = after_state
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      expected_size = before_state.length + 1
-      raise "Expected size to increase by 1" unless after_state.length == expected_size
-      raise "Expected appended argument to become the newest element" unless after_state.last == args
+      expected_size = before_items.length + 1
+      raise "Expected size to increase by 1" unless after_items.length == expected_size
+      raise "Expected appended argument to become the newest element" unless after_items.last == args
       [sut, args] && nil
     end
   end
@@ -253,14 +255,16 @@ RSpec.describe "queue (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Queue#elements
+      before_items = before_state
+      after_items = after_state
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      raise "Expected non-empty state before removal" if before_state.empty?
+      raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
-      raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
+      raise "Expected size to decrease by 1" unless after_items.length == before_items.length - 1
       [sut, args] && nil
     end
   end

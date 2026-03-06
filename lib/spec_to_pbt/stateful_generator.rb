@@ -159,7 +159,12 @@ module SpecToPbt
     def initial_state_code
       analyses = selected_command_predicates.map { |predicate| predicate_analysis(predicate) }
       return "[] # TODO: replace with a domain-specific model state" if analyses.empty?
-      return "[] # TODO: replace with a domain-specific collection state" if analyses.all? { |analysis| collection_like_state?(analysis) }
+      if analyses.all? { |analysis| collection_like_state?(analysis) }
+        structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
+        return structured_collection_initial_state_code(structured_analysis) if structured_analysis
+
+        return "[] # TODO: replace with a domain-specific collection state"
+      end
 
       "nil # TODO: replace with a domain-specific scalar/model state"
     end
@@ -290,15 +295,21 @@ module SpecToPbt
     # @rbs method_name: String
     # @rbs return: Array[String]
     def applicable_lines(analysis, method_name)
+      state_items = collection_state_expr("state", analysis)
       lines = [
         "    def applicable?(state)",
         "      override = #{support_module_name}.applicable_override(name)",
         "      return override.call(state) if override"
       ]
       if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      !state.empty? # inferred precondition for #{method_name}"
+        lines << "      !#{state_items}.empty? # inferred precondition for #{method_name}"
       elsif collection_like_state?(analysis) && analysis.guard_kind == :below_capacity
-        lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
+        capacity_expr = capacity_state_expr("state", analysis)
+        if capacity_expr
+          lines << "      #{state_items}.length < #{capacity_expr} # inferred capacity/fullness guard for #{method_name}"
+        else
+          lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
+        end
       elsif analysis.guard_kind != :none
         lines << "      true # TODO: infer a scalar/domain-specific precondition"
       else
@@ -313,31 +324,32 @@ module SpecToPbt
     # @rbs return: Array[String]
     def next_state_lines(analysis, behavior)
       return scalar_next_state_lines(analysis) unless collection_like_state?(analysis)
+      state_items = collection_state_expr("state", analysis)
 
       case behavior
       when :append
         [
           "    def next_state(state, args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state + [args]"
+          "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
         ]
       when :pop
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state[0...-1]"
+          "      #{collection_state_update_expr('state', analysis, "#{state_items}[0...-1]")}"
         ]
       when :dequeue
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state.drop(1)"
+          "      #{collection_state_update_expr('state', analysis, "#{state_items}.drop(1)")}"
         ]
       when :size_no_change
         [
           "    def next_state(state, _args)",
           "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      state # TODO: preserve size while refining element/order changes"
+          "      #{collection_state_update_expr('state', analysis, state_items)} # TODO: preserve size while refining element/order changes"
         ]
       else
         generic_next_state_lines(analysis)
@@ -479,6 +491,11 @@ module SpecToPbt
       end
 
       lines << "      # Inferred collection target: #{state_target_label(analysis)}"
+      lines << "      before_items = #{collection_state_expr('before_state', analysis)}"
+      lines << "      after_items = #{collection_state_expr('after_state', analysis)}"
+      if (before_capacity_expr = capacity_state_expr("before_state", analysis))
+        lines << "      before_capacity = #{before_capacity_expr}"
+      end
       lines.concat(derived_verify_comment_lines(analysis))
       lines.concat(collection_verify_body(analysis, behavior))
       lines << "      [sut, args] && nil"
@@ -492,36 +509,39 @@ module SpecToPbt
     def collection_verify_body(analysis, behavior)
       lines = [] #: Array[String]
       if analysis.derived_verify_hints.include?(:respect_non_empty_guard) && [:pop, :dequeue].include?(behavior)
-        lines << "      raise \"Expected non-empty state before removal\" if before_state.empty?"
+        lines << "      raise \"Expected non-empty state before removal\" if before_items.empty?"
+      end
+      if analysis.derived_verify_hints.include?(:respect_capacity_guard) && behavior == :append && capacity_state_expr("before_state", analysis)
+        lines << "      raise \"Expected available capacity before append\" unless before_items.length < before_capacity"
       end
       if analysis.derived_verify_hints.include?(:check_empty_semantics) && analysis.state_update_shape == :preserve_size
-        lines << "      raise \"Expected empty-state semantics to stay aligned\" unless after_state.empty? == before_state.empty?"
+        lines << "      raise \"Expected empty-state semantics to stay aligned\" unless after_items.empty? == before_items.empty?"
       end
-      lines << "      raise \"Expected size to stay the same\" unless after_state.length == before_state.length" if analysis.state_update_shape == :preserve_size
+      lines << "      raise \"Expected size to stay the same\" unless after_items.length == before_items.length" if analysis.state_update_shape == :preserve_size
 
       case behavior
       when :append
-        lines << "      expected_size = before_state.length + 1"
-        lines << "      raise \"Expected size to increase by 1\" unless after_state.length == expected_size"
+        lines << "      expected_size = before_items.length + 1"
+        lines << "      raise \"Expected size to increase by 1\" unless after_items.length == expected_size"
         if analysis.derived_verify_hints.include?(:check_ordering_semantics)
-          lines << "      raise \"Expected appended argument to become the newest element\" unless after_state.last == args"
+          lines << "      raise \"Expected appended argument to become the newest element\" unless after_items.last == args"
         end
         if roundtrip_restore_after_append?(analysis)
-          lines << "      restored_state = after_state[0...-1]"
+          lines << "      restored_state = #{collection_state_update_expr('after_state', analysis, 'after_items[0...-1]')}"
           lines << "      raise \"Expected append/remove-last roundtrip to restore the previous model state\" unless restored_state == before_state"
         end
       when :pop
-        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.last')}"
+        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_items.last')}"
         lines << "      raise \"Expected popped value to match model\" unless result == expected"
-        lines << "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+        lines << "      raise \"Expected size to decrease by 1\" unless after_items.length == before_items.length - 1"
         if roundtrip_restore_after_pop?(analysis)
-          lines << "      restored_state = after_state + [result]"
+          lines << "      restored_state = #{collection_state_update_expr('after_state', analysis, 'after_items + [result]')}"
           lines << "      raise \"Expected remove-last/append roundtrip to restore the previous model state\" unless restored_state == before_state"
         end
       when :dequeue
-        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_state.first')}"
+        lines << "      expected = #{expected_result_expr_for(analysis, fallback: 'before_items.first')}"
         lines << "      raise \"Expected dequeued value to match model\" unless result == expected"
-        lines << "      raise \"Expected size to decrease by 1\" unless after_state.length == before_state.length - 1"
+        lines << "      raise \"Expected size to decrease by 1\" unless after_items.length == before_items.length - 1"
       else
         lines << "      # TODO: add concrete collection checks for #{analysis.predicate_name}"
       end
@@ -674,6 +694,83 @@ module SpecToPbt
       lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }"
       lines << "    }#{suffix}"
       lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def structured_collection_state?(analysis)
+      return false unless analysis
+      return false unless collection_like_state?(analysis)
+
+      !companion_scalar_fields_for(analysis).empty?
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[Core::Field]
+    def companion_scalar_fields_for(analysis)
+      return [] unless analysis.state_type
+
+      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
+      return [] unless type_entity
+
+      type_entity.fields.reject do |field|
+        field.name == analysis.state_field || ["seq", "set"].include?(field.multiplicity)
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def structured_collection_initial_state_code(analysis)
+      pairs = [] #: Array[String]
+      pairs << "#{analysis.state_field}: []"
+      companion_scalar_fields_for(analysis).each do |field|
+        pairs << "#{field.name}: #{default_scalar_placeholder_for(field)}"
+      end
+
+      "{ #{pairs.join(', ')} } # TODO: replace with a domain-specific structured model state"
+    end
+
+    # @rbs field: Core::Field
+    # @rbs return: String
+    def default_scalar_placeholder_for(field)
+      return "3" if field.name.match?(/capacity|limit|max(?:imum)?/i)
+      return "0" if field.type == "Int"
+      return "nil" if field.multiplicity == "lone"
+
+      "nil"
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def collection_state_expr(state_var, analysis)
+      if structured_collection_state?(analysis)
+        "#{state_var}[:#{analysis.state_field}]"
+      else
+        state_var
+      end
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String?
+    def capacity_state_expr(state_var, analysis)
+      field = companion_scalar_fields_for(analysis).find { |item| item.name.match?(/capacity|limit|max(?:imum)?/i) }
+      return nil unless field
+
+      "#{state_var}[:#{field.name}]"
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs updated_collection_expr: String
+    # @rbs return: String
+    def collection_state_update_expr(state_var, analysis, updated_collection_expr)
+      if structured_collection_state?(analysis)
+        "#{state_var}.merge(#{analysis.state_field}: #{updated_collection_expr})"
+      else
+        updated_collection_expr
+      end
     end
 
     # @rbs predicate_name: String

@@ -120,7 +120,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def initial_state
-      [] # TODO: replace with a domain-specific collection state
+      { elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state
     end
 
     def commands(_state)
@@ -140,12 +140,12 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return override.call(state) if override
-      true # TODO: inferred capacity/fullness guard for enqueue; use applicable_override or enrich the model state
+      state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue
     end
 
     def next_state(state, args)
       # Inferred transition target: Queue#elements
-      state + [args]
+      state.merge(elements: state[:elements] + [args])
     end
 
     def run!(sut, args)
@@ -185,12 +185,16 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Queue#elements
+      before_items = before_state[:elements]
+      after_items = after_state[:elements]
+      before_capacity = before_state[:capacity]
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      expected_size = before_state.length + 1
-      raise "Expected size to increase by 1" unless after_state.length == expected_size
+      raise "Expected available capacity before append" unless before_items.length < before_capacity
+      expected_size = before_items.length + 1
+      raise "Expected size to increase by 1" unless after_items.length == expected_size
       [sut, args] && nil
     end
   end
@@ -207,12 +211,12 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return override.call(state) if override
-      !state.empty? # inferred precondition for dequeue
+      !state[:elements].empty? # inferred precondition for dequeue
     end
 
     def next_state(state, _args)
       # Inferred transition target: Queue#elements
-      state.drop(1)
+      state.merge(elements: state[:elements].drop(1))
     end
 
     def run!(sut, args)
@@ -252,14 +256,17 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Queue#elements
+      before_items = before_state[:elements]
+      after_items = after_state[:elements]
+      before_capacity = before_state[:capacity]
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      raise "Expected non-empty state before removal" if before_state.empty?
+      raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected
-      raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
+      raise "Expected size to decrease by 1" unless after_items.length == before_items.length - 1
       [sut, args] && nil
     end
   end

@@ -182,7 +182,9 @@ RSpec.describe "cache (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Cache#entries
-      raise "Expected size to stay the same" unless after_state.length == before_state.length
+      before_items = before_state
+      after_items = after_state
+      raise "Expected size to stay the same" unless after_items.length == before_items.length
       # TODO: add concrete collection checks for Rewrite
       [sut, args] && nil
     end

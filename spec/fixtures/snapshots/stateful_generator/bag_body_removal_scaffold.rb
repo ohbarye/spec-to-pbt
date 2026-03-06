@@ -181,11 +181,13 @@ RSpec.describe "bag (stateful scaffold)" do
         sut: sut
       )
       # Inferred collection target: Bag#elems
+      before_items = before_state
+      after_items = after_state
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
-      raise "Expected non-empty state before removal" if before_state.empty?
+      raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected
-      raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
+      raise "Expected size to decrease by 1" unless after_items.length == before_items.length - 1
       [sut, args] && nil
     end
   end
