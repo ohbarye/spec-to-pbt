@@ -104,7 +104,7 @@ module SpecToPbt
       end
       lines << "  },"
       lines << "  verify_context: {"
-      lines << "    state_reader: nil"
+      lines << "    state_reader: nil, # #{suggested_state_reader_comment}"
       lines << "  }"
       lines << "  # before_run: ->(sut) { },"
       lines << "  # after_run: ->(sut, result) { }"
@@ -749,19 +749,21 @@ module SpecToPbt
     # @rbs return: Array[String]
     def config_command_lines(predicate, suffix)
       method_name = method_name_for(predicate)
-      suggested_method = suggested_api_method_name(predicate.name)
+      analysis = predicate_analysis(predicate)
+      suggested_methods = suggested_api_method_names(predicate.name)
       lines = [
         "    #{method_name}: {",
         "      method: :#{method_name},"
       ]
-      if !suggested_method.nil? && suggested_method != method_name.to_sym
-        lines << "      # Suggested real API method: :#{suggested_method}"
+      normalized_methods = suggested_methods - [method_name.to_sym]
+      if normalized_methods.any?
+        lines << "      # Suggested real API methods: #{normalized_methods.map { |name| ":#{name}" }.join(', ')}"
       end
       lines << "      # arg_adapter: ->(args) { args },"
       lines << "      # model_arg_adapter: ->(args) { args },"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state, args = nil) { true },"
-      lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }"
+      lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
       lines << "    }#{suffix}"
       lines
     end
@@ -865,14 +867,54 @@ module SpecToPbt
 
     # @rbs predicate_name: String
     # @rbs return: Symbol?
-    def suggested_api_method_name(predicate_name)
-      return :push if predicate_name.match?(/\APush/i)
-      return :pop if predicate_name.match?(/\APop/i)
-      return :enqueue if predicate_name.match?(/\AEnqueue/i)
-      return :dequeue if predicate_name.match?(/\ADequeue/i)
-      return :set_target if predicate_name.match?(/\ASetTarget/i)
+    def suggested_api_method_names(predicate_name)
+      suggestions = [] #: Array[Symbol]
+      suggestions << :push if predicate_name.match?(/\APush/i)
+      suggestions << :pop if predicate_name.match?(/\APop/i)
+      suggestions << :enqueue if predicate_name.match?(/\AEnqueue/i)
+      suggestions << :dequeue if predicate_name.match?(/\ADequeue/i)
+      suggestions << :set_target if predicate_name.match?(/\ASetTarget/i)
+      if predicate_name.match?(/\ADepositAmount/i)
+        suggestions.concat([:credit, :deposit])
+      elsif predicate_name.match?(/\ADeposit/i)
+        suggestions.concat([:credit_one, :deposit, :credit])
+      elsif predicate_name.match?(/\AWithdrawAmount/i)
+        suggestions.concat([:debit, :withdraw])
+      elsif predicate_name.match?(/\AWithdraw/i)
+        suggestions.concat([:debit_one, :withdraw, :debit])
+      end
 
-      nil
+      suggestions.uniq
+    end
+
+    # @rbs return: String
+    def suggested_state_reader_comment
+      analyses = selected_command_predicates.map { |predicate| predicate_analysis(predicate) }
+      return "suggested: ->(sut) { sut.snapshot }" if analyses.any? && analyses.all? { |analysis| collection_like_state?(analysis) }
+
+      structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
+      return "suggested: ->(sut) { sut.snapshot }" if structured_analysis
+
+      scalar_field = single_scalar_state_field_for(analyses)
+      if scalar_field
+        return "suggested: ->(sut) { sut.#{scalar_field.name} }"
+      end
+
+      "suggested: expose a snapshot/reader for the model state"
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def suggested_verify_override_example(analysis)
+      if collection_like_state?(analysis)
+        if structured_collection_state?(analysis)
+          "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state[:#{analysis.state_field}] }"
+        else
+          "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state }"
+        end
+      else
+        "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state }"
+      end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

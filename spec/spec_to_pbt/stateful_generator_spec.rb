@@ -457,12 +457,42 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("sut_factory: -> { StackImpl.new }")
         expect(code).to include("push_adds_element: {")
         expect(code).to include("method: :push_adds_element")
-        expect(code).to include("Suggested real API method: :push")
+        expect(code).to include("Suggested real API methods: :push")
         expect(code).to include("model_arg_adapter:")
         expect(code).to include("verify_override:")
         expect(code).to include("applicable_override:")
         expect(code).to include("observed_state:")
-        expect(code).to include("state_reader: nil")
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.snapshot }")
+        expect(code).to include('observed_state == after_state')
+      end
+    end
+
+    context "with bounded queue spec" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/bounded_queue.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests collection-oriented readers and verify overrides" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.snapshot }")
+        expect(code).to include('observed_state == after_state[:elements]')
+      end
+    end
+
+    context "with bank account spec" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/bank_account.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests scalar readers and financial API method names" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.balance }")
+        expect(code).to include("Suggested real API methods: :credit, :deposit")
+        expect(code).to include("Suggested real API methods: :debit, :withdraw")
       end
     end
   end

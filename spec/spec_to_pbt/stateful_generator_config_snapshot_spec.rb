@@ -6,7 +6,9 @@ RSpec.describe "SpecToPbt::StatefulGenerator config snapshots" do
   let(:snapshot_dir) { File.expand_path("../fixtures/snapshots/stateful_generator_config", __dir__) }
 
   {
-    "stack" => "stack.als"
+    "stack" => "stack.als",
+    "bounded_queue" => "bounded_queue.als",
+    "bank_account" => "bank_account.als"
   }.each do |name, fixture_name|
     it "matches the #{name} config snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

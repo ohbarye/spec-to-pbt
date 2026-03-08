@@ -64,6 +64,12 @@ that is intended to survive regeneration:
 - `*_impl.rb`
   - user-owned implementation
 
+The generated config now includes field-aware suggestions for:
+
+- likely Ruby API method names
+- `verify_override` shapes
+- `verify_context[:state_reader]`
+
 The config can map spec command names to real Ruby APIs, for example:
 
 ```ruby
