@@ -130,7 +130,7 @@ Useful stateful fixtures to try:
 For current stateful work and roadmap details, see:
 
 - [docs/stateful-scaffold-roadmap-2026-03-04.md](docs/stateful-scaffold-roadmap-2026-03-04.md)
-- [docs/pbt-stateful-api-feedback-2026-03-07.md](docs/pbt-stateful-api-feedback-2026-03-07.md)
+- [docs/pbt-stateful-api-feedback-2026-03-07.md](docs/pbt-stateful-api-feedback-2026-03-07.md) (historical note; now implemented in `pbt` `main`)
 
 ## Supported Alloy Syntax
 
@@ -194,6 +194,10 @@ bundle exec steep check
 - The main stateful integration path uses the local `pbt` checkout at `../pbt` by default
 - `../pbt` is expected to track the user's local `main` branch unless `PBT_REPO_DIR` is overridden
 - Override with `PBT_REPO_DIR=/path/to/pbt` if needed
+- `pbt` `main` now supports:
+  - `arguments(state)`
+  - `applicable?(state, args)`
+  - empty arg-domain handling via `Pbt::Arbitrary::EmptyDomainError`
 - Stateful scaffold execution in generated specs is gated by:
   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 - Stateful generator regression coverage includes:

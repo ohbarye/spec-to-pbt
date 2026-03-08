@@ -1,5 +1,19 @@
 # pbt Stateful API Feedback (2026-03-07)
 
+## Status
+
+Implemented in `pbt` `main` on 2026-03-08.
+
+The original request in this note is now upstreamed:
+
+- state-dependent command arguments via `arguments(state)`
+- arg-aware applicability via `applicable?(state, args)`
+- validation for supported command method signatures
+- empty arg domains handled via `Pbt::Arbitrary::EmptyDomainError`
+
+Keep this document as historical context for why `spec-to-pbt` examples and
+generated scaffolds rely on those protocol shapes.
+
 ## Summary
 
 `spec-to-pbt` can now generate runnable stateful scaffolds with:
@@ -10,9 +24,10 @@
 - richer structured model state for collection + companion scalar fields
 - amount-aware scalar model updates via `model_arg_adapter`
 
-The remaining practical bottleneck is the current command protocol shape in `pbt`.
+At the time this note was written, the remaining practical bottleneck was the
+command protocol shape in `pbt`.
 
-Today a generated command effectively assumes:
+Before the upstream change, a generated command effectively assumed:
 
 - `arguments`
 - `applicable?(state)`
@@ -20,8 +35,8 @@ Today a generated command effectively assumes:
 - `run!(sut, args)`
 - `verify!(...)`
 
-This works well when applicability depends only on `state`, or when args are constant-shape.
-It becomes awkward when args and applicability are coupled.
+That worked well when applicability depended only on `state`, or when args were
+constant-shape. It became awkward when args and applicability were coupled.
 
 Two concrete cases from `spec-to-pbt`:
 
@@ -33,7 +48,7 @@ Two concrete cases from `spec-to-pbt`:
 - whether `withdraw(amount)` is applicable depends on both current balance and chosen `amount`
 - `applicable?(state)` alone is not expressive enough
 
-## Problem
+## Original Problem
 
 For commands like `withdraw(amount)` there are 3 bad options under the current protocol:
 
@@ -46,14 +61,18 @@ For commands like `withdraw(amount)` there are 3 bad options under the current p
 3. push everything into ad hoc config or overrides
 - workable, but defeats much of the generator's value
 
-The missing capability is one of:
+The missing capability was one of:
 
 - state-dependent argument generation
 - arg-aware applicability
 
 Ideally both.
 
+That gap is now closed in `pbt` `main`.
+
 ## Recommended API Direction
+
+This section is preserved as the design that was eventually implemented.
 
 ### Option A: `arguments(state)`
 
@@ -167,9 +186,10 @@ and
 
 - “practical generated test that directly matches the domain”
 
-## Suggested Prompt For Another AI
+## Historical Prompt
 
-Use this as the implementation prompt for the `pbt` repository.
+This was the implementation prompt used for the `pbt` repository before the
+change landed on `main`.
 
 ```text
 Implement a backward-compatible extension to the stateful command protocol in the pbt gem.
@@ -212,14 +232,19 @@ Keep the change small, additive, and backward-compatible.
 
 ## Why This Matters For `spec-to-pbt`
 
-If this lands in `pbt`, `spec-to-pbt` can generate much better practical tests for:
+Now that this has landed in `pbt`, `spec-to-pbt` can generate much better
+practical tests for:
 
 - financial operations with amount constraints
 - bounded data structures
 - commands with resource limits or domain caps
 - workflows whose valid transitions depend on selected inputs
 
-Without it, `spec-to-pbt` remains viable, but has to rely more heavily on:
+The remaining limits are no longer in `pbt`'s protocol shape. They are mostly in
+`spec-to-pbt`'s inference quality, scaffold defaults, and domain-specific
+verification generation.
+
+Before the upstream change, `spec-to-pbt` had to rely more heavily on:
 
 - `applicable_override`
 - config-level argument normalization
