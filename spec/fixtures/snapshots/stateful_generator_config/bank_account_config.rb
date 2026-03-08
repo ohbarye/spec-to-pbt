@@ -11,37 +11,37 @@ BankAccountPbtConfig = {
       method: :deposit,
       # Suggested real API methods: :credit_one, :credit
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed balance to match model\" unless observed_state == after_state }
     },
     deposit_amount: {
       method: :deposit_amount,
       # Suggested real API methods: :credit, :deposit
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed balance to match model\" unless observed_state == after_state }
     },
     withdraw: {
       method: :withdraw,
       # Suggested real API methods: :debit_one, :debit
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed balance to match model\" unless observed_state == after_state }
     },
     withdraw_amount: {
       method: :withdraw_amount,
       # Suggested real API methods: :debit, :withdraw
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args.abs + 1 }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed balance to match model\" unless observed_state == after_state }
     }
   },
   verify_context: {

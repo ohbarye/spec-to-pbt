@@ -11,19 +11,19 @@ StackPbtConfig = {
       method: :push_adds_element,
       # Suggested real API methods: :push
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
     },
     pop_removes_element: {
       method: :pop_removes_element,
       # Suggested real API methods: :pop
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
     }
   },
   verify_context: {

@@ -806,7 +806,7 @@ module SpecToPbt
         lines << "      # Suggested real API methods: #{normalized_methods.map { |name| ":#{name}" }.join(', ')}"
       end
       lines << "      # arg_adapter: ->(args) { args },"
-      lines << "      # model_arg_adapter: ->(args) { args },"
+      lines << "      # model_arg_adapter: #{suggested_model_arg_adapter_example(analysis)}"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state, args = nil) { true },"
       lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
@@ -993,6 +993,15 @@ module SpecToPbt
       suggestions << :enqueue if predicate_name.match?(/\AEnqueue/i)
       suggestions << :dequeue if predicate_name.match?(/\ADequeue/i)
       suggestions << :set_target if predicate_name.match?(/\ASetTarget/i)
+      if predicate_name.match?(/\AHold/i)
+        suggestions.concat([:authorize, :reserve, :place_hold])
+      elsif predicate_name.match?(/\ACapture/i)
+        suggestions.concat([:capture, :settle])
+      elsif predicate_name.match?(/\ARelease/i)
+        suggestions.concat([:release_hold, :void_authorization, :release])
+      elsif predicate_name.match?(/\ATransfer/i)
+        suggestions.concat([:move_funds, :transfer_amount, :post_transfer])
+      end
       if predicate_name.match?(/\ADepositAmount/i)
         suggestions.concat([:credit, :deposit])
       elsif predicate_name.match?(/\ADeposit/i)
@@ -1032,15 +1041,37 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def suggested_verify_override_example(analysis)
+      message = suggested_verify_override_message(analysis)
       if collection_like_state?(analysis)
         if structured_collection_state?(analysis)
-          "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state[:#{analysis.state_field}] }"
+          "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state[:#{analysis.state_field}] }"
         else
-          "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state }"
+          "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state }"
         end
       else
-        "->(after_state:, observed_state:, **) { raise \\\"Expected observed state to match model\\\" unless observed_state == after_state }"
+        "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state }"
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def suggested_model_arg_adapter_example(analysis)
+      if state_aware_scalar_arg_generation?(analysis)
+        "->(args) { args.abs + 1 }"
+      else
+        "->(args) { args }"
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def suggested_verify_override_message(analysis)
+      return "Expected observed collection state to match model" if collection_like_state?(analysis)
+      return "Expected observed account balances to match model" if analysis.state_type&.match?(/Accounts/i)
+      return "Expected observed balance to match model" if analysis.state_type&.match?(/Account|Wallet/i)
+      return "Expected observed reservation state to match model" if analysis.state_type&.match?(/Reservation/i)
+
+      "Expected observed state to match model"
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

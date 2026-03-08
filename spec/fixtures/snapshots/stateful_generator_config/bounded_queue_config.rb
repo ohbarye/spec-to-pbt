@@ -10,18 +10,18 @@ BoundedQueuePbtConfig = {
     enqueue: {
       method: :enqueue,
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state[:elements] }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state[:elements] }
     },
     dequeue: {
       method: :dequeue,
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state[:elements] }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state[:elements] }
     }
   },
   verify_context: {

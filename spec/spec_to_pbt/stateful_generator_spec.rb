@@ -584,6 +584,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.balance }")
         expect(code).to include("Suggested real API methods: :credit, :deposit")
         expect(code).to include("Suggested real API methods: :debit, :withdraw")
+        expect(code).to include("model_arg_adapter: ->(args) { args.abs + 1 }")
+        expect(code).to include('Expected observed balance to match model')
       end
     end
 
@@ -611,6 +613,10 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }")
+        expect(code).to include("Suggested real API methods: :authorize, :reserve, :place_hold")
+        expect(code).to include("Suggested real API methods: :settle")
+        expect(code).to include("Suggested real API methods: :release_hold, :void_authorization")
+        expect(code).to include('Expected observed reservation state to match model')
       end
     end
 
@@ -624,6 +630,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
+        expect(code).to include("Suggested real API methods: :move_funds, :transfer_amount, :post_transfer")
+        expect(code).to include('Expected observed account balances to match model')
       end
     end
   end

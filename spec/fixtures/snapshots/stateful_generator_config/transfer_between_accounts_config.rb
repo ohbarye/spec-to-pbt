@@ -9,11 +9,12 @@ TransferBetweenAccountsPbtConfig = {
   command_mappings: {
     transfer: {
       method: :transfer,
+      # Suggested real API methods: :move_funds, :transfer_amount, :post_transfer
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args.abs + 1 }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed account balances to match model\" unless observed_state == after_state }
     }
   },
   verify_context: {
