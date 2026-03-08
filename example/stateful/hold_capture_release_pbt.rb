@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "pbt"
+require_relative "pbt_local"
 require "rspec"
 require_relative "hold_capture_release_impl"
 require_relative "hold_capture_release_pbt_config" if File.exist?(File.expand_path("hold_capture_release_pbt_config.rb", __dir__))
@@ -139,7 +139,7 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
     end
 
     def initial_state
-      { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state
+      { available: 10, held: 0 } # Example refinement: start with funds available so hold/capture/release all become reachable
     end
 
     def commands(_state)

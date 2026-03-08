@@ -434,6 +434,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("def initial_state\n      { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state\n    end")
         expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:available])\n    end")
+        expect(code).to include("class ReleaseCommand")
+        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:held])\n    end")
+        expect(code).to include("current_value = state[:held]")
         expect(code).to include("state.merge(available: state[:available] - delta, held: state[:held] + delta)")
         expect(code).to include("state.merge(available: state[:available] + delta, held: state[:held] - delta)")
         expect(code).to include('raise "Expected incremented value for Reservation#held" unless after_held == before_held + delta')

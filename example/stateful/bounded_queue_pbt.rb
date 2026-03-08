@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift(File.expand_path(ENV.fetch("PBT_REPO_DIR", "../../../pbt") + "/lib", __dir__)) if Dir.exist?(File.expand_path(ENV.fetch("PBT_REPO_DIR", "../../../pbt"), __dir__))
 
-require "pbt"
+require_relative "pbt_local"
 require "rspec"
 require_relative "bounded_queue_impl"
 require_relative "bounded_queue_pbt_config"

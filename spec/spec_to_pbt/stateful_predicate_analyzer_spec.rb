@@ -319,8 +319,13 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         capture = analyzer.analyze(spec.predicates.find { |p| p.name == "Capture" })
 
         expect(hold.guard_kind).to eq(:arg_within_state)
+        expect(hold.state_field).to eq("available")
         expect(hold.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :decrement], ["held", :increment]])
+        expect(release.guard_kind).to eq(:arg_within_state)
+        expect(release.state_field).to eq("held")
         expect(release.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["held", :decrement]])
+        expect(capture.guard_kind).to eq(:arg_within_state)
+        expect(capture.state_field).to eq("held")
         expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["held", :decrement]])
       end
     end

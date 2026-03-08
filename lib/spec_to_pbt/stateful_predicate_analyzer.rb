@@ -80,11 +80,12 @@ module SpecToPbt
 
       body = normalized_body_for(predicate)
       field_updates = infer_state_field_updates(body, predicate, state_param_names, state_type)
-      primary_update = field_updates.first
-      state_field = primary_update&.fetch(:field) || infer_state_field(body, state_param_names)
+      fallback_state_field = infer_state_field(body, state_param_names)
+      guard_kind, guard_field = infer_guard_details(body, predicate, field_updates.map { |item| item[:field] }, fallback_state_field)
+      primary_update = primary_state_update_for(field_updates, guard_field)
+      state_field = primary_update&.fetch(:field) || fallback_state_field
       state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
       size_delta = infer_size_delta(body)
-      guard_kind = infer_guard_kind(body, predicate, state_field)
       requires_non_empty_state = guard_kind == :non_empty
       transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
       scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
@@ -193,18 +194,39 @@ module SpecToPbt
     # @rbs predicate: Core::Entity
     # @rbs state_field: String?
     # @rbs return: Symbol
-    def infer_guard_kind(body, predicate, state_field)
-      return :non_empty if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
-      return :below_capacity if body.match?(/#\w+\.\w+\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
-      if !state_field.nil? && predicate.params.any? do |param|
-        next false if param.name.end_with?("'")
+    def infer_guard_details(body, predicate, candidate_fields, fallback_state_field)
+      return [:non_empty, fallback_state_field] if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
+      return [:below_capacity, fallback_state_field] if body.match?(/#\w+\.\w+\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
 
-        body.match?(/#\w+\.#{Regexp.escape(state_field)}\s*(?:>=|>)\s*#?#{Regexp.escape(param.name)}\b/)
-      end
-        return :arg_within_state
+      field_names = candidate_fields.compact.uniq
+      field_names << fallback_state_field if fallback_state_field
+
+      field_names.each do |field_name|
+        next unless predicate.params.any? do |param|
+          next false if param.name.end_with?("'")
+
+          body.match?(/#\w+\.#{Regexp.escape(field_name)}\s*(?:>=|>)\s*#?#{Regexp.escape(param.name)}\b/)
+        end
+
+        return [:arg_within_state, field_name]
       end
 
-      :none
+      [:none, fallback_state_field]
+    end
+
+    # @rbs field_updates: Array[Hash[Symbol, untyped]]
+    # @rbs guard_field: String?
+    # @rbs return: Hash[Symbol, untyped]?
+    def primary_state_update_for(field_updates, guard_field)
+      return nil if field_updates.empty?
+
+      guarded_update = guard_field && field_updates.find { |update| update[:field] == guard_field }
+      return guarded_update if guarded_update
+
+      decrement_update = field_updates.find { |update| update[:update_shape] == :decrement && update[:rhs_source_kind] == :arg }
+      return decrement_update if decrement_update
+
+      field_updates.first
     end
 
     # @rbs body: String

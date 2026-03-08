@@ -846,7 +846,7 @@ module SpecToPbt
       return false if fields.empty?
       return false if fields.any? { |field| ["seq", "set"].include?(field.multiplicity) }
 
-      return true if fields.length > 1 && scalar_field_updates_for(analysis).length > 1
+      return true if fields.length > 1
 
       companions = companion_scalar_fields_for(analysis)
       return false if companions.empty?

@@ -122,12 +122,19 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_
 # Run a financial-domain example with state-aware amount generation
 # The example maps DepositAmount/WithdrawAmount -> credit(amount)/debit(amount)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
+
+# Run a reservation/hold workflow with multi-field financial state
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/hold_capture_release_pbt.rb
+
+# Run an intra-account transfer workflow with total-preservation checks
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/transfer_between_accounts_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
 `verify_override`, `verify_context[:state_reader]`, `model_arg_adapter`, and where useful
-`arguments(state)` / `applicable?(state, args)`.
+`arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
+`../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
 
 Useful stateful fixtures to try:
 
@@ -146,6 +153,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 
 - `bounded_queue.als` -> generated scaffold + generated config + user-owned impl/config edits
 - `bank_account.als` -> generated scaffold + config-driven API remapping + amount-aware commands
+- `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
+- `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 
 For current stateful work and roadmap details, see:
 
