@@ -35,7 +35,8 @@ RSpec.describe "bank_account (stateful scaffold)" do
     end
 
     def adapt_args(command_name, args)
-      adapter = command_config(command_name)[:arg_adapter]
+      settings = command_config(command_name)
+      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]
       adapter ? adapter.call(args) : args
     end
 
@@ -139,7 +140,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     end
 
     def initial_state
-      nil # TODO: replace with a domain-specific scalar/model state
+      0 # TODO: replace with a domain-specific scalar model state
     end
 
     def commands(_state)
@@ -189,7 +190,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: DepositAmount, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -206,7 +207,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       raise "Expected incremented value for Account#balance" unless after_state == before_state + 1
+      raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
   end
@@ -254,7 +257,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -271,8 +274,10 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       raise "Expected incremented value for Account#balance" unless after_state == before_state + delta
+      raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
   end
@@ -319,7 +324,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -336,7 +341,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       raise "Expected decremented value for Account#balance" unless after_state == before_state - 1
+      raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
   end
@@ -385,7 +392,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, Withdraw, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -402,9 +409,11 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       raise "Expected sufficient scalar state before decrement" unless delta <= before_state
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       raise "Expected decremented value for Account#balance" unless after_state == before_state - delta
+      raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
   end

@@ -166,6 +166,11 @@ module SpecToPbt
         return "[] # TODO: replace with a domain-specific collection state"
       end
 
+      scalar_field = single_scalar_state_field_for(analyses)
+      if scalar_field
+        return "#{default_scalar_placeholder_for(scalar_field)} # TODO: replace with a domain-specific scalar model state"
+      end
+
       "nil # TODO: replace with a domain-specific scalar/model state"
     end
 
@@ -657,7 +662,8 @@ module SpecToPbt
         "    end",
         "",
         "    def adapt_args(command_name, args)",
-        "      adapter = command_config(command_name)[:arg_adapter]",
+        "      settings = command_config(command_name)",
+        "      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]",
         "      adapter ? adapter.call(args) : args",
         "    end",
         "",
@@ -794,6 +800,26 @@ module SpecToPbt
       "{ #{pairs.join(', ')} } # TODO: replace with a domain-specific structured model state"
     end
 
+    # @rbs analyses: Array[StatefulPredicateAnalysis]
+    # @rbs return: Core::Field?
+    def single_scalar_state_field_for(analyses)
+      state_types = analyses.map(&:state_type).compact.uniq
+      return nil unless state_types.length == 1
+
+      state_fields = analyses.map(&:state_field).compact.uniq
+      return nil unless state_fields.length == 1
+
+      type_entity = @spec.types.find { |item| item.name == state_types.first }
+      return nil unless type_entity
+      return nil unless type_entity.fields.length == 1
+
+      field = type_entity.fields.first
+      return nil if ["seq", "set"].include?(field.multiplicity)
+      return nil unless field.name == state_fields.first
+
+      field
+    end
+
     # @rbs field: Core::Field
     # @rbs return: String
     def default_scalar_placeholder_for(field)
@@ -852,7 +878,8 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def scalar_verify_body(analysis)
-      case analysis.state_update_shape
+      lines =
+        case analysis.state_update_shape
       when :increment
         if analysis.rhs_source_kind == :arg
           [
@@ -909,6 +936,12 @@ module SpecToPbt
           "      # TODO: #{scalar_verify_guidance(analysis)}"
         ]
       end
+
+      if numeric_scalar_state?(analysis) && analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
+        lines << "      raise \"Expected non-negative value for #{state_target_label(analysis)}\" unless after_state >= 0"
+      end
+
+      lines
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -932,6 +965,9 @@ module SpecToPbt
       end
       if analysis.derived_verify_hints.include?(:check_size_semantics)
         lines << "      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts"
+      end
+      if analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
+        lines << "      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state"
       end
 
       lines
@@ -1060,6 +1096,18 @@ module SpecToPbt
       else
         false
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def numeric_scalar_state?(analysis)
+      return false unless analysis.state_type && analysis.state_field
+
+      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
+      return false unless type_entity
+
+      field = type_entity.fields.find { |item| item.name == analysis.state_field }
+      field&.type == "Int"
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

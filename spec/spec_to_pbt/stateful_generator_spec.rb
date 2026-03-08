@@ -62,6 +62,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Expected remove-last/append roundtrip to restore the previous model state")
         expect(code).to include("Inferred collection target: Stack#elements")
         expect(code).to include("adapt_args(name, args)")
+        expect(code).to include("adapter = settings[:arg_adapter] || settings[:model_arg_adapter]")
         expect(code).to include("scalar_model_arg(command_name, args)")
         expect(code).to include("call_verify_override(")
         expect(code).to include("observed_state(sut)")
@@ -167,7 +168,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("class StepCommand")
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
-        expect(code).to include("nil # TODO: replace with a domain-specific scalar/model state")
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).not_to include("Pbt.tuple(")
         expect(code).to include("def next_state(state, _args)\n      state + 1")
         expect(code).not_to include("state + [args]")
@@ -249,6 +250,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('state_field="value"')
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).to include('raise "Expected incremented value for Machine#value" unless after_state == before_state + 1')
         expect(code).to include("state_update_shape=:increment")
       end
@@ -262,6 +264,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits scalar arg-aware next_state and verify guidance" do
         code = generator.generate
 
+        expect(code).to include("def initial_state\n      0 # TODO: replace with a domain-specific scalar model state\n    end")
         expect(code).to include("class DepositAmountCommand")
         expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
         expect(code).to include("state + delta")
@@ -276,6 +279,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state - delta")
         expect(code).to include("Expected decremented value for Account#balance")
         expect(code).to include("Expected sufficient scalar state before decrement")
+        expect(code).to include("Expected non-negative value for Account#balance")
       end
 
       it "emits fixed +1/-1 scalar transitions for no-arg balance updates" do
@@ -310,6 +314,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits replacement-oriented scalar guidance" do
         code = generator.generate
 
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).to include('rhs_source_kind=:arg')
         expect(code).to include('state_update_shape=:replace_with_arg')
         expect(code).to include("Expected replaced value for Thermostat#target")
@@ -360,6 +365,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits preserve-value scalar guidance" do
         code = generator.generate
 
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).to include('state_update_shape=:preserve_value')
         expect(code).to include("keep Box#value stable unless other domain state changes")
         expect(code).to include('raise "Expected preserved value for Box#value" unless after_state == before_state')

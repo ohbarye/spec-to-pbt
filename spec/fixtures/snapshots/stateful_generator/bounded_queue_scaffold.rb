@@ -35,7 +35,8 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def adapt_args(command_name, args)
-      adapter = command_config(command_name)[:arg_adapter]
+      settings = command_config(command_name)
+      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]
       adapter ? adapter.call(args) : args
     end
 

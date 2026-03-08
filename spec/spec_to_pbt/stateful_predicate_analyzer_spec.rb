@@ -265,6 +265,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(deposit.scalar_update_kind).to eq(:increment_like)
         expect(deposit.state_update_shape).to eq(:increment)
         expect(deposit.related_predicate_names).to include("WithdrawAmount", "DepositWithdrawIdentity", "NonNegative")
+        expect(deposit.derived_verify_hints).to include(:check_non_negative_scalar_state)
         expect(deposit_amount.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "amount", type: "Int" }])
         expect(deposit_amount.scalar_update_kind).to eq(:increment_like)
         expect(deposit_amount.rhs_source_kind).to eq(:arg)

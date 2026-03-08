@@ -86,6 +86,8 @@ StackPbtConfig = {
 
 `verify_override` receives the normal verification inputs plus `observed_state:` when
 `verify_context[:state_reader]` is configured.
+When only `model_arg_adapter` is configured, the scaffold reuses it for `run!` as the
+default `arg_adapter` so model/SUT arguments stay aligned unless you explicitly split them.
 
 The scaffold now includes analyzer-driven hints such as:
 
@@ -126,6 +128,11 @@ Useful stateful fixtures to try:
   - collection state + capacity guard + FIFO-oriented properties
 - `spec/fixtures/alloy/bank_account.als`
   - scalar state + fixed/amount-based balance updates, useful for financial-domain exploration
+
+Practical workflow coverage now includes regeneration-oriented integration specs for:
+
+- `bounded_queue.als` -> generated scaffold + generated config + user-owned impl/config edits
+- `bank_account.als` -> generated scaffold + config-driven API remapping + amount-aware commands
 
 For current stateful work and roadmap details, see:
 

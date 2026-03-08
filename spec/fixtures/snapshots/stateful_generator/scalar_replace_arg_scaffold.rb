@@ -35,7 +35,8 @@ RSpec.describe "thermostat (stateful scaffold)" do
     end
 
     def adapt_args(command_name, args)
-      adapter = command_config(command_name)[:arg_adapter]
+      settings = command_config(command_name)
+      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]
       adapter ? adapter.call(args) : args
     end
 
@@ -136,7 +137,7 @@ RSpec.describe "thermostat (stateful scaffold)" do
     end
 
     def initial_state
-      nil # TODO: replace with a domain-specific scalar/model state
+      0 # TODO: replace with a domain-specific scalar model state
     end
 
     def commands(_state)

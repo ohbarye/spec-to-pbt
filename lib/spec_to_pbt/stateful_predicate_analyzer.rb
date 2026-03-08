@@ -416,6 +416,7 @@ module SpecToPbt
       hints << :check_ordering_semantics if related_pattern_hints.include?(:ordering)
       hints << :check_roundtrip_pairing if related_pattern_hints.include?(:roundtrip)
       hints << :check_size_semantics if related_pattern_hints.include?(:size)
+      hints << :check_non_negative_scalar_state if related_texts.any? { |text| text.match?(/NonNegative|>=0/) }
 
       hints.uniq
     end
