@@ -201,6 +201,25 @@ module SpecToPbt
       "Pbt.tuple(#{arbitraries.join(', ')})"
     end
 
+    # @rbs predicate: Core::Entity
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def arguments_lines(predicate, analysis)
+      if state_aware_scalar_arg_generation?(analysis)
+        [
+          "    def arguments(state)",
+          "      Pbt.integer(min: 1, max: state)",
+          "    end"
+        ]
+      else
+        [
+          "    def arguments",
+          "      #{arguments_code(predicate)}",
+          "    end"
+        ]
+      end
+    end
+
     # @rbs type_name: String
     # @rbs return: String
     def arbitrary_code_for(type_name)
@@ -244,9 +263,7 @@ module SpecToPbt
         "      :#{method_name}",
         "    end",
         "",
-        "    def arguments",
-        "      #{arguments_code(predicate)}",
-        "    end",
+        *arguments_lines(predicate, analysis),
         "",
         *applicable_lines(analysis, method_name),
         "",
@@ -296,10 +313,26 @@ module SpecToPbt
     # @rbs return: Array[String]
     def applicable_lines(analysis, method_name)
       state_items = collection_state_expr("state", analysis)
+      if arg_aware_applicability?(analysis)
+        lines = [
+          "    def applicable?(state, args)",
+          "      override = #{support_module_name}.applicable_override(name)",
+          "      return #{support_module_name}.call_applicable_override(override, state, args) if override"
+        ]
+        if scalar_arg_bound_guard?(analysis)
+          lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
+          lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= state"
+        else
+          lines << "      true # TODO: refine arg-aware applicability for #{method_name}"
+        end
+        lines << "    end"
+        return lines
+      end
+
       lines = [
         "    def applicable?(state)",
         "      override = #{support_module_name}.applicable_override(name)",
-        "      return override.call(state) if override"
+        "      return #{support_module_name}.call_applicable_override(override, state, nil) if override"
       ]
       if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
         lines << "      !#{state_items}.empty? # inferred precondition for #{method_name}"
@@ -310,6 +343,8 @@ module SpecToPbt
         else
           lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
         end
+      elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+        lines << "      state > 0 # inferred scalar precondition for #{method_name}"
       elsif analysis.guard_kind != :none
         lines << "      true # TODO: infer a scalar/domain-specific precondition"
       else
@@ -387,6 +422,18 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
           "      state - delta",
+          "    end"
+        ]
+      elsif analysis.state_update_shape == :increment && scalar_unit_delta?(analysis)
+        [
+          "    def next_state(state, _args)",
+          "      state + 1",
+          "    end"
+        ]
+      elsif analysis.state_update_shape == :decrement && scalar_unit_delta?(analysis)
+        [
+          "    def next_state(state, _args)",
+          "      state - 1",
           "    end"
         ]
       elsif analysis.state_update_shape == :replace_with_arg
@@ -633,6 +680,23 @@ module SpecToPbt
         "      command_config(command_name)[:applicable_override]",
         "    end",
         "",
+        "    def call_applicable_override(override, state, args)",
+        "      parameters = override.parameters",
+        "      if parameters.any? { |kind, _name| kind == :rest }",
+        "        override.call(state, args)",
+        "      else",
+        "        required = parameters.count { |kind, _name| kind == :req }",
+        "        optional = parameters.count { |kind, _name| kind == :opt }",
+        "        if 2 >= required && 2 <= required + optional",
+        "          override.call(state, args)",
+        "        elsif 1 >= required && 1 <= required + optional",
+        "          override.call(state)",
+        "        else",
+        "          override.call",
+        "        end",
+        "      end",
+        "    end",
+        "",
         "    def verify_override(command_name)",
         "      command_config(command_name)[:verify_override]",
         "    end",
@@ -690,7 +754,7 @@ module SpecToPbt
       lines << "      # arg_adapter: ->(args) { args },"
       lines << "      # model_arg_adapter: ->(args) { args },"
       lines << "      # result_adapter: ->(result) { result },"
-      lines << "      # applicable_override: ->(state) { true },"
+      lines << "      # applicable_override: ->(state, args = nil) { true },"
       lines << "      # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }"
       lines << "    }#{suffix}"
       lines
@@ -795,6 +859,10 @@ module SpecToPbt
             "      delta = #{support_module_name}.scalar_model_arg(name, args)",
             "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_state == before_state + delta"
           ]
+        elsif scalar_unit_delta?(analysis)
+          [
+            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_state == before_state + 1"
+          ]
         else
           [
             "      # TODO: verify incremented value for #{state_target_label(analysis)}",
@@ -803,9 +871,17 @@ module SpecToPbt
         end
       when :decrement
         if analysis.rhs_source_kind == :arg
-          [
+          lines = [
             "      delta = #{support_module_name}.scalar_model_arg(name, args)",
             "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_state == before_state - delta"
+          ]
+          if scalar_arg_bound_guard?(analysis)
+            lines.unshift("      raise \"Expected sufficient scalar state before decrement\" unless delta <= before_state")
+          end
+          lines
+        elsif scalar_unit_delta?(analysis)
+          [
+            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_state == before_state - 1"
           ]
         else
           [
@@ -943,6 +1019,54 @@ module SpecToPbt
       else
         "verify scalar/domain-specific postconditions for #{state_target_label(analysis)}"
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def scalar_arg_bound_guard?(analysis)
+      !collection_like_state?(analysis) &&
+        analysis.guard_kind == :arg_within_state &&
+        analysis.rhs_source_kind == :arg &&
+        analysis.state_update_shape == :decrement
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def state_aware_scalar_arg_generation?(analysis)
+      scalar_arg_bound_guard?(analysis) &&
+        analysis.argument_params.length == 1 &&
+        analysis.argument_params.first.type == "Int"
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def arg_aware_applicability?(analysis)
+      scalar_arg_bound_guard?(analysis)
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def scalar_unit_delta?(analysis)
+      return false if analysis.rhs_source_kind == :arg
+
+      body = predicate_body_for(analysis)
+      field = Regexp.escape(analysis.state_field.to_s)
+
+      case analysis.state_update_shape
+      when :increment
+        body.match?(/(?:\+1|add\[#\w+\.#{field},1\])/)
+      when :decrement
+        body.match?(/(?:-1|sub\[#\w+\.#{field},1\])/)
+      else
+        false
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def predicate_body_for(analysis)
+      predicate = @spec.properties.find { |item| item.name == analysis.predicate_name }
+      predicate&.normalized_text.to_s
     end
 
     # @rbs name: String

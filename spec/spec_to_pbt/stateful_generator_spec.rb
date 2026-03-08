@@ -169,7 +169,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
         expect(code).to include("nil # TODO: replace with a domain-specific scalar/model state")
         expect(code).not_to include("Pbt.tuple(")
-        expect(code).to include("state # TODO: increment Machine#value based on args/result")
+        expect(code).to include("def next_state(state, _args)\n      state + 1")
         expect(code).not_to include("state + [args]")
       end
     end
@@ -249,7 +249,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('state_field="value"')
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
-        expect(code).to include("TODO: verify incremented value for Machine#value")
+        expect(code).to include('raise "Expected incremented value for Machine#value" unless after_state == before_state + 1')
         expect(code).to include("state_update_shape=:increment")
       end
     end
@@ -267,8 +267,27 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state + delta")
         expect(code).to include("Expected incremented value for Account#balance")
         expect(code).to include("class WithdrawAmountCommand")
+        expect(code).to include("def arguments(state)")
+        expect(code).to include("Pbt.integer(min: 1, max: state)")
+        expect(code).to include("def applicable?(state, args)")
+        expect(code).to include("return BankAccountPbtSupport.call_applicable_override(override, state, args) if override")
+        expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
+        expect(code).to include("delta.is_a?(Numeric) && delta.positive? && delta <= state")
         expect(code).to include("state - delta")
         expect(code).to include("Expected decremented value for Account#balance")
+        expect(code).to include("Expected sufficient scalar state before decrement")
+      end
+
+      it "emits fixed +1/-1 scalar transitions for no-arg balance updates" do
+        code = generator.generate
+
+        expect(code).to include("class DepositCommand")
+        expect(code).to include("def applicable?(state)")
+        expect(code).to include("state > 0 # inferred scalar precondition for withdraw")
+        expect(code).to include("def next_state(state, _args)\n      state + 1")
+        expect(code).to include("raise \"Expected incremented value for Account#balance\" unless after_state == before_state + 1")
+        expect(code).to include("def next_state(state, _args)\n      state - 1")
+        expect(code).to include("raise \"Expected decremented value for Account#balance\" unless after_state == before_state - 1")
       end
     end
 
@@ -317,8 +336,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include('state_update_shape=:decrement')
-        expect(code).to include("TODO: decrement Counter#value based on args/result")
-        expect(code).to include("TODO: verify decremented value for Counter#value")
+        expect(code).to include("def next_state(state, _args)\n      state - 1")
+        expect(code).to include('raise "Expected decremented value for Counter#value" unless after_state == before_state - 1')
       end
     end
 
@@ -435,6 +454,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Suggested real API method: :push")
         expect(code).to include("model_arg_adapter:")
         expect(code).to include("verify_override:")
+        expect(code).to include("applicable_override:")
         expect(code).to include("observed_state:")
         expect(code).to include("state_reader: nil")
       end

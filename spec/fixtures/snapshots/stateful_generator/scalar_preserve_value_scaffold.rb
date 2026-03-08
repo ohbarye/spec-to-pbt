@@ -58,6 +58,23 @@ RSpec.describe "box (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -140,7 +157,7 @@ RSpec.describe "box (stateful scaffold)" do
 
     def applicable?(state)
       override = BoxPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BoxPbtSupport.call_applicable_override(override, state, nil) if override
       true
     end
 
@@ -167,7 +184,7 @@ RSpec.describe "box (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b'.value=#b.value"
-      # Analyzer hints: state_field="value", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_value
+      # Analyzer hints: state_field="value", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_value
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts

@@ -58,6 +58,23 @@ RSpec.describe "thermostat (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -140,7 +157,7 @@ RSpec.describe "thermostat (stateful scaffold)" do
 
     def applicable?(state)
       override = ThermostatPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return ThermostatPbtSupport.call_applicable_override(override, state, nil) if override
       true
     end
 

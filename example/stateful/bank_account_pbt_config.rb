@@ -10,8 +10,9 @@ BankAccountPbtConfig = {
         raise "Expected observed balance after credit to match model" unless observed_state == after_state
       end
     },
-    withdraw: {
+    withdraw_amount: {
       method: :debit,
+      model_arg_adapter: ->(args) { args.abs + 1 },
       verify_override: ->(after_state:, observed_state:, **) do
         raise "Expected observed balance after debit to match model" unless observed_state == after_state
       end

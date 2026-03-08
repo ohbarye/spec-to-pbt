@@ -107,18 +107,18 @@ bundle exec rspec example/generated/stack_pbt.rb
 # The example prefers a local ../pbt checkout (override with PBT_REPO_DIR if needed)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
-# Run a bounded queue example with capacity-aware applicable_override
-# This example shows the current gap: fullness/capacity guards are wired via config
+# Run a bounded queue example with structured model state and inferred capacity guards
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
-# Run a financial-domain example with API remapping and amount normalization
-# The example maps DepositAmount -> credit(amount) via model_arg_adapter
+# Run a financial-domain example with state-aware amount generation
+# The example maps DepositAmount/WithdrawAmount -> credit(amount)/debit(amount)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
-See `example/stateful/` for a config-aware stateful example using `method:` remapping,
-`verify_override`, `verify_context[:state_reader]`, and `model_arg_adapter`.
+See `example/stateful/` for config-aware stateful examples using `method:` remapping,
+`verify_override`, `verify_context[:state_reader]`, `model_arg_adapter`, and where useful
+`arguments(state)` / `applicable?(state, args)`.
 
 Useful stateful fixtures to try:
 
@@ -198,6 +198,8 @@ bundle exec steep check
   - `arguments(state)`
   - `applicable?(state, args)`
   - empty arg-domain handling via `Pbt::Arbitrary::EmptyDomainError`
+- The stateful generator now emits those protocol shapes when it can infer them safely
+  - for example amount-bounded withdrawals and similar scalar arg-aware commands
 - Stateful scaffold execution in generated specs is gated by:
   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 - Stateful generator regression coverage includes:

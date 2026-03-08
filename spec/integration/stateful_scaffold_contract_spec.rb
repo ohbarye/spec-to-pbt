@@ -69,6 +69,21 @@ RSpec.describe "Stateful scaffold contract" do
           yield
         end
 
+        def self.command_arguments(command, state)
+          parameters = command.method(:arguments).parameters
+          if parameters.any? { |kind, _name| kind == :req }
+            command.arguments(state)
+          else
+            command.arguments
+          end
+        end
+
+        def self.command_applicable?(command, state, args)
+          parameters = command.method(:applicable?).parameters
+          required = parameters.count { |kind, _name| kind == :req }
+          required >= 2 ? command.applicable?(state, args) : command.applicable?(state)
+        end
+
         def self.stateful(model:, sut:, max_steps:, **extra)
           raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
           raise "model missing initial_state" unless model.respond_to?(:initial_state)
@@ -81,13 +96,13 @@ RSpec.describe "Stateful scaffold contract" do
           raise "commands must be an array" unless commands.is_a?(Array)
           raise "commands must not be empty" if commands.empty?
 
-          command = commands.find { |cmd| cmd.applicable?(state) } || commands.first
+          command = commands.first
           required_methods = %i[name arguments applicable? next_state run! verify!]
           missing = required_methods.reject { |m| command.respond_to?(m) }
           raise "command protocol mismatch: \#{missing.inspect}" unless missing.empty?
 
-          args = command.arguments
-          applicable = command.applicable?(state)
+          args = command_arguments(command, state)
+          applicable = command_applicable?(command, state, args)
           before_state = state
           after_state = command.next_state(state, args)
           result = applicable ? command.run!(sut.call, args) : nil
@@ -181,12 +196,21 @@ RSpec.describe "Stateful scaffold contract" do
           yield
         end
 
+        def self.command_arguments(command, state)
+          parameters = command.method(:arguments).parameters
+          if parameters.any? { |kind, _name| kind == :req }
+            command.arguments(state)
+          else
+            command.arguments
+          end
+        end
+
         def self.stateful(model:, sut:, max_steps:, **extra)
           raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
 
           state = model.initial_state
           command = model.commands(state).first
-          args = command.arguments
+          args = command_arguments(command, state)
           after_state = command.next_state(state, args)
           result = command.run!(sut.call, args)
           command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: sut.call)
@@ -289,12 +313,21 @@ RSpec.describe "Stateful scaffold contract" do
           yield
         end
 
+        def self.command_arguments(command, state)
+          parameters = command.method(:arguments).parameters
+          if parameters.any? { |kind, _name| kind == :req }
+            command.arguments(state)
+          else
+            command.arguments
+          end
+        end
+
         def self.stateful(model:, sut:, max_steps:, **extra)
           raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
 
           state = model.initial_state
           command = model.commands(state).first
-          args = command.arguments
+          args = command_arguments(command, state)
           before_sut = sut.call
           after_state = command.next_state(state, args)
           result = command.run!(before_sut, args)

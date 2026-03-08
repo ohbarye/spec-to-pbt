@@ -78,9 +78,9 @@ module SpecToPbt
       state_field = infer_state_field(body, state_param_names)
       state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
       size_delta = infer_size_delta(body)
-      guard_kind = infer_guard_kind(body)
-      requires_non_empty_state = guard_kind != :none
-      transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state)
+      guard_kind = infer_guard_kind(body, predicate, state_field)
+      requires_non_empty_state = guard_kind == :non_empty
+      transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
       scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
       rhs_source_kind = infer_rhs_source_kind(body, predicate, state_field)
       state_update_shape = infer_state_update_shape(
@@ -178,10 +178,19 @@ module SpecToPbt
     end
 
     # @rbs body: String
+    # @rbs predicate: Core::Entity
+    # @rbs state_field: String?
     # @rbs return: Symbol
-    def infer_guard_kind(body)
+    def infer_guard_kind(body, predicate, state_field)
       return :non_empty if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
       return :below_capacity if body.match?(/#\w+\.\w+\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
+      if !state_field.nil? && predicate.params.any? do |param|
+        next false if param.name.end_with?("'")
+
+        body.match?(/#\w+\.#{Regexp.escape(state_field)}\s*(?:>=|>)\s*#?#{Regexp.escape(param.name)}\b/)
+      end
+        return :arg_within_state
+      end
 
       :none
     end
@@ -216,8 +225,11 @@ module SpecToPbt
     # @rbs body: String
     # @rbs size_delta: Integer?
     # @rbs requires_non_empty_state: bool
+    # @rbs state_field_multiplicity: String?
     # @rbs return: Symbol?
-    def infer_transition_kind(predicate_name, body, size_delta, requires_non_empty_state)
+    def infer_transition_kind(predicate_name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
+      return nil unless ["seq", "set"].include?(state_field_multiplicity)
+
       return :append if size_delta == 1
       if size_delta == -1
         return :dequeue if dequeue_like_text?(predicate_name, body)
@@ -311,7 +323,7 @@ module SpecToPbt
     # @rbs state_update_shape: Symbol
     # @rbs return: Symbol
     def infer_command_confidence(predicate_name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape)
-      return :high if predicate_name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get)/)
+      return :high if predicate_name.match?(/\A(?:Push|Pop|Enqueue|Dequeue|Add|Remove|Insert|Delete|Put|Get|Deposit|Withdraw|Credit|Debit)/)
       return :high if [:append, :pop, :dequeue].include?(transition_kind)
       return :high if [:append_like, :remove_first, :remove_last].include?(state_update_shape)
       return :medium if transition_kind == :size_no_change

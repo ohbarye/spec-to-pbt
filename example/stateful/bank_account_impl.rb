@@ -14,10 +14,11 @@ class BankAccountImpl
     nil
   end
 
-  def debit
-    raise "insufficient funds" if @balance <= 0
+  def debit(amount)
+    raise "amount must be positive" if amount <= 0
+    raise "insufficient funds" if amount > @balance
 
-    @balance -= 1
+    @balance -= amount
     nil
   end
 end

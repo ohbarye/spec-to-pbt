@@ -40,6 +40,23 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def state_reader
       config.fetch(:verify_context, {})[:state_reader] || config[:state_reader]
     end
@@ -82,7 +99,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def initial_state
-      []
+      { elements: [], capacity: 3 }
     end
 
     def commands(_state)
@@ -101,13 +118,13 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
 
-      true
+      state[:elements].length < state[:capacity]
     end
 
     def next_state(state, args)
-      state + [args]
+      state.merge(elements: state[:elements] + [args])
     end
 
     def run!(sut, args)
@@ -126,8 +143,9 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         sut: sut
       )
 
-      raise "Expected size to increase by 1" unless after_state.length == before_state.length + 1
-      raise "Expected enqueued element at tail" unless after_state.last == args
+      raise "Expected available capacity before enqueue" unless before_state[:elements].length < before_state[:capacity]
+      raise "Expected size to increase by 1" unless after_state[:elements].length == before_state[:elements].length + 1
+      raise "Expected enqueued element at tail" unless after_state[:elements].last == args
       nil
     end
   end
@@ -143,13 +161,13 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
 
-      !state.empty?
+      !state[:elements].empty?
     end
 
     def next_state(state, _args)
-      state.drop(1)
+      state.merge(elements: state[:elements].drop(1))
     end
 
     def run!(sut, _args)
@@ -167,9 +185,9 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         sut: sut
       )
 
-      raise "Expected non-empty queue before dequeue" if before_state.empty?
-      raise "Expected dequeued value to match model front" unless result == before_state.first
-      raise "Expected size to decrease by 1" unless after_state.length == before_state.length - 1
+      raise "Expected non-empty queue before dequeue" if before_state[:elements].empty?
+      raise "Expected dequeued value to match model front" unless result == before_state[:elements].first
+      raise "Expected size to decrease by 1" unless after_state[:elements].length == before_state[:elements].length - 1
       nil
     end
   end

@@ -122,7 +122,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "t", type: "Token" }])
         expect(result.state_field).to eq("value")
         expect(result.state_field_multiplicity).to eq("one")
-        expect(result.transition_kind).to eq(:append)
+        expect(result.transition_kind).to be_nil
         expect(result.scalar_update_kind).to eq(:increment_like)
         expect(result.state_update_shape).to eq(:increment)
       end
@@ -273,7 +273,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(withdraw.scalar_update_kind).to eq(:decrement_like)
         expect(withdraw.state_update_shape).to eq(:decrement)
         expect(withdraw_amount.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "amount", type: "Int" }])
-        expect(withdraw_amount.guard_kind).to eq(:none)
+        expect(withdraw_amount.guard_kind).to eq(:arg_within_state)
         expect(withdraw_amount.scalar_update_kind).to eq(:decrement_like)
         expect(withdraw_amount.rhs_source_kind).to eq(:arg)
         expect(withdraw_amount.state_update_shape).to eq(:decrement)

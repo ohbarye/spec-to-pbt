@@ -13,7 +13,7 @@ StackPbtConfig = {
       # arg_adapter: ->(args) { args },
       # model_arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
-      # applicable_override: ->(state) { true },
+      # applicable_override: ->(state, args = nil) { true },
       # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }
     },
     pop_removes_element: {
@@ -22,7 +22,7 @@ StackPbtConfig = {
       # arg_adapter: ->(args) { args },
       # model_arg_adapter: ->(args) { args },
       # result_adapter: ->(result) { result },
-      # applicable_override: ->(state) { true },
+      # applicable_override: ->(state, args = nil) { true },
       # verify_override: ->(before_state:, after_state:, args:, result:, sut:, observed_state:) { nil }
     }
   },

@@ -31,6 +31,23 @@ RSpec.describe "bank_account (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -76,8 +93,8 @@ RSpec.describe "bank_account (stateful scaffold)" do
   class BankAccountModel
     def initialize
       @commands = [
-        DepositCommand.new,
-        WithdrawCommand.new
+        DepositAmountCommand.new,
+        WithdrawAmountCommand.new
       ]
     end
 
@@ -90,7 +107,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     end
   end
 
-  class DepositCommand
+  class DepositAmountCommand
     def name
       :deposit_amount
     end
@@ -101,7 +118,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
 
     def applicable?(state)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BankAccountPbtSupport.call_applicable_override(override, state, nil) if override
 
       true
     end
@@ -132,28 +149,31 @@ RSpec.describe "bank_account (stateful scaffold)" do
     end
   end
 
-  class WithdrawCommand
+  class WithdrawAmountCommand
     def name
-      :withdraw
+      :withdraw_amount
     end
 
-    def arguments
-      Pbt.nil
+    def arguments(state)
+      Pbt.integer(min: 1, max: state)
     end
 
-    def applicable?(state)
+    def applicable?(state, args)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BankAccountPbtSupport.call_applicable_override(override, state, args) if override
 
-      state > 0
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      amount.positive? && amount <= state
     end
 
-    def next_state(state, _args)
-      state - 1
+    def next_state(state, args)
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      state - amount
     end
 
-    def run!(sut, _args)
-      sut.public_send(BankAccountPbtSupport.resolve_method_name(name, :withdraw))
+    def run!(sut, args)
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      sut.public_send(BankAccountPbtSupport.resolve_method_name(name, :withdraw_amount), amount)
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
@@ -166,8 +186,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
         sut: sut
       )
 
-      raise "Expected sufficient balance before withdrawal" if before_state <= 0
-      raise "Expected withdraw to decrease balance by 1" unless after_state == before_state - 1
+      amount = BankAccountPbtSupport.model_arg(name, args)
+      raise "Expected sufficient balance before withdrawal" unless amount <= before_state
+      raise "Expected withdraw to decrease balance by amount" unless after_state == before_state - amount
       nil
     end
   end

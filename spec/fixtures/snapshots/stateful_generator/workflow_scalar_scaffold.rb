@@ -58,6 +58,23 @@ RSpec.describe "workflow (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -128,6 +145,8 @@ RSpec.describe "workflow (stateful scaffold)" do
   end
 
   class StepCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
     def name
       :step
     end
@@ -138,12 +157,12 @@ RSpec.describe "workflow (stateful scaffold)" do
 
     def applicable?(state)
       override = WorkflowPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return WorkflowPbtSupport.call_applicable_override(override, state, nil) if override
       true
     end
 
     def next_state(state, _args)
-      state # TODO: increment Machine#value based on args/result
+      state + 1
     end
 
     def run!(sut, args)
@@ -165,7 +184,7 @@ RSpec.describe "workflow (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#m'.value=add[#m.value,1]"
-      # Analyzer hints: state_field="value", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:increment
+      # Analyzer hints: state_field="value", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:increment
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -180,8 +199,7 @@ RSpec.describe "workflow (stateful scaffold)" do
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Machine#value
-      # TODO: verify incremented value for Machine#value
-      # Example shape: after_state should reflect a monotonic +1 style update
+      raise "Expected incremented value for Machine#value" unless after_state == before_state + 1
       [sut, args] && nil
     end
   end

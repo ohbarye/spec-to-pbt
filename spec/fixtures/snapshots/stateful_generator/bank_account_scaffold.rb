@@ -58,6 +58,23 @@ RSpec.describe "bank_account (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -141,12 +158,12 @@ RSpec.describe "bank_account (stateful scaffold)" do
 
     def applicable?(state)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BankAccountPbtSupport.call_applicable_override(override, state, nil) if override
       true
     end
 
     def next_state(state, _args)
-      state # TODO: increment Account#balance based on args/result
+      state + 1
     end
 
     def run!(sut, args)
@@ -168,9 +185,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a'.balance=#a.balance+1"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:increment
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:increment
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: DepositAmount, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -189,8 +206,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # TODO: verify incremented value for Account#balance
-      # Example shape: after_state should reflect a monotonic +1 style update
+      raise "Expected incremented value for Account#balance" unless after_state == before_state + 1
       [sut, args] && nil
     end
   end
@@ -206,7 +222,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
 
     def applicable?(state)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BankAccountPbtSupport.call_applicable_override(override, state, nil) if override
       true
     end
 
@@ -234,9 +250,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a'.balance=add[#a.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: Deposit, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -272,12 +288,12 @@ RSpec.describe "bank_account (stateful scaffold)" do
 
     def applicable?(state)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
-      true # TODO: infer a scalar/domain-specific precondition
+      return BankAccountPbtSupport.call_applicable_override(override, state, nil) if override
+      state > 0 # inferred scalar precondition for withdraw
     end
 
     def next_state(state, _args)
-      state # TODO: decrement Account#balance based on args/result
+      state - 1
     end
 
     def run!(sut, args)
@@ -299,9 +315,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.balance>0 implies#a'.balance=#a.balance-1"
-      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:state_field, state_update_shape=:decrement
+      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:state_field, state_update_shape=:decrement
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: WithdrawAmount, DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: Deposit, DepositAmount, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -320,27 +336,25 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # TODO: verify decremented value for Account#balance
-      # Example shape: after_state should reflect a monotonic -1 style update
+      raise "Expected decremented value for Account#balance" unless after_state == before_state - 1
       [sut, args] && nil
     end
   end
 
   class WithdrawAmountCommand
-    # Analyzer command confidence: medium
-    # TODO: confirm this predicate should be modeled as a command
     def name
       :withdraw_amount
     end
 
-    def arguments
-      Pbt.integer
+    def arguments(state)
+      Pbt.integer(min: 1, max: state)
     end
 
-    def applicable?(state)
+    def applicable?(state, args)
       override = BankAccountPbtSupport.applicable_override(name)
-      return override.call(state) if override
-      true
+      return BankAccountPbtSupport.call_applicable_override(override, state, args) if override
+      delta = BankAccountPbtSupport.scalar_model_arg(name, args)
+      delta.is_a?(Numeric) && delta.positive? && delta <= state
     end
 
     def next_state(state, args)
@@ -367,9 +381,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.balance>=amount implies#a'.balance=sub[#a.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy assertions: AccountProperties
-      # Related Alloy property predicates: DepositWithdrawIdentity, NonNegative
+      # Related Alloy property predicates: Deposit, DepositAmount, Withdraw, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics
       # Suggested verify order:
@@ -388,6 +402,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       raise "Expected decremented value for Account#balance" unless after_state == before_state - delta
       [sut, args] && nil

@@ -58,6 +58,23 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
     def verify_override(command_name)
       command_config(command_name)[:verify_override]
     end
@@ -139,7 +156,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
       state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue
     end
 
@@ -167,7 +184,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q.elements<#q.capacity implies#q'.elements=add[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:below_capacity, rhs_source_kind=:unknown, state_update_shape=:append_like
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:below_capacity, rhs_source_kind=:unknown, state_update_shape=:append_like
       # Related Alloy assertions: QueueBounds
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
       # Related pattern hints: size, empty
@@ -210,7 +227,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
-      return override.call(state) if override
+      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
       !state[:elements].empty? # inferred precondition for dequeue
     end
 
