@@ -424,6 +424,42 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with hold/capture/release reservation transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/hold_capture_release.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates multi-field structured scalar updates and checks" do
+        code = generator.generate
+
+        expect(code).to include("def initial_state\n      { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:available])\n    end")
+        expect(code).to include("state.merge(available: state[:available] - delta, held: state[:held] + delta)")
+        expect(code).to include("state.merge(available: state[:available] + delta, held: state[:held] - delta)")
+        expect(code).to include('raise "Expected incremented value for Reservation#held" unless after_held == before_held + delta')
+        expect(code).to include('raise "Expected decremented value for Reservation#available" unless after_available == before_available - delta')
+        expect(code).to include('raise "Expected total scalar value to stay the same" unless after_available + after_held == before_available + before_held')
+      end
+    end
+
+    context "with transfer-between-accounts transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/transfer_between_accounts.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates transfer-style paired balance checks" do
+        code = generator.generate
+
+        expect(code).to include("def initial_state\n      { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:source_balance])\n    end")
+        expect(code).to include("current_value = state[:source_balance]")
+        expect(code).to include("state.merge(source_balance: state[:source_balance] - delta, target_balance: state[:target_balance] + delta)")
+        expect(code).to include('raise "Expected decremented value for Accounts#source_balance" unless after_source_balance == before_source_balance - delta')
+        expect(code).to include('raise "Expected incremented value for Accounts#target_balance" unless after_target_balance == before_target_balance + delta')
+        expect(code).to include('raise "Expected total scalar value to stay the same" unless after_source_balance + after_target_balance == before_source_balance + before_target_balance')
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY
@@ -559,6 +595,32 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { balance: sut.balance, credit_limit: sut.credit_limit } }")
         expect(code).to include('observed_state == after_state')
+      end
+    end
+
+    context "with hold/capture/release state" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/hold_capture_release.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests a structured state_reader for multi-field reservation state" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }")
+      end
+    end
+
+    context "with transfer-between-accounts state" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/transfer_between_accounts.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests a structured state_reader for paired balances" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
       end
     end
   end

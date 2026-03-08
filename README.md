@@ -137,6 +137,10 @@ Useful stateful fixtures to try:
   - scalar state + fixed/amount-based balance updates, useful for financial-domain exploration
 - `spec/fixtures/alloy/wallet_with_limit.als`
   - structured scalar state (`balance` + stable limit field) that now generates a hash model scaffold
+- `spec/fixtures/alloy/hold_capture_release.als`
+  - multi-field financial state (`available` + `held`) with paired increment/decrement updates
+- `spec/fixtures/alloy/transfer_between_accounts.als`
+  - paired balance transfer with amount-aware guards and total-preservation style checks
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 

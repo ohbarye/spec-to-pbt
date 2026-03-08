@@ -216,7 +216,7 @@ module SpecToPbt
       if state_aware_scalar_arg_generation?(analysis)
         [
           "    def arguments(state)",
-          "      Pbt.integer(min: 1, max: state)",
+          "      Pbt.integer(min: 1, max: #{scalar_argument_domain_expr('state', analysis)})",
           "    end"
         ]
       else
@@ -403,6 +403,10 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def scalar_next_state_lines(analysis)
+      if structured_scalar_state?(analysis) && scalar_field_updates_for(analysis).length > 1
+        return multi_scalar_next_state_lines(analysis)
+      end
+
       guidance =
         case analysis.state_update_shape
         when :increment
@@ -464,6 +468,20 @@ module SpecToPbt
           "    end"
         ]
       end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def multi_scalar_next_state_lines(analysis)
+      updates = scalar_field_updates_for(analysis)
+      needs_args = updates.any? { |update| [:arg, :arg_field].include?(update[:rhs_source_kind]) }
+      signature = needs_args ? "args" : "_args"
+      lines = ["    def next_state(state, #{signature})"]
+      lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if updates.any? { |update| update[:rhs_source_kind] == :arg }
+      pairs = updates.map { |update| "#{update[:field]}: #{scalar_field_update_expr('state', update)}" }
+      lines << "      state.merge(#{pairs.join(', ')})"
+      lines << "    end"
+      lines
     end
 
     # @rbs analysis: StatefulPredicateAnalysis?
@@ -612,6 +630,21 @@ module SpecToPbt
       end
 
       lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[Hash[Symbol, untyped]]
+    def scalar_field_updates_for(analysis)
+      updates = analysis.state_field_updates || []
+      return updates unless updates.empty?
+      return [] unless analysis.state_field
+
+      [{
+        field: analysis.state_field,
+        update_shape: analysis.state_update_shape,
+        rhs_source_kind: analysis.rhs_source_kind,
+        rhs_source_field: analysis.rhs_source_field
+      }]
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -809,12 +842,14 @@ module SpecToPbt
       return false unless analysis
       return false if collection_like_state?(analysis)
 
-      companions = companion_scalar_fields_for(analysis)
-      return false if companions.empty?
-
       fields = state_type_fields_for(analysis)
       return false if fields.empty?
       return false if fields.any? { |field| ["seq", "set"].include?(field.multiplicity) }
+
+      return true if fields.length > 1 && scalar_field_updates_for(analysis).length > 1
+
+      companions = companion_scalar_fields_for(analysis)
+      return false if companions.empty?
 
       companions.all? { |field| stable_companion_scalar_field?(field) }
     end
@@ -920,6 +955,13 @@ module SpecToPbt
 
     # @rbs state_var: String
     # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def scalar_argument_domain_expr(state_var, analysis)
+      scalar_state_expr(state_var, analysis)
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
     # @rbs updated_scalar_expr: String
     # @rbs return: String
     def scalar_state_update_expr(state_var, analysis, updated_scalar_expr)
@@ -1004,6 +1046,10 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
     def scalar_verify_body(analysis)
+      if structured_scalar_state?(analysis) && scalar_field_updates_for(analysis).length > 1
+        return multi_scalar_verify_body(analysis)
+      end
+
       lines =
         case analysis.state_update_shape
       when :increment
@@ -1088,6 +1134,49 @@ module SpecToPbt
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
+    def multi_scalar_verify_body(analysis)
+      updates = scalar_field_updates_for(analysis)
+      lines = [] #: Array[String]
+      lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if updates.any? { |update| update[:rhs_source_kind] == :arg }
+      updates.each do |update|
+        lines << "      before_#{update[:field]} = before_state[:#{update[:field]}]"
+        lines << "      after_#{update[:field]} = after_state[:#{update[:field]}]"
+        case update[:update_shape]
+        when :increment
+          increment_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} + delta" : "before_#{update[:field]} + 1"
+          lines << "      raise \"Expected incremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{increment_expr}"
+        when :decrement
+          if update[:rhs_source_kind] == :arg && update[:field] == analysis.state_field && scalar_arg_bound_guard?(analysis)
+            lines << "      raise \"Expected sufficient scalar state before decrement\" unless delta <= before_#{update[:field]}"
+          end
+          decrement_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} - delta" : "before_#{update[:field]} - 1"
+          lines << "      raise \"Expected decremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{decrement_expr}"
+        when :replace_value
+          source_expr = scalar_field_update_expr("before_state", update)
+          lines << "      expected_#{update[:field]} = #{source_expr}" if source_expr
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}" if source_expr
+        when :replace_with_arg
+          lines << "      expected_#{update[:field]} = #{support_module_name}.scalar_model_arg(name, args)"
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
+        when :preserve_value
+          lines << "      raise \"Expected preserved value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == before_#{update[:field]}"
+        end
+        if numeric_scalar_field_name?(analysis, update[:field]) && analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
+          lines << "      raise \"Expected non-negative value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} >= 0"
+        end
+      end
+
+      if transfer_like_scalar_updates?(updates)
+        before_total = updates.map { |update| "before_#{update[:field]}" }.join(" + ")
+        after_total = updates.map { |update| "after_#{update[:field]}" }.join(" + ")
+        lines << "      raise \"Expected total scalar value to stay the same\" unless #{after_total} == #{before_total}"
+      end
+
+      lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
     def derived_verify_comment_lines(analysis)
       lines = [] #: Array[String]
       if analysis.derived_verify_hints.include?(:respect_non_empty_guard)
@@ -1116,6 +1205,15 @@ module SpecToPbt
       end
 
       lines
+    end
+
+    # @rbs updates: Array[Hash[Symbol, untyped]]
+    # @rbs return: bool
+    def transfer_like_scalar_updates?(updates)
+      increments = updates.count { |update| update[:update_shape] == :increment }
+      decrements = updates.count { |update| update[:update_shape] == :decrement }
+      increments == 1 && decrements == 1 &&
+        updates.all? { |update| [:arg, :unknown].include?(update[:rhs_source_kind]) }
     end
 
     # @rbs predicate: Core::Entity
@@ -1216,6 +1314,42 @@ module SpecToPbt
       else
         nil
       end
+    end
+
+    # @rbs state_var: String
+    # @rbs update: Hash[Symbol, untyped]
+    # @rbs return: String
+    def scalar_field_update_expr(state_var, update)
+      field_expr = "#{state_var}[:#{update[:field]}]"
+
+      case update[:update_shape]
+      when :increment
+        update[:rhs_source_kind] == :arg ? "#{field_expr} + delta" : "#{field_expr} + 1"
+      when :decrement
+        update[:rhs_source_kind] == :arg ? "#{field_expr} - delta" : "#{field_expr} - 1"
+      when :replace_with_arg
+        "#{support_module_name}.scalar_model_arg(name, args)"
+      when :replace_value
+        source_field = update[:rhs_source_field]
+        source_field ? "#{state_var}[:#{source_field}]" : field_expr
+      when :preserve_value
+        field_expr
+      else
+        field_expr
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs field_name: String
+    # @rbs return: bool
+    def numeric_scalar_field_name?(analysis, field_name)
+      return false unless analysis.state_type
+
+      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
+      return false unless type_entity
+
+      field = type_entity.fields.find { |item| item.name == field_name }
+      field&.type == "Int"
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

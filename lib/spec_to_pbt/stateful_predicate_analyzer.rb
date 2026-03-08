@@ -19,6 +19,7 @@ module SpecToPbt
     :guard_kind,
     :rhs_source_kind,
     :rhs_source_field,
+    :state_field_updates,
     :state_update_shape,
     :related_predicate_names,
     :related_assertion_names,
@@ -41,6 +42,7 @@ module SpecToPbt
     # @rbs guard_kind: Symbol
     # @rbs rhs_source_kind: Symbol
     # @rbs rhs_source_field: String?
+    # @rbs state_field_updates: Array[Hash[Symbol, untyped]]
     # @rbs state_update_shape: Symbol
     # @rbs related_predicate_names: Array[String]
     # @rbs related_assertion_names: Array[String]
@@ -48,7 +50,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -77,14 +79,20 @@ module SpecToPbt
       end
 
       body = normalized_body_for(predicate)
-      state_field = infer_state_field(body, state_param_names)
+      field_updates = infer_state_field_updates(body, predicate, state_param_names, state_type)
+      primary_update = field_updates.first
+      state_field = primary_update&.fetch(:field) || infer_state_field(body, state_param_names)
       state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
       size_delta = infer_size_delta(body)
       guard_kind = infer_guard_kind(body, predicate, state_field)
       requires_non_empty_state = guard_kind == :non_empty
       transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
       scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
-      rhs_source_kind, rhs_source_field = infer_rhs_source_details(body, predicate, state_field, state_param_names)
+      rhs_source_kind = primary_update&.fetch(:rhs_source_kind) || :unknown
+      rhs_source_field = primary_update&.fetch(:rhs_source_field)
+      if primary_update.nil? || rhs_source_kind == :unknown
+        rhs_source_kind, rhs_source_field = infer_rhs_source_details(body, predicate, state_field, state_param_names)
+      end
       state_update_shape = infer_state_update_shape(
         state_field_multiplicity: state_field_multiplicity,
         size_delta: size_delta,
@@ -111,6 +119,7 @@ module SpecToPbt
         guard_kind: guard_kind,
         rhs_source_kind: rhs_source_kind,
         rhs_source_field: rhs_source_field,
+        state_field_updates: field_updates,
         state_update_shape: state_update_shape
       )
       @analyses[predicate.name] = analysis
@@ -217,6 +226,42 @@ module SpecToPbt
       match && match[1]
     end
 
+    # @rbs body: String
+    # @rbs predicate: Core::Entity
+    # @rbs state_param_names: Array[String]
+    # @rbs state_type: String?
+    # @rbs return: Array[Hash[Symbol, untyped]]
+    def infer_state_field_updates(body, predicate, state_param_names, state_type)
+      return [] unless state_type
+
+      type_entity = @spec.types.find { |item| item.name == state_type }
+      return [] unless type_entity
+
+      primed_names = state_param_names.select { |name| name.end_with?("'") }
+      param_names = primed_names.empty? ? state_param_names : primed_names
+      updates = [] #: Array[Hash[Symbol, untyped]]
+
+      param_names.each do |param_name|
+        type_entity.fields.each do |field|
+          next if ["seq", "set"].include?(field.multiplicity)
+
+          pattern = /##{Regexp.escape(param_name)}\.#{Regexp.escape(field.name)}=(.+?)(?=(?:and|or)##{Regexp.escape(param_name)}\.|\z)/
+          match = body.match(pattern)
+          next unless match
+
+          details = classify_state_field_update(
+            rhs: match[1],
+            target_field: field.name,
+            predicate: predicate,
+            state_param_names: state_param_names
+          )
+          updates << details.merge(field: field.name)
+        end
+      end
+
+      updates.uniq { |item| item[:field] }
+    end
+
     # @rbs state_type: String?
     # @rbs state_field: String?
     # @rbs return: String?
@@ -308,6 +353,78 @@ module SpecToPbt
       end
 
       [:unknown, nil]
+    end
+
+    # @rbs rhs: String
+    # @rbs target_field: String
+    # @rbs predicate: Core::Entity
+    # @rbs state_param_names: Array[String]
+    # @rbs return: Hash[Symbol, untyped]
+    def classify_state_field_update(rhs:, target_field:, predicate:, state_param_names:)
+      params_by_name = predicate.params.to_h { |param| [param.name, param] }
+
+      if rhs.match?(/\A#\w+\.#{Regexp.escape(target_field)}\z/)
+        return {
+          update_shape: :preserve_value,
+          rhs_source_kind: :state_field,
+          rhs_source_field: target_field
+        }
+      end
+
+      state_field_match = rhs.match(/\A#(\w+)\.(\w+)\z/)
+      if state_field_match && state_param_names.include?(state_field_match[1])
+        return {
+          update_shape: (state_field_match[2] == target_field ? :preserve_value : :replace_value),
+          rhs_source_kind: :state_field,
+          rhs_source_field: state_field_match[2]
+        }
+      end
+
+      add_sub_match = rhs.match(/\A(add|sub)\[#\w+\.#{Regexp.escape(target_field)},#?(\w+)\]\z/)
+      arithmetic_match = rhs.match(/\A#\w+\.#{Regexp.escape(target_field)}([+-])#?(\w+)\z/)
+      if add_sub_match
+        param_name = add_sub_match[2]
+        return {
+          update_shape: (add_sub_match[1] == "sub" ? :decrement : :increment),
+          rhs_source_kind: (state_param_names.include?(param_name) ? :state_field : :arg),
+          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil)
+        } if params_by_name.key?(param_name)
+      end
+      if arithmetic_match
+        param_name = arithmetic_match[2]
+        return {
+          update_shape: (arithmetic_match[1] == "-" ? :decrement : :increment),
+          rhs_source_kind: (state_param_names.include?(param_name) ? :state_field : :arg),
+          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil)
+        } if params_by_name.key?(param_name)
+      end
+
+      return { update_shape: :increment, rhs_source_kind: :unknown, rhs_source_field: nil } if rhs.match?(/\A(?:add\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}\+1)\z/)
+      return { update_shape: :decrement, rhs_source_kind: :unknown, rhs_source_field: nil } if rhs.match?(/\A(?:sub\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}-1)\z/)
+
+      arg_field_match = rhs.match(/\A#?(\w+)\.(\w+)\z/)
+      if arg_field_match && params_by_name.key?(arg_field_match[1]) && !state_param_names.include?(arg_field_match[1])
+        return {
+          update_shape: :replace_value,
+          rhs_source_kind: :arg_field,
+          rhs_source_field: arg_field_match[2]
+        }
+      end
+
+      if rhs.match?(/\A#?(\w+)\z/)
+        param_name = Regexp.last_match(1)
+        return {
+          update_shape: :replace_with_arg,
+          rhs_source_kind: :arg,
+          rhs_source_field: nil
+        } if params_by_name.key?(param_name) && !state_param_names.include?(param_name)
+      end
+
+      {
+        update_shape: :unknown,
+        rhs_source_kind: :unknown,
+        rhs_source_field: nil
+      }
     end
 
     # @rbs state_field_multiplicity: String?

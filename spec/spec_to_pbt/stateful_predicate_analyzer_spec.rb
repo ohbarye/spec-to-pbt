@@ -309,6 +309,35 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with hold/capture/release reservation transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/hold_capture_release.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks multiple scalar field updates for hold/release" do
+        hold = analyzer.analyze(spec.predicates.find { |p| p.name == "Hold" })
+        release = analyzer.analyze(spec.predicates.find { |p| p.name == "Release" })
+        capture = analyzer.analyze(spec.predicates.find { |p| p.name == "Capture" })
+
+        expect(hold.guard_kind).to eq(:arg_within_state)
+        expect(hold.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :decrement], ["held", :increment]])
+        expect(release.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["held", :decrement]])
+        expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["held", :decrement]])
+      end
+    end
+
+    context "with transfer-between-accounts transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/transfer_between_accounts.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks paired decrement/increment updates across multiple balance fields" do
+        transfer = analyzer.analyze(spec.predicates.find { |p| p.name == "Transfer" })
+
+        expect(transfer.guard_kind).to eq(:arg_within_state)
+        expect(transfer.state_field).to eq("source_balance")
+        expect(transfer.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["source_balance", :decrement], ["target_balance", :increment]])
+      end
+    end
+
     context "with scalar replacement without # prefix on rhs" do
       let(:source) do
         <<~ALLOY
