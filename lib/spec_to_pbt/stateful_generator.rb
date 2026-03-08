@@ -166,6 +166,9 @@ module SpecToPbt
         return "[] # TODO: replace with a domain-specific collection state"
       end
 
+      structured_scalar_analysis = analyses.find { |analysis| structured_scalar_state?(analysis) }
+      return structured_scalar_initial_state_code(structured_scalar_analysis) if structured_scalar_analysis
+
       scalar_field = single_scalar_state_field_for(analyses)
       if scalar_field
         return "#{default_scalar_placeholder_for(scalar_field)} # TODO: replace with a domain-specific scalar model state"
@@ -326,7 +329,8 @@ module SpecToPbt
         ]
         if scalar_arg_bound_guard?(analysis)
           lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
-          lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= state"
+          lines << "      current_value = #{scalar_state_expr('state', analysis)}"
+          lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= current_value"
         else
           lines << "      true # TODO: refine arg-aware applicability for #{method_name}"
         end
@@ -349,7 +353,7 @@ module SpecToPbt
           lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
         end
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      state > 0 # inferred scalar precondition for #{method_name}"
+        lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
       elsif analysis.guard_kind != :none
         lines << "      true # TODO: infer a scalar/domain-specific precondition"
       else
@@ -419,32 +423,32 @@ module SpecToPbt
         [
           "    def next_state(state, args)",
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
-          "      state + delta",
+          "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + delta")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :decrement && analysis.rhs_source_kind == :arg
         [
           "    def next_state(state, args)",
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
-          "      state - delta",
+          "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - delta")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :increment && scalar_unit_delta?(analysis)
         [
           "    def next_state(state, _args)",
-          "      state + 1",
+          "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + 1")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :decrement && scalar_unit_delta?(analysis)
         [
           "    def next_state(state, _args)",
-          "      state - 1",
+          "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - 1")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :replace_with_arg
         [
-          "    def next_state(_state, args)",
-          "      #{support_module_name}.scalar_model_arg(name, args)",
+          "    def next_state(state, args)",
+          "      #{scalar_state_update_expr('state', analysis, "#{support_module_name}.scalar_model_arg(name, args)")}",
           "    end"
         ]
       else
@@ -790,6 +794,22 @@ module SpecToPbt
       end
     end
 
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def structured_scalar_state?(analysis)
+      return false unless analysis
+      return false if collection_like_state?(analysis)
+
+      companions = companion_scalar_fields_for(analysis)
+      return false if companions.empty?
+
+      fields = state_type_fields_for(analysis)
+      return false if fields.empty?
+      return false if fields.any? { |field| ["seq", "set"].include?(field.multiplicity) }
+
+      companions.all? { |field| stable_companion_scalar_field?(field) }
+    end
+
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def structured_collection_initial_state_code(analysis)
@@ -797,6 +817,16 @@ module SpecToPbt
       pairs << "#{analysis.state_field}: []"
       companion_scalar_fields_for(analysis).each do |field|
         pairs << "#{field.name}: #{default_scalar_placeholder_for(field)}"
+      end
+
+      "{ #{pairs.join(', ')} } # TODO: replace with a domain-specific structured model state"
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def structured_scalar_initial_state_code(analysis)
+      pairs = state_type_fields_for(analysis).map do |field|
+        "#{field.name}: #{default_scalar_placeholder_for(field)}"
       end
 
       "{ #{pairs.join(', ')} } # TODO: replace with a domain-specific structured model state"
@@ -832,6 +862,21 @@ module SpecToPbt
       "nil"
     end
 
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[Core::Field]
+    def state_type_fields_for(analysis)
+      return [] unless analysis.state_type
+
+      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
+      type_entity ? type_entity.fields : []
+    end
+
+    # @rbs field: Core::Field
+    # @rbs return: bool
+    def stable_companion_scalar_field?(field)
+      field.name.match?(/capacity|limit|max(?:imum)?|minimum|min(?:imum)?|threshold|floor|ceiling/i)
+    end
+
     # @rbs state_var: String
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
@@ -851,6 +896,29 @@ module SpecToPbt
       return nil unless field
 
       "#{state_var}[:#{field.name}]"
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def scalar_state_expr(state_var, analysis)
+      if structured_scalar_state?(analysis)
+        "#{state_var}[:#{analysis.state_field}]"
+      else
+        state_var
+      end
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs updated_scalar_expr: String
+    # @rbs return: String
+    def scalar_state_update_expr(state_var, analysis, updated_scalar_expr)
+      if structured_scalar_state?(analysis)
+        "#{state_var}.merge(#{analysis.state_field}: #{updated_scalar_expr})"
+      else
+        updated_scalar_expr
+      end
     end
 
     # @rbs state_var: String
@@ -895,6 +963,13 @@ module SpecToPbt
       structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
       return "suggested: ->(sut) { sut.snapshot }" if structured_analysis
 
+      structured_scalar_analysis = analyses.find { |analysis| structured_scalar_state?(analysis) }
+      if structured_scalar_analysis
+        fields = state_type_fields_for(structured_scalar_analysis)
+        pairs = fields.map { |field| "#{field.name}: sut.#{field.name}" }
+        return "suggested: ->(sut) { { #{pairs.join(', ')} } }"
+      end
+
       scalar_field = single_scalar_state_field_for(analyses)
       if scalar_field
         return "suggested: ->(sut) { sut.#{scalar_field.name} }"
@@ -926,11 +1001,15 @@ module SpecToPbt
         if analysis.rhs_source_kind == :arg
           [
             "      delta = #{support_module_name}.scalar_model_arg(name, args)",
-            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_state == before_state + delta"
+            "      before_value = #{scalar_state_expr('before_state', analysis)}",
+            "      after_value = #{scalar_state_expr('after_state', analysis)}",
+            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_value == before_value + delta"
           ]
         elsif scalar_unit_delta?(analysis)
           [
-            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_state == before_state + 1"
+            "      before_value = #{scalar_state_expr('before_state', analysis)}",
+            "      after_value = #{scalar_state_expr('after_state', analysis)}",
+            "      raise \"Expected incremented value for #{state_target_label(analysis)}\" unless after_value == before_value + 1"
           ]
         else
           [
@@ -942,15 +1021,19 @@ module SpecToPbt
         if analysis.rhs_source_kind == :arg
           lines = [
             "      delta = #{support_module_name}.scalar_model_arg(name, args)",
-            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_state == before_state - delta"
+            "      before_value = #{scalar_state_expr('before_state', analysis)}",
+            "      after_value = #{scalar_state_expr('after_state', analysis)}",
+            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_value == before_value - delta"
           ]
           if scalar_arg_bound_guard?(analysis)
-            lines.unshift("      raise \"Expected sufficient scalar state before decrement\" unless delta <= before_state")
+            lines.insert(1, "      raise \"Expected sufficient scalar state before decrement\" unless delta <= #{scalar_state_expr('before_state', analysis)}")
           end
           lines
         elsif scalar_unit_delta?(analysis)
           [
-            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_state == before_state - 1"
+            "      before_value = #{scalar_state_expr('before_state', analysis)}",
+            "      after_value = #{scalar_state_expr('after_state', analysis)}",
+            "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_value == before_value - 1"
           ]
         else
           [
@@ -961,7 +1044,7 @@ module SpecToPbt
       when :replace_with_arg
         [
           "      expected = #{support_module_name}.scalar_model_arg(name, args)",
-          "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless after_state == expected"
+          "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
         ]
       when :replace_value
         [
@@ -970,7 +1053,7 @@ module SpecToPbt
         ]
       when :preserve_value
         [
-          "      raise \"Expected preserved value for #{state_target_label(analysis)}\" unless after_state == before_state",
+          "      raise \"Expected preserved value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == #{scalar_state_expr('before_state', analysis)}",
           "      # Example shape: replace this equality check with a narrower field-level assertion if needed"
         ]
       else
@@ -980,7 +1063,7 @@ module SpecToPbt
       end
 
       if numeric_scalar_state?(analysis) && analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
-        lines << "      raise \"Expected non-negative value for #{state_target_label(analysis)}\" unless after_state >= 0"
+        lines << "      raise \"Expected non-negative value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} >= 0"
       end
 
       lines

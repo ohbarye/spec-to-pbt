@@ -162,7 +162,7 @@ RSpec.describe "thermostat (stateful scaffold)" do
       true
     end
 
-    def next_state(_state, args)
+    def next_state(state, args)
       ThermostatPbtSupport.scalar_model_arg(name, args)
     end
 

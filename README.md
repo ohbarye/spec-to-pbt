@@ -134,6 +134,8 @@ Useful stateful fixtures to try:
   - collection state + capacity guard + FIFO-oriented properties
 - `spec/fixtures/alloy/bank_account.als`
   - scalar state + fixed/amount-based balance updates, useful for financial-domain exploration
+- `spec/fixtures/alloy/wallet_with_limit.als`
+  - structured scalar state (`balance` + stable limit field) that now generates a hash model scaffold
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 

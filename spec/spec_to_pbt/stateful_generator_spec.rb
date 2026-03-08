@@ -251,7 +251,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("replace array-based checks with scalar/domain checks")
         expect(code).to include("Inferred state target: Machine#value")
         expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
-        expect(code).to include('raise "Expected incremented value for Machine#value" unless after_state == before_state + 1')
+        expect(code).to include("before_value = before_state")
+        expect(code).to include("after_value = after_state")
+        expect(code).to include('raise "Expected incremented value for Machine#value" unless after_value == before_value + 1')
         expect(code).to include("state_update_shape=:increment")
       end
     end
@@ -275,7 +277,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("def applicable?(state, args)")
         expect(code).to include("return BankAccountPbtSupport.call_applicable_override(override, state, args) if override")
         expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
-        expect(code).to include("delta.is_a?(Numeric) && delta.positive? && delta <= state")
+        expect(code).to include("current_value = state")
+        expect(code).to include("delta.is_a?(Numeric) && delta.positive? && delta <= current_value")
         expect(code).to include("state - delta")
         expect(code).to include("Expected decremented value for Account#balance")
         expect(code).to include("Expected sufficient scalar state before decrement")
@@ -289,9 +292,27 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("def applicable?(state)")
         expect(code).to include("state > 0 # inferred scalar precondition for withdraw")
         expect(code).to include("def next_state(state, _args)\n      state + 1")
-        expect(code).to include("raise \"Expected incremented value for Account#balance\" unless after_state == before_state + 1")
+        expect(code).to include("raise \"Expected incremented value for Account#balance\" unless after_value == before_value + 1")
         expect(code).to include("def next_state(state, _args)\n      state - 1")
-        expect(code).to include("raise \"Expected decremented value for Account#balance\" unless after_state == before_state - 1")
+        expect(code).to include("raise \"Expected decremented value for Account#balance\" unless after_value == before_value - 1")
+      end
+    end
+
+    context "with scalar state plus a stable companion limit field" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/wallet_with_limit.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates a structured scalar model and field-aware updates" do
+        code = generator.generate
+
+        expect(code).to include("def initial_state\n      { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("state[:balance] > 0 # inferred scalar precondition for withdraw")
+        expect(code).to include("state.merge(balance: state[:balance] + 1)")
+        expect(code).to include("state.merge(balance: state[:balance] - 1)")
+        expect(code).to include("before_value = before_state[:balance]")
+        expect(code).to include("after_value = after_state[:balance]")
+        expect(code).to include('raise "Expected non-negative value for Wallet#balance" unless after_state[:balance] >= 0')
       end
     end
 
@@ -342,7 +363,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include('state_update_shape=:decrement')
         expect(code).to include("def next_state(state, _args)\n      state - 1")
-        expect(code).to include('raise "Expected decremented value for Counter#value" unless after_state == before_state - 1')
+        expect(code).to include('raise "Expected decremented value for Counter#value" unless after_value == before_value - 1')
       end
     end
 
@@ -493,6 +514,20 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.balance }")
         expect(code).to include("Suggested real API methods: :credit, :deposit")
         expect(code).to include("Suggested real API methods: :debit, :withdraw")
+      end
+    end
+
+    context "with structured scalar wallet state" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/wallet_with_limit.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests a structured scalar state_reader" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { balance: sut.balance, credit_limit: sut.credit_limit } }")
+        expect(code).to include('observed_state == after_state')
       end
     end
   end

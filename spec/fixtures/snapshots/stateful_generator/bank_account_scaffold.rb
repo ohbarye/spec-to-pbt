@@ -208,7 +208,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      raise "Expected incremented value for Account#balance" unless after_state == before_state + 1
+      before_value = before_state
+      after_value = after_state
+      raise "Expected incremented value for Account#balance" unless after_value == before_value + 1
       raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
@@ -276,7 +278,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
-      raise "Expected incremented value for Account#balance" unless after_state == before_state + delta
+      before_value = before_state
+      after_value = after_state
+      raise "Expected incremented value for Account#balance" unless after_value == before_value + delta
       raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
@@ -342,7 +346,9 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      raise "Expected decremented value for Account#balance" unless after_state == before_state - 1
+      before_value = before_state
+      after_value = after_state
+      raise "Expected decremented value for Account#balance" unless after_value == before_value - 1
       raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end
@@ -361,7 +367,8 @@ RSpec.describe "bank_account (stateful scaffold)" do
       override = BankAccountPbtSupport.applicable_override(name)
       return BankAccountPbtSupport.call_applicable_override(override, state, args) if override
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
-      delta.is_a?(Numeric) && delta.positive? && delta <= state
+      current_value = state
+      delta.is_a?(Numeric) && delta.positive? && delta <= current_value
     end
 
     def next_state(state, args)
@@ -410,9 +417,11 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_state
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
-      raise "Expected decremented value for Account#balance" unless after_state == before_state - delta
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state
+      before_value = before_state
+      after_value = after_state
+      raise "Expected decremented value for Account#balance" unless after_value == before_value - delta
       raise "Expected non-negative value for Account#balance" unless after_state >= 0
       [sut, args] && nil
     end

@@ -200,7 +200,9 @@ RSpec.describe "workflow (stateful scaffold)" do
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Machine#value
-      raise "Expected incremented value for Machine#value" unless after_state == before_state + 1
+      before_value = before_state
+      after_value = after_state
+      raise "Expected incremented value for Machine#value" unless after_value == before_value + 1
       [sut, args] && nil
     end
   end
