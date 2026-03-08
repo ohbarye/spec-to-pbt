@@ -17,7 +17,9 @@ RSpec.describe "SpecToPbt::StatefulGenerator snapshots" do
     "weak_ambiguous" => "weak_ambiguous.als",
     "bounded_queue" => "bounded_queue.als",
     "bank_account" => "bank_account.als",
-    "wallet_with_limit" => "wallet_with_limit.als"
+    "wallet_with_limit" => "wallet_with_limit.als",
+    "membership_queue" => "membership_queue.als",
+    "wallet_reset_limit" => "wallet_reset_limit.als"
   }.each do |name, fixture_name|
     it "matches the #{name} scaffold snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

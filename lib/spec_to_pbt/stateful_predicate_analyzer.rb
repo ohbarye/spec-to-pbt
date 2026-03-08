@@ -18,6 +18,7 @@ module SpecToPbt
     :command_confidence,
     :guard_kind,
     :rhs_source_kind,
+    :rhs_source_field,
     :state_update_shape,
     :related_predicate_names,
     :related_assertion_names,
@@ -39,6 +40,7 @@ module SpecToPbt
     # @rbs command_confidence: Symbol
     # @rbs guard_kind: Symbol
     # @rbs rhs_source_kind: Symbol
+    # @rbs rhs_source_field: String?
     # @rbs state_update_shape: Symbol
     # @rbs related_predicate_names: Array[String]
     # @rbs related_assertion_names: Array[String]
@@ -46,7 +48,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -82,7 +84,7 @@ module SpecToPbt
       requires_non_empty_state = guard_kind == :non_empty
       transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
       scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
-      rhs_source_kind = infer_rhs_source_kind(body, predicate, state_field)
+      rhs_source_kind, rhs_source_field = infer_rhs_source_details(body, predicate, state_field, state_param_names)
       state_update_shape = infer_state_update_shape(
         state_field_multiplicity: state_field_multiplicity,
         size_delta: size_delta,
@@ -108,6 +110,7 @@ module SpecToPbt
         command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
         guard_kind: guard_kind,
         rhs_source_kind: rhs_source_kind,
+        rhs_source_field: rhs_source_field,
         state_update_shape: state_update_shape
       )
       @analyses[predicate.name] = analysis
@@ -199,6 +202,12 @@ module SpecToPbt
     # @rbs state_param_names: Array[String]
     # @rbs return: String?
     def infer_state_field(body, state_param_names)
+      primed_names = state_param_names.select { |name| name.end_with?("'") }
+      primed_names.each do |param_name|
+        match = body.match(/##{Regexp.escape(param_name)}\.(\w+)/)
+        return match[1] if match
+      end
+
       state_param_names.each do |param_name|
         match = body.match(/##{Regexp.escape(param_name)}\.(\w+)/)
         return match[1] if match
@@ -271,22 +280,34 @@ module SpecToPbt
     # @rbs body: String
     # @rbs predicate: Core::Entity
     # @rbs state_field: String?
-    # @rbs return: Symbol
-    def infer_rhs_source_kind(body, predicate, state_field)
-      return :unknown if state_field.nil?
+    # @rbs state_param_names: Array[String]
+    # @rbs return: Array[Symbol | String?]
+    def infer_rhs_source_details(body, predicate, state_field, state_param_names)
+      return [:unknown, nil] if state_field.nil?
 
       predicate.params.each do |param|
         next if param.name.end_with?("'")
+        next if state_param_names.include?(param.name)
         next if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+\.#{Regexp.escape(state_field)}/)
 
-        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
-        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add|sub)\[#\w+\.#{Regexp.escape(state_field)},#?#{Regexp.escape(param.name)}\]/)
-        return :arg if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}[+-]#?#{Regexp.escape(param.name)}\b/)
+        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
+        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add|sub)\[#\w+\.#{Regexp.escape(state_field)},#?#{Regexp.escape(param.name)}\]/)
+        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}[+-]#?#{Regexp.escape(param.name)}\b/)
+
+        arg_field_match = body.match(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\.(\w+)\b/)
+        return [:arg_field, arg_field_match[1]] if arg_field_match
       end
 
-      return :state_field if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}/)
+      return [:state_field, state_field] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}\b/)
 
-      :unknown
+      state_param_names.each do |param_name|
+        source_match = body.match(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param_name)}\.(\w+)\b/)
+        next unless source_match
+
+        return [:state_field, source_match[1]]
+      end
+
+      [:unknown, nil]
     end
 
     # @rbs state_field_multiplicity: String?
@@ -416,6 +437,7 @@ module SpecToPbt
       hints << :check_ordering_semantics if related_pattern_hints.include?(:ordering)
       hints << :check_roundtrip_pairing if related_pattern_hints.include?(:roundtrip)
       hints << :check_size_semantics if related_pattern_hints.include?(:size)
+      hints << :check_membership_semantics if related_pattern_hints.include?(:membership)
       hints << :check_non_negative_scalar_state if related_texts.any? { |text| text.match?(/NonNegative|>=0/) }
 
       hints.uniq

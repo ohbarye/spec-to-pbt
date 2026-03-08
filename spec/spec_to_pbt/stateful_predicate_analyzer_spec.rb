@@ -282,6 +282,33 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with membership-oriented related properties" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/membership_queue.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "derives membership verify hints for append-like commands" do
+        enqueue = analyzer.analyze(spec.predicates.find { |p| p.name == "Enqueue" })
+
+        expect(enqueue.related_predicate_names).to include("EnqueueContains")
+        expect(enqueue.related_pattern_hints).to include(:membership)
+        expect(enqueue.derived_verify_hints).to include(:check_membership_semantics)
+      end
+    end
+
+    context "with structured scalar replacement from a sibling state field" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/wallet_reset_limit.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks the source field for replace-value updates" do
+        result = analyzer.analyze(spec.predicates.find { |p| p.name == "ResetToLimit" })
+
+        expect(result.state_field).to eq("balance")
+        expect(result.rhs_source_kind).to eq(:state_field)
+        expect(result.rhs_source_field).to eq("credit_limit")
+        expect(result.state_update_shape).to eq(:replace_value)
+      end
+    end
+
     context "with scalar replacement without # prefix on rhs" do
       let(:source) do
         <<~ALLOY

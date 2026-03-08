@@ -101,6 +101,7 @@ The scaffold now includes analyzer-driven hints such as:
 - inferred transition kind
 - related assertions / facts / property predicates
 - suggested verification order
+- safe executable checks for cases such as non-negative scalar invariants, membership-after-append, and field-to-field scalar replacement when they can be inferred
 
 ## Examples
 

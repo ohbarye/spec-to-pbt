@@ -342,6 +342,21 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with membership-oriented queue properties" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/membership_queue.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "adds safe membership checks for append-like transitions" do
+        code = generator.generate
+
+        expect(code).to include("Related Alloy property predicates: EnqueueContains")
+        expect(code).to include("Derived verify hints: check_membership_semantics")
+        expect(code).to include("verify membership semantics for appended/removed elements where safe")
+        expect(code).to include('raise "Expected appended argument to be present in model state" unless after_items.include?(args)')
+      end
+    end
+
     context "with a decrement-like scalar state update" do
       let(:source) do
         <<~ALLOY
@@ -390,6 +405,22 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('state_update_shape=:preserve_value')
         expect(code).to include("keep Box#value stable unless other domain state changes")
         expect(code).to include('raise "Expected preserved value for Box#value" unless after_state == before_state')
+      end
+    end
+
+    context "with a replace-value scalar state update sourced from another state field" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/wallet_reset_limit.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates field-aware next_state and verify checks" do
+        code = generator.generate
+
+        expect(code).to include("def initial_state\n      { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("def next_state(state, _args)\n      state.merge(balance: state[:credit_limit])")
+        expect(code).to include("expected = before_state[:credit_limit]")
+        expect(code).to include('raise "Expected replaced value for Wallet#balance" unless after_state[:balance] == expected')
+        expect(code).to include('raise "Expected non-negative value for Wallet#balance" unless after_state[:balance] >= 0')
       end
     end
 

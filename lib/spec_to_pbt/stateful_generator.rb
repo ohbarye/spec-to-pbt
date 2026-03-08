@@ -451,6 +451,12 @@ module SpecToPbt
           "      #{scalar_state_update_expr('state', analysis, "#{support_module_name}.scalar_model_arg(name, args)")}",
           "    end"
         ]
+      elsif analysis.state_update_shape == :replace_value && (source_expr = scalar_replace_source_expr("state", analysis))
+        [
+          "    def next_state(state, _args)",
+          "      #{scalar_state_update_expr('state', analysis, source_expr)}",
+          "    end"
+        ]
       else
         [
           "    def next_state(state, _args)",
@@ -579,6 +585,9 @@ module SpecToPbt
       when :append
         lines << "      expected_size = before_items.length + 1"
         lines << "      raise \"Expected size to increase by 1\" unless after_items.length == expected_size"
+        if analysis.derived_verify_hints.include?(:check_membership_semantics)
+          lines << "      raise \"Expected appended argument to be present in model state\" unless after_items.include?(args)"
+        end
         if analysis.derived_verify_hints.include?(:check_ordering_semantics)
           lines << "      raise \"Expected appended argument to become the newest element\" unless after_items.last == args"
         end
@@ -1047,10 +1056,18 @@ module SpecToPbt
           "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
         ]
       when :replace_value
-        [
-          "      # TODO: verify replaced value for #{state_target_label(analysis)}",
-          "      # Example shape: compare the inferred target against args/result"
-        ]
+        source_expr = scalar_replace_source_expr("before_state", analysis)
+        if source_expr
+          [
+            "      expected = #{source_expr}",
+            "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
+          ]
+        else
+          [
+            "      # TODO: verify replaced value for #{state_target_label(analysis)}",
+            "      # Example shape: compare the inferred target against args/result"
+          ]
+        end
       when :preserve_value
         [
           "      raise \"Expected preserved value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == #{scalar_state_expr('before_state', analysis)}",
@@ -1090,6 +1107,9 @@ module SpecToPbt
       end
       if analysis.derived_verify_hints.include?(:check_size_semantics)
         lines << "      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts"
+      end
+      if analysis.derived_verify_hints.include?(:check_membership_semantics)
+        lines << "      # Derived from related property patterns: verify membership semantics for appended/removed elements where safe"
       end
       if analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
         lines << "      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state"
@@ -1179,6 +1199,22 @@ module SpecToPbt
         "verify preserved value for #{state_target_label(analysis)}"
       else
         "verify scalar/domain-specific postconditions for #{state_target_label(analysis)}"
+      end
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String?
+    def scalar_replace_source_expr(state_var, analysis)
+      return nil unless analysis.rhs_source_kind == :state_field
+      return nil if analysis.rhs_source_field.nil?
+
+      if structured_scalar_state?(analysis)
+        "#{state_var}[:#{analysis.rhs_source_field}]"
+      elsif analysis.rhs_source_field == analysis.state_field
+        state_var
+      else
+        nil
       end
     end
 
