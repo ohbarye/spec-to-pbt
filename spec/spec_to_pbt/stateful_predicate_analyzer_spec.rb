@@ -348,6 +348,23 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with connection-pool transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/connection_pool.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "uses the guarded field for paired checkout/checkin updates" do
+        checkout = analyzer.analyze(spec.predicates.find { |p| p.name == "Checkout" })
+        checkin = analyzer.analyze(spec.predicates.find { |p| p.name == "Checkin" })
+
+        expect(checkout.guard_kind).to eq(:non_empty)
+        expect(checkout.state_field).to eq("available")
+        expect(checkout.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :decrement], ["checked_out", :increment]])
+        expect(checkin.guard_kind).to eq(:non_empty)
+        expect(checkin.state_field).to eq("checked_out")
+        expect(checkin.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["checked_out", :decrement]])
+      end
+    end
+
     context "with refund/reversal settlement transitions" do
       let(:source) { File.read(File.expand_path("../fixtures/alloy/refund_reversal.als", __dir__)) }
       let(:spec) { SpecToPbt::Parser.new.parse(source) }

@@ -475,6 +475,21 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with connection-pool paired counter transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/connection_pool.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "keeps next_state override hooks valid for no-arg multi-field updates" do
+        code = generator.generate
+
+        expect(code).to include("class CheckoutCommand")
+        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      state.merge(available: state[:available] - 1, checked_out: state[:checked_out] + 1)")
+        expect(code).to include("class CheckinCommand")
+        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      state.merge(available: state[:available] + 1, checked_out: state[:checked_out] - 1)")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

@@ -527,8 +527,7 @@ module SpecToPbt
     def multi_scalar_next_state_lines(analysis)
       updates = scalar_field_updates_for(analysis)
       needs_args = updates.any? { |update| [:arg, :arg_field].include?(update[:rhs_source_kind]) }
-      signature = needs_args ? "args" : "_args"
-      lines = ["    def next_state(state, #{signature})"]
+      lines = ["    def next_state(state, args)"]
       lines << "      override = #{support_module_name}.next_state_override(name)"
       lines << "      return #{support_module_name}.call_next_state_override(override, state, args) if override"
       lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if updates.any? { |update| update[:rhs_source_kind] == :arg }

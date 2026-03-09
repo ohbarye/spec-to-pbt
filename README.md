@@ -136,6 +136,15 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/refund_r
 
 # Run a ledger projection workflow using config-driven next_state overrides
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_projection_pbt.rb
+
+# Run a rate limiter workflow with structured remaining-capacity state
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/rate_limiter_pbt.rb
+
+# Run a connection pool workflow with paired available/checked_out counters
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/connection_pool_pbt.rb
+
+# Run a feature flag rollout workflow with config-driven rollout mapping
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/feature_flag_rollout_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
@@ -161,6 +170,12 @@ Useful stateful fixtures to try:
   - settlement capture/refund/reversal flow with multi-field balance preservation
 - `spec/fixtures/alloy/ledger_projection.als`
   - append-only ledger entries plus derived balance, useful for config-driven `next_state_override`
+- `spec/fixtures/alloy/rate_limiter.als`
+  - structured scalar state (`remaining` + `capacity`) with reset-to-capacity behavior
+- `spec/fixtures/alloy/connection_pool.als`
+  - paired counters (`available` + `checked_out`) with capacity-preservation style checks
+- `spec/fixtures/alloy/feature_flag_rollout.als`
+  - rollout percentage state with enable/disable and arg-aware rollout mapping
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 
@@ -170,10 +185,16 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `transfer_between_accounts.als` -> CLI-regenerated scaffold + config-driven initial state + transfer balance verification
 - `refund_reversal.als` -> CLI-regenerated scaffold + observed settlement-state verification
 - `ledger_projection.als` -> CLI-regenerated scaffold + config-driven `next_state_override` for derived ledger state
+- `rate_limiter.als` -> CLI-regenerated scaffold + config-driven initial state + observed limiter-state verification
+- `connection_pool.als` -> CLI-regenerated scaffold + paired-counter observed-state verification
+- `feature_flag_rollout.als` -> CLI-regenerated scaffold + config-driven rollout mapping and disable override
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 - `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
 - `ledger_projection.als` -> user-owned example with append-only entries and balance projection
+- `rate_limiter.als` -> user-owned example with remaining-capacity reset semantics
+- `connection_pool.als` -> user-owned example with paired availability counters
+- `feature_flag_rollout.als` -> user-owned example with config-driven rollout range normalization
 
 For current stateful work and roadmap details, see:
 

@@ -195,8 +195,11 @@ module SpecToPbt
     # @rbs state_field: String?
     # @rbs return: Symbol
     def infer_guard_details(body, predicate, candidate_fields, fallback_state_field)
-      return [:non_empty, fallback_state_field] if body.match?(/#\w+\.?\w*\s*(?:>\s*0|>=\s*1)/)
-      return [:below_capacity, fallback_state_field] if body.match?(/#\w+\.\w+\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
+      non_empty_match = body.match(/#\w+\.(\w+)\s*(?:>\s*0|>=\s*1)/)
+      return [:non_empty, non_empty_match[1]] if non_empty_match
+
+      capacity_match = body.match(/#\w+\.(\w+)\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
+      return [:below_capacity, capacity_match[1]] if capacity_match
 
       field_names = candidate_fields.compact.uniq
       field_names << fallback_state_field if fallback_state_field

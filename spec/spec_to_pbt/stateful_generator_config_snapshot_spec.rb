@@ -13,7 +13,10 @@ RSpec.describe "SpecToPbt::StatefulGenerator config snapshots" do
     "hold_capture_release" => "hold_capture_release.als",
     "transfer_between_accounts" => "transfer_between_accounts.als",
     "refund_reversal" => "refund_reversal.als",
-    "ledger_projection" => "ledger_projection.als"
+    "ledger_projection" => "ledger_projection.als",
+    "rate_limiter" => "rate_limiter.als",
+    "connection_pool" => "connection_pool.als",
+    "feature_flag_rollout" => "feature_flag_rollout.als"
   }.each do |name, fixture_name|
     it "matches the #{name} config snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

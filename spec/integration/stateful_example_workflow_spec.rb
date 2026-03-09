@@ -144,4 +144,73 @@ RSpec.describe "Stateful example workflows" do
     expect(stdout).to include("1 example")
     expect(stdout).to include("0 failures")
   end
+
+  it "runs the rate limiter example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/rate_limiter_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Rate limiter example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
+
+  it "runs the connection pool example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/connection_pool_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Connection pool example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
+
+  it "runs the feature flag rollout example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/feature_flag_rollout_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Feature flag rollout example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
 end
