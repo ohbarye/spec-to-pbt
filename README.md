@@ -2,6 +2,15 @@
 
 A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on practical `pbt` stateful PBT scaffolding.
 
+Project status / handoff docs:
+
+- current state and restart guide:
+  - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
+- retrospective / engineering history:
+  - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
+- roadmap:
+  - [docs/stateful-scaffold-roadmap-2026-03-04.md](docs/stateful-scaffold-roadmap-2026-03-04.md)
+
 ## Concept
 
 Auto-generate Property-Based Tests (PBT) from specifications to automate the "spec -> implementation -> test" loop.

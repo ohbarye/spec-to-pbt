@@ -79,7 +79,7 @@ Remaining:
 
 Status:
 
-- in progress, major progress already made
+- in progress, major progress already made and now in the final practical-quality phase
 
 Completed:
 
@@ -103,12 +103,13 @@ Remaining:
 - improve generated `next_state` guidance for scalar/domain-specific transitions
 - reduce command extraction and related-hint noise further
 - keep fixture/snapshot coverage growing with new analyzer shapes
+- decide which repeated domain patterns should become first-class rather than config-driven
 
 ### 5. Reduce Alloy-specific coupling
 
 Status:
 
-- in progress
+- majorly completed, with continued cleanup possible
 
 Completed:
 
@@ -139,13 +140,15 @@ Remaining:
 
 Status:
 
-- not the current focus
+- partly completed, but not the main focus
 
 Completed:
 
 - snapshot tests
 - contract tests
 - stateful E2E
+- regenerated workflow integration specs
+- broad practical example coverage across financial and software domains
 
 Remaining:
 
@@ -156,14 +159,17 @@ Remaining:
 
 ## Current Position
 
-The project is past MVP validation and is now in the
-"stateful scaffold quality improvement" phase.
+The project is past MVP validation and early scaffold-quality work.
+It is now in the final practical-quality and domain-generalization phase.
 
 More specifically:
 
 - the scaffold is already runnable
-- the generator is being made less misleading
-- analyzer-driven inference is replacing generator-local heuristics
+- the generator is substantially less misleading than the initial version
+- analyzer-driven inference now covers much more of the generator's branching
+- config-driven practical workflows are established
+- regenerated workflow coverage is established
+- frontend-neutral core and Alloy adapter are established
 
 This is the right path for the longer-term goal because it improves output
 quality without pushing more Alloy-specific logic directly into the generator.
@@ -197,63 +203,49 @@ quality without pushing more Alloy-specific logic directly into the generator.
 ### Test coverage
 
 - full rspec coverage remains green against local `../pbt`
-- snapshot coverage now includes:
-  - `stack`
-  - `queue`
-  - `sort`
-  - `workflow_scalar`
-  - `cache_size_preserving`
-  - `bag_body_removal`
+- snapshot coverage and practical workflows now include core structures,
+  financial domains, and software-general domains
 
 ## Highest-Value Next Work
 
-### 1. Improve analyzer body patterns
+### 1. Failure / no-op semantics
 
 Why:
 
-- this is the highest-leverage way to improve scaffold quality
-- it keeps complexity in the analyzer rather than spreading it through the generator
+- many practical domains need more than successful-transition checks
+- reject vs no-op vs unchanged-state behavior is still only partly automated
 
 Examples:
 
-- better transition-kind inference from body shape
-- stronger result-position inference
-- better recognition of domain-specific update patterns
+- financial invalid-call behavior
+- lifecycle systems with rejected transitions
+- richer guidance or safe automation around unchanged-state semantics
 
-### 2. Improve scalar/non-collection update guidance
+### 2. Improve derived-state pattern inference
 
 Why:
 
-- scalar state is where the current scaffold is safest but still generic
-- clearer update guidance reduces manual editing cost
+- domains like ledger projection still require config-level `next_state_override`
+- there is likely a reusable pattern for append-only logs plus projected state
 
 Examples:
 
-- distinguish "replace value" from "increment/decrement-like update"
-- emit field-aware TODOs based on body shape, not just state target labels
+- log + balance projection
+- event sequence + aggregate view
+- other derived-state relationships that should become analyzer facts
 
-### 3. Reduce command extraction and hint noise
+### 3. Generalize repeated domain patterns
 
 Why:
 
-- the generator is already useful, but false-positive related hints are expensive
-- cleaner command selection and cleaner related-hint selection both improve trust
+- the project now has broad domain coverage
+- the next question is what deserves first-class generator support
 
 Examples:
 
-- tighten command-like predicate detection
-- use analyzer facts more aggressively when associating assertions/facts/properties
-
-### 4. Push more generator decisions behind analyzer output
-
-Why:
-
-- this is the structural step that keeps future Alloy de-coupling possible
-
-Examples:
-
-- move more `next_state` / `verify!` branching onto analyzer facts
-- reduce direct predicate-name branching where body-level evidence exists
+- financial paired-balance flows
+- bounded/resource-limited systems
+- lifecycle queues and similar multi-counter models
 
 ## Practical Summary
 
