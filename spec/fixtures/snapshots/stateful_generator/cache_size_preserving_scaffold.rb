@@ -63,7 +63,30 @@ RSpec.describe "cache (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def next_state_override(command_name)
+      command_config(command_name)[:next_state_override]
+    end
+
     def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
+    def call_next_state_override(override, state, args)
+      return nil unless override
+
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
         override.call(state, args)
@@ -167,7 +190,9 @@ RSpec.describe "cache (stateful scaffold)" do
       true
     end
 
-    def next_state(state, _args)
+    def next_state(state, args)
+      override = CachePbtSupport.next_state_override(name)
+      return CachePbtSupport.call_next_state_override(override, state, args) if override
       # Inferred transition target: Cache#entries
       state # TODO: preserve size while refining element/order changes
     end

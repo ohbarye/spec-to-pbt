@@ -69,6 +69,8 @@ The generated config now includes field-aware suggestions for:
 - likely Ruby API method names
 - `verify_override` shapes
 - `verify_context[:state_reader]`
+- `initial_state`
+- `next_state_override` for cases where the scaffold needs a richer model transition than the inferred default
 
 The config can map spec command names to real Ruby APIs, for example:
 
@@ -128,11 +130,18 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/hold_cap
 
 # Run an intra-account transfer workflow with total-preservation checks
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/transfer_between_accounts_pbt.rb
+
+# Run a settlement refund/reversal workflow with observed-state verification
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/refund_reversal_pbt.rb
+
+# Run a ledger projection workflow using config-driven next_state overrides
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_projection_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
-`verify_override`, `verify_context[:state_reader]`, `initial_state`, `model_arg_adapter`, and where useful
+`verify_override`, `verify_context[:state_reader]`, `initial_state`, `next_state_override`,
+`model_arg_adapter`, and where useful
 `arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
 `../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
 
@@ -148,6 +157,10 @@ Useful stateful fixtures to try:
   - multi-field financial state (`available` + `held`) with paired increment/decrement updates
 - `spec/fixtures/alloy/transfer_between_accounts.als`
   - paired balance transfer with amount-aware guards and total-preservation style checks
+- `spec/fixtures/alloy/refund_reversal.als`
+  - settlement capture/refund/reversal flow with multi-field balance preservation
+- `spec/fixtures/alloy/ledger_projection.als`
+  - append-only ledger entries plus derived balance, useful for config-driven `next_state_override`
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 
@@ -155,8 +168,12 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `bank_account.als` -> generated scaffold + config-driven API remapping + amount-aware commands
 - `hold_capture_release.als` -> CLI-regenerated scaffold + config-driven initial state + observed-state verification
 - `transfer_between_accounts.als` -> CLI-regenerated scaffold + config-driven initial state + transfer balance verification
+- `refund_reversal.als` -> CLI-regenerated scaffold + observed settlement-state verification
+- `ledger_projection.als` -> CLI-regenerated scaffold + config-driven `next_state_override` for derived ledger state
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
+- `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
+- `ledger_projection.als` -> user-owned example with append-only entries and balance projection
 
 For current stateful work and roadmap details, see:
 

@@ -63,7 +63,30 @@ RSpec.describe "bag (stateful scaffold)" do
       command_config(command_name)[:applicable_override]
     end
 
+    def next_state_override(command_name)
+      command_config(command_name)[:next_state_override]
+    end
+
     def call_applicable_override(override, state, args)
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
+    def call_next_state_override(override, state, args)
+      return nil unless override
+
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
         override.call(state, args)
@@ -165,7 +188,9 @@ RSpec.describe "bag (stateful scaffold)" do
       !state.empty? # inferred precondition for drop_last
     end
 
-    def next_state(state, _args)
+    def next_state(state, args)
+      override = BagPbtSupport.next_state_override(name)
+      return BagPbtSupport.call_next_state_override(override, state, args) if override
       # Inferred transition target: Bag#elems
       state[0...-1]
     end

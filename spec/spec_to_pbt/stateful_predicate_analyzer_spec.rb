@@ -348,6 +348,25 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with refund/reversal settlement transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/refund_reversal.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks paired refund/reversal field updates" do
+        refund = analyzer.analyze(spec.predicates.find { |p| p.name == "Refund" })
+        reverse = analyzer.analyze(spec.predicates.find { |p| p.name == "Reverse" })
+
+        expect(refund.guard_kind).to eq(:arg_within_state)
+        expect(refund.state_field).to eq("captured")
+        expect(refund.derived_verify_hints).to include(:check_guard_failure_semantics)
+        expect(refund.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["captured", :decrement], ["refunded", :increment]])
+        expect(reverse.guard_kind).to eq(:arg_within_state)
+        expect(reverse.state_field).to eq("refunded")
+        expect(reverse.derived_verify_hints).to include(:check_guard_failure_semantics)
+        expect(reverse.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["captured", :increment], ["refunded", :decrement]])
+      end
+    end
+
     context "with scalar replacement without # prefix on rhs" do
       let(:source) do
         <<~ALLOY

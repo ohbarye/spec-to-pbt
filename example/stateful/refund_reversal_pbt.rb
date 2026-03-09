@@ -1,25 +1,25 @@
 # frozen_string_literal: true
 
-require "pbt"
+require_relative "pbt_local"
 require "rspec"
-require_relative "hold_capture_release_impl"
-require_relative "hold_capture_release_pbt_config" if File.exist?(File.expand_path("hold_capture_release_pbt_config.rb", __dir__))
+require_relative "refund_reversal_impl"
+require_relative "refund_reversal_pbt_config" if File.exist?(File.expand_path("refund_reversal_pbt_config.rb", __dir__))
 
-if File.exist?(File.expand_path("hold_capture_release_pbt_config.rb", __dir__)) && !defined?(::HoldCaptureReleasePbtConfig)
-  raise "Expected HoldCaptureReleasePbtConfig to be defined in hold_capture_release_pbt_config.rb"
+if File.exist?(File.expand_path("refund_reversal_pbt_config.rb", __dir__)) && !defined?(::RefundReversalPbtConfig)
+  raise "Expected RefundReversalPbtConfig to be defined in refund_reversal_pbt_config.rb"
 end
 
-RSpec.describe "hold_capture_release (stateful scaffold)" do
+RSpec.describe "refund_reversal (stateful scaffold)" do
   # Regeneration-safe customization:
-  # - edit hold_capture_release_pbt_config.rb for SUT wiring and durable API mapping
-  # - edit hold_capture_release_impl.rb for implementation behavior
+  # - edit refund_reversal_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit refund_reversal_impl.rb for implementation behavior
   # - edit this scaffold only for one-off refinements when needed
 
-  module HoldCaptureReleasePbtSupport
+  module RefundReversalPbtSupport
     module_function
 
     def config
-      defined?(::HoldCaptureReleasePbtConfig) ? ::HoldCaptureReleasePbtConfig : {}
+      defined?(::RefundReversalPbtConfig) ? ::RefundReversalPbtConfig : {}
     end
 
     def sut_factory(default_factory)
@@ -149,110 +149,29 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
 
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
-        model: HoldCaptureReleaseModel.new,
-        sut: -> { HoldCaptureReleasePbtSupport.sut_factory(-> { HoldCaptureReleaseImpl.new }).call },
+        model: RefundReversalModel.new,
+        sut: -> { RefundReversalPbtSupport.sut_factory(-> { RefundReversalImpl.new }).call },
         max_steps: 20
       )
     end
   end
 
-  class HoldCaptureReleaseModel
+  class RefundReversalModel
     def initialize
       @commands = [
-        HoldCommand.new,
         CaptureCommand.new,
-        ReleaseCommand.new
+        RefundCommand.new,
+        ReverseCommand.new
       ]
     end
 
     def initial_state
-      default_state = { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state
-      HoldCaptureReleasePbtSupport.initial_state(default_state)
+      default_state = { captured: 0, refunded: 0 } # TODO: replace with a domain-specific structured model state
+      RefundReversalPbtSupport.initial_state(default_state)
     end
 
     def commands(_state)
       @commands
-    end
-  end
-
-  class HoldCommand
-    # Analyzer command confidence: medium
-    # TODO: confirm this predicate should be modeled as a command
-    def name
-      :hold
-    end
-
-    def arguments(state)
-      Pbt.integer(min: 1, max: state[:available])
-    end
-
-    def applicable?(state, args)
-      override = HoldCaptureReleasePbtSupport.applicable_override(name)
-      return HoldCaptureReleasePbtSupport.call_applicable_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      current_value = state[:available]
-      delta.is_a?(Numeric) && delta.positive? && delta <= current_value
-    end
-
-    def next_state(state, args)
-      override = HoldCaptureReleasePbtSupport.next_state_override(name)
-      return HoldCaptureReleasePbtSupport.call_next_state_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      state.merge(available: state[:available] - delta, held: state[:held] + delta)
-    end
-
-    def run!(sut, args)
-      HoldCaptureReleasePbtSupport.before_run_hook&.call(sut)
-      payload = HoldCaptureReleasePbtSupport.adapt_args(name, args)
-      method_name = HoldCaptureReleasePbtSupport.resolve_method_name(name, :hold)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
-      end
-      adapted_result = HoldCaptureReleasePbtSupport.adapt_result(name, result)
-      HoldCaptureReleasePbtSupport.after_run_hook&.call(sut, adapted_result)
-      adapted_result
-    end
-
-    def verify!(before_state:, after_state:, args:, result:, sut:)
-      # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#r.available>=amount implies#r'.available=sub[#r.available,amount]and#r'.held=add[#r.held,amount]"
-      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
-      # Related Alloy property predicates: Capture, Release, NonNegativeAvailable
-      # Related pattern hints: size
-      # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
-      # Suggested verify order:
-      # 1. Command-specific postconditions
-      # 2. Related Alloy assertions/facts
-      # 3. Related property predicates
-      return nil if HoldCaptureReleasePbtSupport.call_verify_override(
-        name,
-        before_state: before_state,
-        after_state: after_state,
-        args: args,
-        result: result,
-        sut: sut
-      )
-      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Reservation#available
-      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      before_available = before_state[:available]
-      after_available = after_state[:available]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_available
-      raise "Expected decremented value for Reservation#available" unless after_available == before_available - delta
-      raise "Expected non-negative value for Reservation#available" unless after_available >= 0
-      before_held = before_state[:held]
-      after_held = after_state[:held]
-      raise "Expected incremented value for Reservation#held" unless after_held == before_held + delta
-      raise "Expected non-negative value for Reservation#held" unless after_held >= 0
-      raise "Expected total scalar value to stay the same" unless after_available + after_held == before_available + before_held
-      [sut, args] && nil
     end
   end
 
@@ -263,29 +182,27 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
       :capture
     end
 
-    def arguments(state)
-      Pbt.integer(min: 1, max: state[:held])
+    def arguments
+      Pbt.integer
     end
 
-    def applicable?(state, args)
-      override = HoldCaptureReleasePbtSupport.applicable_override(name)
-      return HoldCaptureReleasePbtSupport.call_applicable_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      current_value = state[:held]
-      delta.is_a?(Numeric) && delta.positive? && delta <= current_value
+    def applicable?(state)
+      override = RefundReversalPbtSupport.applicable_override(name)
+      return RefundReversalPbtSupport.call_applicable_override(override, state, nil) if override
+      true
     end
 
     def next_state(state, args)
-      override = HoldCaptureReleasePbtSupport.next_state_override(name)
-      return HoldCaptureReleasePbtSupport.call_next_state_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      state.merge(held: state[:held] - delta)
+      override = RefundReversalPbtSupport.next_state_override(name)
+      return RefundReversalPbtSupport.call_next_state_override(override, state, args) if override
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      state.merge(captured: state[:captured] + delta)
     end
 
     def run!(sut, args)
-      HoldCaptureReleasePbtSupport.before_run_hook&.call(sut)
-      payload = HoldCaptureReleasePbtSupport.adapt_args(name, args)
-      method_name = HoldCaptureReleasePbtSupport.resolve_method_name(name, :capture)
+      RefundReversalPbtSupport.before_run_hook&.call(sut)
+      payload = RefundReversalPbtSupport.adapt_args(name, args)
+      method_name = RefundReversalPbtSupport.resolve_method_name(name, :capture)
       result = if payload.nil?
         sut.public_send(method_name)
       elsif payload.is_a?(Array)
@@ -293,23 +210,23 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
       else
         sut.public_send(method_name, payload)
       end
-      adapted_result = HoldCaptureReleasePbtSupport.adapt_result(name, result)
-      HoldCaptureReleasePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
+      RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
       adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#r.held>=amount implies#r'.held=sub[#r.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
-      # Related Alloy property predicates: Hold, Release, NonNegativeHeld
+      # Alloy predicate body (preview): "#s'.captured=add[#s.captured,amount]"
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
+      # Related Alloy property predicates: Refund, Reverse, NonNegativeCaptured
       # Related pattern hints: size
-      # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      # Derived verify hints: check_size_semantics, check_non_negative_scalar_state
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
-      return nil if HoldCaptureReleasePbtSupport.call_verify_override(
+      return nil if RefundReversalPbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
@@ -318,50 +235,48 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
         sut: sut
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Reservation#held
+      # Inferred state target: Settlement#captured
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:held]
-      before_value = before_state[:held]
-      after_value = after_state[:held]
-      raise "Expected decremented value for Reservation#held" unless after_value == before_value - delta
-      raise "Expected non-negative value for Reservation#held" unless after_state[:held] >= 0
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      before_value = before_state[:captured]
+      after_value = after_state[:captured]
+      raise "Expected incremented value for Settlement#captured" unless after_value == before_value + delta
+      raise "Expected non-negative value for Settlement#captured" unless after_state[:captured] >= 0
       [sut, args] && nil
     end
   end
 
-  class ReleaseCommand
+  class RefundCommand
     # Analyzer command confidence: medium
     # TODO: confirm this predicate should be modeled as a command
     def name
-      :release
+      :refund
     end
 
     def arguments(state)
-      Pbt.integer(min: 1, max: state[:held])
+      Pbt.integer(min: 1, max: state[:captured])
     end
 
     def applicable?(state, args)
-      override = HoldCaptureReleasePbtSupport.applicable_override(name)
-      return HoldCaptureReleasePbtSupport.call_applicable_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      current_value = state[:held]
+      override = RefundReversalPbtSupport.applicable_override(name)
+      return RefundReversalPbtSupport.call_applicable_override(override, state, args) if override
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      current_value = state[:captured]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
     end
 
     def next_state(state, args)
-      override = HoldCaptureReleasePbtSupport.next_state_override(name)
-      return HoldCaptureReleasePbtSupport.call_next_state_override(override, state, args) if override
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      state.merge(available: state[:available] + delta, held: state[:held] - delta)
+      override = RefundReversalPbtSupport.next_state_override(name)
+      return RefundReversalPbtSupport.call_next_state_override(override, state, args) if override
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      state.merge(captured: state[:captured] - delta, refunded: state[:refunded] + delta)
     end
 
     def run!(sut, args)
-      HoldCaptureReleasePbtSupport.before_run_hook&.call(sut)
-      payload = HoldCaptureReleasePbtSupport.adapt_args(name, args)
-      method_name = HoldCaptureReleasePbtSupport.resolve_method_name(name, :release)
+      RefundReversalPbtSupport.before_run_hook&.call(sut)
+      payload = RefundReversalPbtSupport.adapt_args(name, args)
+      method_name = RefundReversalPbtSupport.resolve_method_name(name, :refund)
       result = if payload.nil?
         sut.public_send(method_name)
       elsif payload.is_a?(Array)
@@ -369,23 +284,23 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
       else
         sut.public_send(method_name, payload)
       end
-      adapted_result = HoldCaptureReleasePbtSupport.adapt_result(name, result)
-      HoldCaptureReleasePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
+      RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
       adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#r.held>=amount implies#r'.available=add[#r.available,amount]and#r'.held=sub[#r.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
-      # Related Alloy property predicates: Hold, Capture, NonNegativeHeld
+      # Alloy predicate body (preview): "#s.captured>=amount implies#s'.captured=sub[#s.captured,amount]and#s'.refunded=add[#s.refunded,amount]"
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Related Alloy property predicates: Capture, Reverse, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
-      return nil if HoldCaptureReleasePbtSupport.call_verify_override(
+      return nil if RefundReversalPbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
@@ -394,21 +309,102 @@ RSpec.describe "hold_capture_release (stateful scaffold)" do
         sut: sut
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Reservation#held
+      # Inferred state target: Settlement#captured
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
       # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
-      delta = HoldCaptureReleasePbtSupport.scalar_model_arg(name, args)
-      before_available = before_state[:available]
-      after_available = after_state[:available]
-      raise "Expected incremented value for Reservation#available" unless after_available == before_available + delta
-      raise "Expected non-negative value for Reservation#available" unless after_available >= 0
-      before_held = before_state[:held]
-      after_held = after_state[:held]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_held
-      raise "Expected decremented value for Reservation#held" unless after_held == before_held - delta
-      raise "Expected non-negative value for Reservation#held" unless after_held >= 0
-      raise "Expected total scalar value to stay the same" unless after_available + after_held == before_available + before_held
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      before_captured = before_state[:captured]
+      after_captured = after_state[:captured]
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_captured
+      raise "Expected decremented value for Settlement#captured" unless after_captured == before_captured - delta
+      raise "Expected non-negative value for Settlement#captured" unless after_captured >= 0
+      before_refunded = before_state[:refunded]
+      after_refunded = after_state[:refunded]
+      raise "Expected incremented value for Settlement#refunded" unless after_refunded == before_refunded + delta
+      raise "Expected non-negative value for Settlement#refunded" unless after_refunded >= 0
+      raise "Expected total scalar value to stay the same" unless after_captured + after_refunded == before_captured + before_refunded
+      [sut, args] && nil
+    end
+  end
+
+  class ReverseCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
+    def name
+      :reverse
+    end
+
+    def arguments(state)
+      Pbt.integer(min: 1, max: state[:refunded])
+    end
+
+    def applicable?(state, args)
+      override = RefundReversalPbtSupport.applicable_override(name)
+      return RefundReversalPbtSupport.call_applicable_override(override, state, args) if override
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      current_value = state[:refunded]
+      delta.is_a?(Numeric) && delta.positive? && delta <= current_value
+    end
+
+    def next_state(state, args)
+      override = RefundReversalPbtSupport.next_state_override(name)
+      return RefundReversalPbtSupport.call_next_state_override(override, state, args) if override
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      state.merge(captured: state[:captured] + delta, refunded: state[:refunded] - delta)
+    end
+
+    def run!(sut, args)
+      RefundReversalPbtSupport.before_run_hook&.call(sut)
+      payload = RefundReversalPbtSupport.adapt_args(name, args)
+      method_name = RefundReversalPbtSupport.resolve_method_name(name, :reverse)
+      result = if payload.nil?
+        sut.public_send(method_name)
+      elsif payload.is_a?(Array)
+        sut.public_send(method_name, *payload)
+      else
+        sut.public_send(method_name, payload)
+      end
+      adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
+      RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
+    end
+
+    def verify!(before_state:, after_state:, args:, result:, sut:)
+      # TODO: translate predicate semantics into postcondition checks
+      # Alloy predicate body (preview): "#s.refunded>=amount implies#s'.captured=add[#s.captured,amount]and#s'.refunded=sub[#s.refunded,amount]"
+      # Analyzer hints: state_field="refunded", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Related Alloy property predicates: Capture, Refund, NonNegativeRefunded
+      # Related pattern hints: size
+      # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
+      return nil if RefundReversalPbtSupport.call_verify_override(
+        name,
+        before_state: before_state,
+        after_state: after_state,
+        args: args,
+        result: result,
+        sut: sut
+      )
+      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
+      # Inferred state target: Settlement#refunded
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
+      delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
+      before_captured = before_state[:captured]
+      after_captured = after_state[:captured]
+      raise "Expected incremented value for Settlement#captured" unless after_captured == before_captured + delta
+      raise "Expected non-negative value for Settlement#captured" unless after_captured >= 0
+      before_refunded = before_state[:refunded]
+      after_refunded = after_state[:refunded]
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_refunded
+      raise "Expected decremented value for Settlement#refunded" unless after_refunded == before_refunded - delta
+      raise "Expected non-negative value for Settlement#refunded" unless after_refunded >= 0
+      raise "Expected total scalar value to stay the same" unless after_captured + after_refunded == before_captured + before_refunded
       [sut, args] && nil
     end
   end

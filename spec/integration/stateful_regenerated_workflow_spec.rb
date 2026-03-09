@@ -289,6 +289,158 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("transfer_between_accounts_pbt.rb")
   end
 
+  it "runs a regenerated refund/reversal workflow with config-driven observed-state checks" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("refund_reversal.als")
+
+    File.write(File.join(output_dir, "refund_reversal_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class RefundReversalImpl
+        attr_reader :captured, :refunded
+
+        def initialize(captured: 0, refunded: 0)
+          @captured = captured
+          @refunded = refunded
+        end
+
+        def capture(amount)
+          raise "amount must be positive" if amount <= 0
+
+          @captured += amount
+          nil
+        end
+
+        def refund(amount)
+          raise "insufficient captured balance" if amount > @captured
+
+          @captured -= amount
+          @refunded += amount
+          nil
+        end
+
+        def reverse(amount)
+          raise "insufficient refunded balance" if amount > @refunded
+
+          @captured += amount
+          @refunded -= amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "refund_reversal_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      RefundReversalPbtConfig = {
+        sut_factory: -> { RefundReversalImpl.new },
+        initial_state: { captured: 0, refunded: 0 },
+        command_mappings: {
+          capture: {
+            method: :capture,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed settlement state after capture to match model" unless observed_state == after_state
+            end
+          },
+          refund: {
+            method: :refund,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed settlement state after refund to match model" unless observed_state == after_state
+            end
+          },
+          reverse: {
+            method: :reverse,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed settlement state after reversal to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { captured: sut.captured, refunded: sut.refunded } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("refund_reversal_pbt.rb")
+  end
+
+  it "runs a regenerated ledger projection workflow with config-driven next-state overrides" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("ledger_projection.als")
+
+    File.write(File.join(output_dir, "ledger_projection_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class LedgerProjectionImpl
+        attr_reader :entries, :balance
+
+        def initialize(entries: [], balance: 0)
+          @entries = entries.dup
+          @balance = balance
+        end
+
+        def post_credit(amount)
+          raise "amount must be positive" if amount <= 0
+
+          @entries << amount
+          @balance += amount
+          nil
+        end
+
+        def post_debit(amount)
+          raise "amount must be positive" if amount <= 0
+
+          @entries << -amount
+          @balance -= amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "ledger_projection_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      LedgerProjectionPbtConfig = {
+        sut_factory: -> { LedgerProjectionImpl.new },
+        initial_state: { entries: [], balance: 0 },
+        command_mappings: {
+          post_credit: {
+            method: :post_credit,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            next_state_override: ->(state, args) do
+              delta = args.abs + 1
+              { entries: state[:entries] + [delta], balance: state[:balance] + delta }
+            end,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed ledger projection after credit to match model" unless observed_state == after_state
+            end
+          },
+          post_debit: {
+            method: :post_debit,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            next_state_override: ->(state, args) do
+              delta = args.abs + 1
+              { entries: state[:entries] + [-delta], balance: state[:balance] - delta }
+            end,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed ledger projection after debit to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { entries: sut.entries.dup, balance: sut.balance } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("ledger_projection_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

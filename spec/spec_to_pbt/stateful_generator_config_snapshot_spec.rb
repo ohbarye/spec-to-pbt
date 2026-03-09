@@ -11,7 +11,9 @@ RSpec.describe "SpecToPbt::StatefulGenerator config snapshots" do
     "bank_account" => "bank_account.als",
     "wallet_with_limit" => "wallet_with_limit.als",
     "hold_capture_release" => "hold_capture_release.als",
-    "transfer_between_accounts" => "transfer_between_accounts.als"
+    "transfer_between_accounts" => "transfer_between_accounts.als",
+    "refund_reversal" => "refund_reversal.als",
+    "ledger_projection" => "ledger_projection.als"
   }.each do |name, fixture_name|
     it "matches the #{name} config snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

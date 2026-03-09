@@ -172,7 +172,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
         expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).not_to include("Pbt.tuple(")
-        expect(code).to include("def next_state(state, _args)\n      state + 1")
+        expect(code).to include("def next_state(state, args)\n      override = WorkflowPbtSupport.next_state_override(name)\n      return WorkflowPbtSupport.call_next_state_override(override, state, args) if override\n      state + 1")
         expect(code).not_to include("state + [args]")
       end
     end
@@ -294,9 +294,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("class DepositCommand")
         expect(code).to include("def applicable?(state)")
         expect(code).to include("state > 0 # inferred scalar precondition for withdraw")
-        expect(code).to include("def next_state(state, _args)\n      state + 1")
+        expect(code).to include("def next_state(state, args)\n      override = BankAccountPbtSupport.next_state_override(name)\n      return BankAccountPbtSupport.call_next_state_override(override, state, args) if override\n      state + 1")
         expect(code).to include("raise \"Expected incremented value for Account#balance\" unless after_value == before_value + 1")
-        expect(code).to include("def next_state(state, _args)\n      state - 1")
+        expect(code).to include("def next_state(state, args)\n      override = BankAccountPbtSupport.next_state_override(name)\n      return BankAccountPbtSupport.call_next_state_override(override, state, args) if override\n      state - 1")
         expect(code).to include("raise \"Expected decremented value for Account#balance\" unless after_value == before_value - 1")
       end
     end
@@ -382,7 +382,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include('state_update_shape=:decrement')
-        expect(code).to include("def next_state(state, _args)\n      state - 1")
+        expect(code).to include("def next_state(state, args)\n      override = CounterPbtSupport.next_state_override(name)\n      return CounterPbtSupport.call_next_state_override(override, state, args) if override\n      state - 1")
         expect(code).to include('raise "Expected decremented value for Counter#value" unless after_value == before_value - 1')
       end
     end
@@ -423,7 +423,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("default_state = { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("WalletResetLimitPbtSupport.initial_state(default_state)")
-        expect(code).to include("def next_state(state, _args)\n      state.merge(balance: state[:credit_limit])")
+        expect(code).to include("def next_state(state, args)\n      override = WalletResetLimitPbtSupport.next_state_override(name)\n      return WalletResetLimitPbtSupport.call_next_state_override(override, state, args) if override\n      state.merge(balance: state[:credit_limit])")
         expect(code).to include("expected = before_state[:credit_limit]")
         expect(code).to include('raise "Expected replaced value for Wallet#balance" unless after_state[:balance] == expected')
         expect(code).to include('raise "Expected non-negative value for Wallet#balance" unless after_state[:balance] >= 0')
@@ -565,6 +565,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("model_arg_adapter:")
         expect(code).to include("verify_override:")
         expect(code).to include("applicable_override:")
+        expect(code).to include("next_state_override:")
         expect(code).to include("observed_state:")
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.snapshot }")
         expect(code).to include('observed_state == after_state')

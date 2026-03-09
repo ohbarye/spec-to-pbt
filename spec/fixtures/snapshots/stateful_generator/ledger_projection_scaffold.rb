@@ -2,24 +2,24 @@
 
 require "pbt"
 require "rspec"
-require_relative "bounded_queue_impl"
-require_relative "bounded_queue_pbt_config" if File.exist?(File.expand_path("bounded_queue_pbt_config.rb", __dir__))
+require_relative "ledger_projection_impl"
+require_relative "ledger_projection_pbt_config" if File.exist?(File.expand_path("ledger_projection_pbt_config.rb", __dir__))
 
-if File.exist?(File.expand_path("bounded_queue_pbt_config.rb", __dir__)) && !defined?(::BoundedQueuePbtConfig)
-  raise "Expected BoundedQueuePbtConfig to be defined in bounded_queue_pbt_config.rb"
+if File.exist?(File.expand_path("ledger_projection_pbt_config.rb", __dir__)) && !defined?(::LedgerProjectionPbtConfig)
+  raise "Expected LedgerProjectionPbtConfig to be defined in ledger_projection_pbt_config.rb"
 end
 
-RSpec.describe "bounded_queue (stateful scaffold)" do
+RSpec.describe "ledger_projection (stateful scaffold)" do
   # Regeneration-safe customization:
-  # - edit bounded_queue_pbt_config.rb for SUT wiring and durable API mapping
-  # - edit bounded_queue_impl.rb for implementation behavior
+  # - edit ledger_projection_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit ledger_projection_impl.rb for implementation behavior
   # - edit this scaffold only for one-off refinements when needed
 
-  module BoundedQueuePbtSupport
+  module LedgerProjectionPbtSupport
     module_function
 
     def config
-      defined?(::BoundedQueuePbtConfig) ? ::BoundedQueuePbtConfig : {}
+      defined?(::LedgerProjectionPbtConfig) ? ::LedgerProjectionPbtConfig : {}
     end
 
     def sut_factory(default_factory)
@@ -149,24 +149,24 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
 
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
-        model: BoundedQueueModel.new,
-        sut: -> { BoundedQueuePbtSupport.sut_factory(-> { BoundedQueueImpl.new }).call },
+        model: LedgerProjectionModel.new,
+        sut: -> { LedgerProjectionPbtSupport.sut_factory(-> { LedgerProjectionImpl.new }).call },
         max_steps: 20
       )
     end
   end
 
-  class BoundedQueueModel
+  class LedgerProjectionModel
     def initialize
       @commands = [
-        EnqueueCommand.new,
-        DequeueCommand.new
+        PostCreditCommand.new,
+        PostDebitCommand.new
       ]
     end
 
     def initial_state
-      default_state = { elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state
-      BoundedQueuePbtSupport.initial_state(default_state)
+      default_state = nil # TODO: replace with a domain-specific scalar/model state
+      LedgerProjectionPbtSupport.initial_state(default_state)
     end
 
     def commands(_state)
@@ -174,32 +174,34 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
   end
 
-  class EnqueueCommand
+  class PostCreditCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
     def name
-      :enqueue
+      :post_credit
     end
 
     def arguments
-      Pbt.integer # placeholder for Element
+      Pbt.integer
     end
 
     def applicable?(state)
-      override = BoundedQueuePbtSupport.applicable_override(name)
-      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
-      state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue
+      override = LedgerProjectionPbtSupport.applicable_override(name)
+      return LedgerProjectionPbtSupport.call_applicable_override(override, state, nil) if override
+      true
     end
 
     def next_state(state, args)
-      override = BoundedQueuePbtSupport.next_state_override(name)
-      return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
-      # Inferred transition target: Queue#elements
-      state.merge(elements: state[:elements] + [args])
+      override = LedgerProjectionPbtSupport.next_state_override(name)
+      return LedgerProjectionPbtSupport.call_next_state_override(override, state, args) if override
+      delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
+      state + delta
     end
 
     def run!(sut, args)
-      BoundedQueuePbtSupport.before_run_hook&.call(sut)
-      payload = BoundedQueuePbtSupport.adapt_args(name, args)
-      method_name = BoundedQueuePbtSupport.resolve_method_name(name, :enqueue)
+      LedgerProjectionPbtSupport.before_run_hook&.call(sut)
+      payload = LedgerProjectionPbtSupport.adapt_args(name, args)
+      method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_credit)
       result = if payload.nil?
         sut.public_send(method_name)
       elsif payload.is_a?(Array)
@@ -207,24 +209,23 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       else
         sut.public_send(method_name, payload)
       end
-      adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
-      BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
+      LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)
       adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#q.elements<#q.capacity implies#q'.elements=add[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:below_capacity, rhs_source_kind=:unknown, state_update_shape=:append_like
-      # Related Alloy assertions: QueueBounds
-      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
-      # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
+      # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=add[#l.balance,amount]"
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
+      # Related Alloy property predicates: PostDebit
+      # Related pattern hints: size
+      # Derived verify hints: check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
-      return nil if BoundedQueuePbtSupport.call_verify_override(
+      return nil if LedgerProjectionPbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
@@ -232,48 +233,45 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         result: result,
         sut: sut
       )
-      # Inferred collection target: Queue#elements
-      before_items = before_state[:elements]
-      after_items = after_state[:elements]
-      before_capacity = before_state[:capacity]
-      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
-      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
-      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
+      # Inferred state target: Ledger#balance
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
-      raise "Expected available capacity before append" unless before_items.length < before_capacity
-      expected_size = before_items.length + 1
-      raise "Expected size to increase by 1" unless after_items.length == expected_size
+      delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
+      before_value = before_state
+      after_value = after_state
+      raise "Expected incremented value for Ledger#balance" unless after_value == before_value + delta
       [sut, args] && nil
     end
   end
 
-  class DequeueCommand
+  class PostDebitCommand
+    # Analyzer command confidence: medium
+    # TODO: confirm this predicate should be modeled as a command
     def name
-      :dequeue
+      :post_debit
     end
 
     def arguments
-      Pbt.nil
+      Pbt.integer
     end
 
     def applicable?(state)
-      override = BoundedQueuePbtSupport.applicable_override(name)
-      return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
-      !state[:elements].empty? # inferred precondition for dequeue
+      override = LedgerProjectionPbtSupport.applicable_override(name)
+      return LedgerProjectionPbtSupport.call_applicable_override(override, state, nil) if override
+      true
     end
 
     def next_state(state, args)
-      override = BoundedQueuePbtSupport.next_state_override(name)
-      return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
-      # Inferred transition target: Queue#elements
-      state.merge(elements: state[:elements].drop(1))
+      override = LedgerProjectionPbtSupport.next_state_override(name)
+      return LedgerProjectionPbtSupport.call_next_state_override(override, state, args) if override
+      delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
+      state - delta
     end
 
     def run!(sut, args)
-      BoundedQueuePbtSupport.before_run_hook&.call(sut)
-      payload = BoundedQueuePbtSupport.adapt_args(name, args)
-      method_name = BoundedQueuePbtSupport.resolve_method_name(name, :dequeue)
+      LedgerProjectionPbtSupport.before_run_hook&.call(sut)
+      payload = LedgerProjectionPbtSupport.adapt_args(name, args)
+      method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_debit)
       result = if payload.nil?
         sut.public_send(method_name)
       elsif payload.is_a?(Array)
@@ -281,24 +279,23 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       else
         sut.public_send(method_name, payload)
       end
-      adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
-      BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
+      LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)
       adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
-      # Alloy predicate body (preview): "#q.elements>0 implies#q'.elements=sub[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_first
-      # Related Alloy assertions: QueueBounds
-      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
-      # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
+      # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=sub[#l.balance,amount]"
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Related Alloy property predicates: PostCredit
+      # Related pattern hints: size
+      # Derived verify hints: check_size_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
       # 3. Related property predicates
-      return nil if BoundedQueuePbtSupport.call_verify_override(
+      return nil if LedgerProjectionPbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
@@ -306,19 +303,13 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         result: result,
         sut: sut
       )
-      # Inferred collection target: Queue#elements
-      before_items = before_state[:elements]
-      after_items = after_state[:elements]
-      before_capacity = before_state[:capacity]
-      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
-      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
-      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
+      # Inferred state target: Ledger#balance
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
-      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
-      raise "Expected non-empty state before removal" if before_items.empty?
-      expected = before_state.first
-      raise "Expected dequeued value to match model" unless result == expected
-      raise "Expected size to decrease by 1" unless after_items.length == before_items.length - 1
+      delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
+      before_value = before_state
+      after_value = after_state
+      raise "Expected decremented value for Ledger#balance" unless after_value == before_value - delta
       [sut, args] && nil
     end
   end

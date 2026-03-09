@@ -1,49 +1,46 @@
 # frozen_string_literal: true
 
-# Regeneration-safe customization file for hold_capture_release stateful scaffold.
+# Regeneration-safe customization file for refund_reversal stateful scaffold.
 # Edit this file to map spec command names to your real Ruby API.
 # This file is user-owned and should not be overwritten automatically.
 
-HoldCaptureReleasePbtConfig = {
-  sut_factory: -> { HoldCaptureReleaseImpl.new },
-  # initial_state: { available: 0, held: 0 },
+RefundReversalPbtConfig = {
+  sut_factory: -> { RefundReversalImpl.new },
+  # initial_state: { captured: 0, refunded: 0 },
   command_mappings: {
-    hold: {
-      method: :hold,
-      # Suggested real API methods: :authorize, :reserve, :place_hold
-      # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
-      # result_adapter: ->(result) { result },
-      # applicable_override: ->(state, args = nil) { true },
-      # next_state_override: ->(state, args) { state },
-      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state }
-    },
     capture: {
       method: :capture,
       # Suggested real API methods: :settle
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
-      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
     },
-    release: {
-      method: :release,
-      # Suggested real API methods: :release_hold, :void_authorization
+    refund: {
+      method: :refund,
       # arg_adapter: ->(args) { args },
       # model_arg_adapter: ->(args) { args.abs + 1 }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
       # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+    },
+    reverse: {
+      method: :reverse,
+      # arg_adapter: ->(args) { args },
+      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # result_adapter: ->(result) { result },
+      # applicable_override: ->(state, args = nil) { true },
+      # next_state_override: ->(state, args) { state },
+      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
     }
   },
   verify_context: {
-    state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }
+    state_reader: nil, # suggested: ->(sut) { { captured: sut.captured, refunded: sut.refunded } }
   }
   # before_run: ->(sut) { },
   # after_run: ->(sut, result) { }

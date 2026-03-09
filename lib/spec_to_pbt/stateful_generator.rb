@@ -404,24 +404,32 @@ module SpecToPbt
       when :append
         [
           "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
         ]
       when :pop
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items}[0...-1]")}"
         ]
       when :dequeue
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items}.drop(1)")}"
         ]
       when :size_no_change
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, state_items)} # TODO: preserve size while refining element/order changes"
         ]
@@ -456,6 +464,8 @@ module SpecToPbt
       if analysis.state_update_shape == :increment && analysis.rhs_source_kind == :arg
         [
           "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + delta")}",
           "    end"
@@ -463,37 +473,49 @@ module SpecToPbt
       elsif analysis.state_update_shape == :decrement && analysis.rhs_source_kind == :arg
         [
           "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - delta")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :increment && scalar_unit_delta?(analysis)
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + 1")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :decrement && scalar_unit_delta?(analysis)
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - 1")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :replace_with_arg
         [
           "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      #{scalar_state_update_expr('state', analysis, "#{support_module_name}.scalar_model_arg(name, args)")}",
           "    end"
         ]
       elsif analysis.state_update_shape == :replace_value && (source_expr = scalar_replace_source_expr("state", analysis))
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      #{scalar_state_update_expr('state', analysis, source_expr)}",
           "    end"
         ]
       else
         [
-          "    def next_state(state, _args)",
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           "      state # TODO: #{guidance}",
           "    end"
         ]
@@ -507,6 +529,8 @@ module SpecToPbt
       needs_args = updates.any? { |update| [:arg, :arg_field].include?(update[:rhs_source_kind]) }
       signature = needs_args ? "args" : "_args"
       lines = ["    def next_state(state, #{signature})"]
+      lines << "      override = #{support_module_name}.next_state_override(name)"
+      lines << "      return #{support_module_name}.call_next_state_override(override, state, args) if override"
       lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if updates.any? { |update| update[:rhs_source_kind] == :arg }
       pairs = updates.map { |update| "#{update[:field]}: #{scalar_field_update_expr('state', update)}" }
       lines << "      state.merge(#{pairs.join(', ')})"
@@ -766,7 +790,30 @@ module SpecToPbt
         "      command_config(command_name)[:applicable_override]",
         "    end",
         "",
+        "    def next_state_override(command_name)",
+        "      command_config(command_name)[:next_state_override]",
+        "    end",
+        "",
         "    def call_applicable_override(override, state, args)",
+        "      parameters = override.parameters",
+        "      if parameters.any? { |kind, _name| kind == :rest }",
+        "        override.call(state, args)",
+        "      else",
+        "        required = parameters.count { |kind, _name| kind == :req }",
+        "        optional = parameters.count { |kind, _name| kind == :opt }",
+        "        if 2 >= required && 2 <= required + optional",
+        "          override.call(state, args)",
+        "        elsif 1 >= required && 1 <= required + optional",
+        "          override.call(state)",
+        "        else",
+        "          override.call",
+        "        end",
+        "      end",
+        "    end",
+        "",
+        "    def call_next_state_override(override, state, args)",
+        "      return nil unless override",
+        "",
         "      parameters = override.parameters",
         "      if parameters.any? { |kind, _name| kind == :rest }",
         "        override.call(state, args)",
@@ -843,6 +890,7 @@ module SpecToPbt
       lines << "      # model_arg_adapter: #{suggested_model_arg_adapter_example(analysis)}"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state, args = nil) { true },"
+      lines << "      # next_state_override: ->(state, args) { state },"
       if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
         lines << "      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state"
       end
