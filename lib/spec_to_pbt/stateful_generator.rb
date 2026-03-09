@@ -304,6 +304,8 @@ module SpecToPbt
         *arguments_lines(predicate, analysis),
         "",
         *applicable_lines(analysis, method_name),
+        *guard_helper_separator_lines(analysis),
+        *guard_helper_lines(analysis, method_name),
         "",
         *next_state_lines(analysis, behavior),
         "",
@@ -357,10 +359,9 @@ module SpecToPbt
           "      override = #{support_module_name}.applicable_override(name)",
           "      return #{support_module_name}.call_applicable_override(override, state, args) if override"
         ]
-        if scalar_arg_bound_guard?(analysis)
-          lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
-          lines << "      current_value = #{scalar_state_expr('state', analysis)}"
-          lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= current_value"
+        if guard_supportable?(analysis)
+          lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
+          lines << "      guard_satisfied?(state, args)"
         else
           lines << "      true # TODO: refine arg-aware applicability for #{method_name}"
         end
@@ -373,22 +374,54 @@ module SpecToPbt
         "      override = #{support_module_name}.applicable_override(name)",
         "      return #{support_module_name}.call_applicable_override(override, state, nil) if override"
       ]
-      if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      !#{state_items}.empty? # inferred precondition for #{method_name}"
-      elsif collection_like_state?(analysis) && analysis.guard_kind == :below_capacity
-        capacity_expr = capacity_state_expr("state", analysis)
-        if capacity_expr
-          lines << "      #{state_items}.length < #{capacity_expr} # inferred capacity/fullness guard for #{method_name}"
-        else
-          lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
-        end
-      elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
+      if guard_supportable?(analysis)
+        lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
+        lines << "      guard_satisfied?(state)"
       elsif analysis.guard_kind != :none
         lines << "      true # TODO: infer a scalar/domain-specific precondition"
       else
         lines << "      true"
       end
+      lines << "    end"
+      lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def guard_helper_separator_lines(analysis)
+      guard_supportable?(analysis) ? [""] : []
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs method_name: String
+    # @rbs return: Array[String]
+    def guard_helper_lines(analysis, method_name)
+      return [] unless guard_supportable?(analysis)
+
+      signature = arg_aware_applicability?(analysis) ? "state, args = nil" : "state, _args = nil"
+      lines = [
+        "    def guard_satisfied?(#{signature})"
+      ]
+
+      if scalar_arg_bound_guard?(analysis)
+        lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
+        lines << "      current_value = #{scalar_state_expr('state', analysis)}"
+        lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= current_value"
+      elsif collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+        lines << "      !#{collection_state_expr('state', analysis)}.empty? # inferred precondition for #{method_name}"
+      elsif collection_like_state?(analysis) && analysis.guard_kind == :below_capacity
+        capacity_expr = capacity_state_expr("state", analysis)
+        if capacity_expr
+          lines << "      #{collection_state_expr('state', analysis)}.length < #{capacity_expr} # inferred capacity/fullness guard for #{method_name}"
+        else
+          lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
+        end
+      elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+        lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
+      else
+        lines << "      true"
+      end
+
       lines << "    end"
       lines
     end
@@ -406,6 +439,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
         ]
@@ -414,6 +448,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items}[0...-1]")}"
         ]
@@ -422,6 +457,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, "#{state_items}.drop(1)")}"
         ]
@@ -430,6 +466,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      # Inferred transition target: #{state_target_label(analysis)}",
           "      #{collection_state_update_expr('state', analysis, state_items)} # TODO: preserve size while refining element/order changes"
         ]
@@ -466,6 +503,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + delta")}",
           "    end"
@@ -475,6 +513,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      delta = #{support_module_name}.scalar_model_arg(name, args)",
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - delta")}",
           "    end"
@@ -484,6 +523,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} + 1")}",
           "    end"
         ]
@@ -492,6 +532,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      #{scalar_state_update_expr('state', analysis, "#{scalar_state_expr('state', analysis)} - 1")}",
           "    end"
         ]
@@ -500,6 +541,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      #{scalar_state_update_expr('state', analysis, "#{support_module_name}.scalar_model_arg(name, args)")}",
           "    end"
         ]
@@ -508,6 +550,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      #{scalar_state_update_expr('state', analysis, source_expr)}",
           "    end"
         ]
@@ -516,6 +559,7 @@ module SpecToPbt
           "    def next_state(state, args)",
           "      override = #{support_module_name}.next_state_override(name)",
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
           "      state # TODO: #{guidance}",
           "    end"
         ]
@@ -530,6 +574,7 @@ module SpecToPbt
       lines = ["    def next_state(state, args)"]
       lines << "      override = #{support_module_name}.next_state_override(name)"
       lines << "      return #{support_module_name}.call_next_state_override(override, state, args) if override"
+      lines.concat(guard_failed_next_state_lines(analysis))
       lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if updates.any? { |update| update[:rhs_source_kind] == :arg }
       pairs = updates.map { |update| "#{update[:field]}: #{scalar_field_update_expr('state', update)}" }
       lines << "      state.merge(#{pairs.join(', ')})"
@@ -559,12 +604,17 @@ module SpecToPbt
         "      #{support_module_name}.before_run_hook&.call(sut)",
         "      payload = #{support_module_name}.adapt_args(name, args)",
         "      method_name = #{support_module_name}.resolve_method_name(name, :#{method_name})",
-        "      result = if payload.nil?",
-        "        sut.public_send(method_name)",
-        "      elsif payload.is_a?(Array)",
-        "        sut.public_send(method_name, *payload)",
-        "      else",
-        "        sut.public_send(method_name, payload)",
+        "      result = begin",
+        "        if payload.nil?",
+        "          sut.public_send(method_name)",
+        "        elsif payload.is_a?(Array)",
+        "          sut.public_send(method_name, *payload)",
+        "        else",
+        "          sut.public_send(method_name, payload)",
+        "        end",
+        "      rescue StandardError => error",
+        "        raise unless #{support_module_name}.guard_failure_policy(name) == :raise",
+        "        error",
         "      end",
         "      adapted_result = #{support_module_name}.adapt_result(name, result)",
         "      #{support_module_name}.after_run_hook&.call(sut, adapted_result)",
@@ -612,6 +662,7 @@ module SpecToPbt
       lines << "        result: result,"
       lines << "        sut: sut"
       lines << "      )"
+      lines.concat(guard_failure_verify_lines(analysis))
 
       unless collection_like_state?(analysis)
         lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
@@ -634,6 +685,48 @@ module SpecToPbt
       lines << "      [sut, args] && nil"
       lines << "    end"
       lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def guard_failed_next_state_lines(analysis)
+      return [] unless guard_supportable?(analysis)
+
+      ["      return state if #{support_module_name}.guard_failure_policy(name) && !guard_satisfied?(state, args)"]
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def guard_failure_verify_lines(analysis)
+      return [] unless guard_supportable?(analysis) && analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
+
+      expected_observed_expr =
+        if collection_like_state?(analysis) && structured_collection_state?(analysis)
+          "after_state[:#{analysis.state_field}]"
+        else
+          "after_state"
+        end
+
+      [
+        "      policy = #{support_module_name}.guard_failure_policy(name)",
+        "      guard_failed = policy && !guard_satisfied?(before_state, args)",
+        "      raise result if result.is_a?(StandardError) && !guard_failed",
+        "      if guard_failed",
+        "        observed = #{support_module_name}.observed_state(sut)",
+        "        case policy",
+        "        when :no_op",
+        "          raise \"Expected unchanged model state on guard failure\" unless after_state == before_state",
+        "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{expected_observed_expr}",
+        "        when :raise",
+        "          raise \"Expected guard failure to surface as an exception\" unless result.is_a?(StandardError)",
+        "          raise \"Expected unchanged model state on guard failure\" unless after_state == before_state",
+        "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{expected_observed_expr}",
+        "        else",
+        "          raise \"Unsupported guard_failure_policy: \#{policy.inspect}\"",
+        "        end",
+        "        return nil",
+        "      end"
+      ]
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -793,6 +886,10 @@ module SpecToPbt
         "      command_config(command_name)[:next_state_override]",
         "    end",
         "",
+        "    def guard_failure_policy(command_name)",
+        "      command_config(command_name)[:guard_failure_policy]",
+        "    end",
+        "",
         "    def call_applicable_override(override, state, args)",
         "      parameters = override.parameters",
         "      if parameters.any? { |kind, _name| kind == :rest }",
@@ -891,7 +988,8 @@ module SpecToPbt
       lines << "      # applicable_override: ->(state, args = nil) { true },"
       lines << "      # next_state_override: ->(state, args) { state },"
       if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
-        lines << "      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state"
+        lines << "      # guard_failure_policy: :no_op, # or :raise"
+        lines << "      # Suggested failure/no-op handling: if your API still exposes invalid calls, guard_failure_policy lets the scaffold assert unchanged state or captured exceptions before falling back to verify_override"
       end
       lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
       lines << "    }#{suffix}"
@@ -1360,6 +1458,17 @@ module SpecToPbt
       return true unless analysis
 
       ["seq", "set"].include?(analysis.state_field_multiplicity)
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def guard_supportable?(analysis)
+      return true if scalar_arg_bound_guard?(analysis)
+      return true if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+      return true if collection_like_state?(analysis) && analysis.guard_kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
+      return true if !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+
+      false
     end
 
     # @rbs analysis: StatefulPredicateAnalysis?

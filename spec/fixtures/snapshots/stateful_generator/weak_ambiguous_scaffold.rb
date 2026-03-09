@@ -67,6 +67,10 @@ RSpec.describe "weak (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }

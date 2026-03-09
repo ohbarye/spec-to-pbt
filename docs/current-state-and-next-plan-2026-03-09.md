@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `217 examples, 0 failures`
+- current result: `219 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -96,6 +96,7 @@ Major supported capabilities:
 - config-driven `next_state_override`
 - config-driven `verify_override`
 - config-driven `state_reader`
+- config-driven `guard_failure_policy` for inferred guarded commands
 - config-driven method remapping and arg adaptation
 - analyzer-driven `verify!` hints and safe executable checks
 - generation of `arguments(state)` where inferable
@@ -159,7 +160,8 @@ That separation is intentional and should be preserved.
 
 ## Known Boundaries
 
-- failure / no-op semantics are only partly automated
+- failure / no-op semantics are partly automated for inferred guarded commands via
+  `guard_failure_policy`, but still incomplete for richer domain-specific cases
 - derived state often still needs `next_state_override`
 - Alloy is still the only public input frontend
 - parsing is still regex-based, not full AST-based

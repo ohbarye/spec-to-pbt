@@ -279,10 +279,17 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Pbt.integer(min: 1, max: state)")
         expect(code).to include("def applicable?(state, args)")
         expect(code).to include("return BankAccountPbtSupport.call_applicable_override(override, state, args) if override")
+        expect(code).to include("return true if BankAccountPbtSupport.guard_failure_policy(name)")
+        expect(code).to include("def guard_satisfied?(state, args = nil)")
         expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
         expect(code).to include("current_value = state")
         expect(code).to include("delta.is_a?(Numeric) && delta.positive? && delta <= current_value")
+        expect(code).to include("return state if BankAccountPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)")
         expect(code).to include("state - delta")
+        expect(code).to include("policy = BankAccountPbtSupport.guard_failure_policy(name)")
+        expect(code).to include("guard_failed = policy && !guard_satisfied?(before_state, args)")
+        expect(code).to include('raise "Expected unchanged model state on guard failure" unless after_state == before_state')
+        expect(code).to include('raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)')
         expect(code).to include("Expected decremented value for Account#balance")
         expect(code).to include("Expected sufficient scalar state before decrement")
         expect(code).to include("Expected non-negative value for Account#balance")
@@ -296,7 +303,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state > 0 # inferred scalar precondition for withdraw")
         expect(code).to include("def next_state(state, args)\n      override = BankAccountPbtSupport.next_state_override(name)\n      return BankAccountPbtSupport.call_next_state_override(override, state, args) if override\n      state + 1")
         expect(code).to include("raise \"Expected incremented value for Account#balance\" unless after_value == before_value + 1")
-        expect(code).to include("def next_state(state, args)\n      override = BankAccountPbtSupport.next_state_override(name)\n      return BankAccountPbtSupport.call_next_state_override(override, state, args) if override\n      state - 1")
+        expect(code).to include("def next_state(state, args)\n      override = BankAccountPbtSupport.next_state_override(name)\n      return BankAccountPbtSupport.call_next_state_override(override, state, args) if override\n      return state if BankAccountPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)\n      state - 1")
         expect(code).to include("raise \"Expected decremented value for Account#balance\" unless after_value == before_value - 1")
       end
     end
@@ -484,9 +491,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include("class CheckoutCommand")
-        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      state.merge(available: state[:available] - 1, checked_out: state[:checked_out] + 1)")
+        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      return state if ConnectionPoolPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)\n      state.merge(available: state[:available] - 1, checked_out: state[:checked_out] + 1)")
         expect(code).to include("class CheckinCommand")
-        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      state.merge(available: state[:available] + 1, checked_out: state[:checked_out] - 1)")
+        expect(code).to include("def next_state(state, args)\n      override = ConnectionPoolPbtSupport.next_state_override(name)\n      return ConnectionPoolPbtSupport.call_next_state_override(override, state, args) if override\n      return state if ConnectionPoolPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)\n      state.merge(available: state[:available] + 1, checked_out: state[:checked_out] - 1)")
       end
     end
 
@@ -648,7 +655,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Suggested real API methods: :authorize, :reserve, :place_hold")
         expect(code).to include("Suggested real API methods: :settle")
         expect(code).to include("Suggested real API methods: :release_hold, :void_authorization")
-        expect(code).to include("Suggested failure/no-op handling: if your API still exposes invalid calls")
+        expect(code).to include("# guard_failure_policy: :no_op, # or :raise")
+        expect(code).to include("guard_failure_policy lets the scaffold assert unchanged state or captured exceptions")
         expect(code).to include('Expected observed reservation state to match model')
       end
     end
@@ -665,7 +673,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
         expect(code).to include("# initial_state: { source_balance: 0, target_balance: 0 }")
         expect(code).to include("Suggested real API methods: :move_funds, :transfer_amount, :post_transfer")
-        expect(code).to include("Suggested failure/no-op handling: if your API still exposes invalid calls")
+        expect(code).to include("# guard_failure_policy: :no_op, # or :raise")
+        expect(code).to include("guard_failure_policy lets the scaffold assert unchanged state or captured exceptions")
         expect(code).to include('Expected observed account balances to match model')
       end
     end

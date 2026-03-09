@@ -67,6 +67,10 @@ RSpec.describe "thermostat (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -200,12 +204,17 @@ RSpec.describe "thermostat (stateful scaffold)" do
       ThermostatPbtSupport.before_run_hook&.call(sut)
       payload = ThermostatPbtSupport.adapt_args(name, args)
       method_name = ThermostatPbtSupport.resolve_method_name(name, :set_target)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless ThermostatPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = ThermostatPbtSupport.adapt_result(name, result)
       ThermostatPbtSupport.after_run_hook&.call(sut, adapted_result)

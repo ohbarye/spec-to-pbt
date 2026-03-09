@@ -67,6 +67,10 @@ RSpec.describe "bank_account (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -201,12 +205,17 @@ RSpec.describe "bank_account (stateful scaffold)" do
       BankAccountPbtSupport.before_run_hook&.call(sut)
       payload = BankAccountPbtSupport.adapt_args(name, args)
       method_name = BankAccountPbtSupport.resolve_method_name(name, :deposit)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BankAccountPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BankAccountPbtSupport.adapt_result(name, result)
       BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -272,12 +281,17 @@ RSpec.describe "bank_account (stateful scaffold)" do
       BankAccountPbtSupport.before_run_hook&.call(sut)
       payload = BankAccountPbtSupport.adapt_args(name, args)
       method_name = BankAccountPbtSupport.resolve_method_name(name, :deposit_amount)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BankAccountPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BankAccountPbtSupport.adapt_result(name, result)
       BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -330,12 +344,18 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def applicable?(state)
       override = BankAccountPbtSupport.applicable_override(name)
       return BankAccountPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if BankAccountPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state > 0 # inferred scalar precondition for withdraw
     end
 
     def next_state(state, args)
       override = BankAccountPbtSupport.next_state_override(name)
       return BankAccountPbtSupport.call_next_state_override(override, state, args) if override
+      return state if BankAccountPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state - 1
     end
 
@@ -343,12 +363,17 @@ RSpec.describe "bank_account (stateful scaffold)" do
       BankAccountPbtSupport.before_run_hook&.call(sut)
       payload = BankAccountPbtSupport.adapt_args(name, args)
       method_name = BankAccountPbtSupport.resolve_method_name(name, :withdraw)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BankAccountPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BankAccountPbtSupport.adapt_result(name, result)
       BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -375,6 +400,24 @@ RSpec.describe "bank_account (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = BankAccountPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BankAccountPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
@@ -401,6 +444,11 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def applicable?(state, args)
       override = BankAccountPbtSupport.applicable_override(name)
       return BankAccountPbtSupport.call_applicable_override(override, state, args) if override
+      return true if BankAccountPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       current_value = state
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -409,6 +457,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def next_state(state, args)
       override = BankAccountPbtSupport.next_state_override(name)
       return BankAccountPbtSupport.call_next_state_override(override, state, args) if override
+      return state if BankAccountPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       state - delta
     end
@@ -417,12 +466,17 @@ RSpec.describe "bank_account (stateful scaffold)" do
       BankAccountPbtSupport.before_run_hook&.call(sut)
       payload = BankAccountPbtSupport.adapt_args(name, args)
       method_name = BankAccountPbtSupport.resolve_method_name(name, :withdraw_amount)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BankAccountPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BankAccountPbtSupport.adapt_result(name, result)
       BankAccountPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -449,6 +503,24 @@ RSpec.describe "bank_account (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = BankAccountPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BankAccountPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Account#balance
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks

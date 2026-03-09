@@ -353,4 +353,204 @@ RSpec.describe "Stateful scaffold contract" do
     expect(stdout).to include("1 example")
     expect(stdout).to include("0 failures")
   end
+
+  it "supports config-driven no-op guard failure handling" do
+    input_file = File.join(fixtures_dir, "bank_account.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "bank_account_pbt.rb")
+    config_file = File.join(output_dir, "bank_account_pbt_config.rb")
+    impl_file = File.join(output_dir, "bank_account_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class BankAccountImpl
+        attr_reader :balance
+
+        def initialize
+          @balance = 0
+        end
+
+        def withdraw(amount)
+          @balance -= amount if amount <= @balance
+          @balance
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      BankAccountPbtConfig = {
+        sut_factory: -> { BankAccountImpl.new },
+        initial_state: 0,
+        command_mappings: {
+          withdraw_amount: {
+            method: :withdraw,
+            guard_failure_policy: :no_op
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.balance }
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        define_singleton_method(:nil) { nil }
+
+        def self.integer(**_kwargs) = 1
+        def self.string = "x"
+        def self.array(value) = [value]
+        def self.tuple(*values) = values
+
+        def self.assert(worker:, num_runs:, seed:)
+          raise "unexpected assert kwargs" unless worker == :none && num_runs == 5 && seed == 1
+
+          yield
+        end
+
+        def self.stateful(model:, sut:, max_steps:, **extra)
+          raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
+          raise "unexpected max_steps" unless max_steps == 20
+
+          state = model.initial_state
+          command = model.commands(state).find { |candidate| candidate.name == :withdraw_amount }
+          raise "withdraw_amount command missing" unless command
+
+          args = command.arguments(state)
+          raise "guard failure policy should keep command applicable" unless command.applicable?(state, args)
+
+          instance = sut.call
+          after_state = command.next_state(state, args)
+          result = command.run!(instance, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: instance)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Generated scaffold with no-op guard failure handling failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
+
+  it "supports config-driven raising guard failure handling" do
+    input_file = File.join(fixtures_dir, "bank_account.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "bank_account_pbt.rb")
+    config_file = File.join(output_dir, "bank_account_pbt_config.rb")
+    impl_file = File.join(output_dir, "bank_account_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class BankAccountImpl
+        attr_reader :balance
+
+        def initialize
+          @balance = 0
+        end
+
+        def withdraw(amount)
+          raise RangeError, "insufficient funds" if amount > @balance
+
+          @balance -= amount
+          @balance
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      BankAccountPbtConfig = {
+        sut_factory: -> { BankAccountImpl.new },
+        initial_state: 0,
+        command_mappings: {
+          withdraw_amount: {
+            method: :withdraw,
+            guard_failure_policy: :raise
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.balance }
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        define_singleton_method(:nil) { nil }
+
+        def self.integer(**_kwargs) = 1
+        def self.string = "x"
+        def self.array(value) = [value]
+        def self.tuple(*values) = values
+
+        def self.assert(worker:, num_runs:, seed:)
+          raise "unexpected assert kwargs" unless worker == :none && num_runs == 5 && seed == 1
+
+          yield
+        end
+
+        def self.stateful(model:, sut:, max_steps:, **extra)
+          raise "unexpected Pbt.stateful kwargs: \#{extra.keys.inspect}" unless extra.empty?
+          raise "unexpected max_steps" unless max_steps == 20
+
+          state = model.initial_state
+          command = model.commands(state).find { |candidate| candidate.name == :withdraw_amount }
+          raise "withdraw_amount command missing" unless command
+
+          args = command.arguments(state)
+          raise "guard failure policy should keep command applicable" unless command.applicable?(state, args)
+
+          instance = sut.call
+          after_state = command.next_state(state, args)
+          result = command.run!(instance, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: instance)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Generated scaffold with raising guard failure handling failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
 end

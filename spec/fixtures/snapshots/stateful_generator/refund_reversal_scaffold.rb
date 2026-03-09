@@ -67,6 +67,10 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -203,12 +207,17 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
       RefundReversalPbtSupport.before_run_hook&.call(sut)
       payload = RefundReversalPbtSupport.adapt_args(name, args)
       method_name = RefundReversalPbtSupport.resolve_method_name(name, :capture)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless RefundReversalPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
       RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -261,6 +270,11 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def applicable?(state, args)
       override = RefundReversalPbtSupport.applicable_override(name)
       return RefundReversalPbtSupport.call_applicable_override(override, state, args) if override
+      return true if RefundReversalPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
       current_value = state[:captured]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -269,6 +283,7 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def next_state(state, args)
       override = RefundReversalPbtSupport.next_state_override(name)
       return RefundReversalPbtSupport.call_next_state_override(override, state, args) if override
+      return state if RefundReversalPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
       state.merge(captured: state[:captured] - delta, refunded: state[:refunded] + delta)
     end
@@ -277,12 +292,17 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
       RefundReversalPbtSupport.before_run_hook&.call(sut)
       payload = RefundReversalPbtSupport.adapt_args(name, args)
       method_name = RefundReversalPbtSupport.resolve_method_name(name, :refund)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless RefundReversalPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
       RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -308,6 +328,24 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = RefundReversalPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = RefundReversalPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Settlement#captured
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -342,6 +380,11 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def applicable?(state, args)
       override = RefundReversalPbtSupport.applicable_override(name)
       return RefundReversalPbtSupport.call_applicable_override(override, state, args) if override
+      return true if RefundReversalPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
       current_value = state[:refunded]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -350,6 +393,7 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def next_state(state, args)
       override = RefundReversalPbtSupport.next_state_override(name)
       return RefundReversalPbtSupport.call_next_state_override(override, state, args) if override
+      return state if RefundReversalPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = RefundReversalPbtSupport.scalar_model_arg(name, args)
       state.merge(captured: state[:captured] + delta, refunded: state[:refunded] - delta)
     end
@@ -358,12 +402,17 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
       RefundReversalPbtSupport.before_run_hook&.call(sut)
       payload = RefundReversalPbtSupport.adapt_args(name, args)
       method_name = RefundReversalPbtSupport.resolve_method_name(name, :reverse)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless RefundReversalPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = RefundReversalPbtSupport.adapt_result(name, result)
       RefundReversalPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -389,6 +438,24 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = RefundReversalPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = RefundReversalPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Settlement#refunded
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts

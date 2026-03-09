@@ -67,6 +67,10 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -202,12 +206,17 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       JobQueueRetryDeadLetterPbtSupport.before_run_hook&.call(sut)
       payload = JobQueueRetryDeadLetterPbtSupport.adapt_args(name, args)
       method_name = JobQueueRetryDeadLetterPbtSupport.resolve_method_name(name, :enqueue)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
       JobQueueRetryDeadLetterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -260,12 +269,18 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def applicable?(state)
       override = JobQueueRetryDeadLetterPbtSupport.applicable_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:ready] > 0 # inferred scalar precondition for dispatch
     end
 
     def next_state(state, args)
       override = JobQueueRetryDeadLetterPbtSupport.next_state_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_next_state_override(override, state, args) if override
+      return state if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(ready: state[:ready] - 1, in_flight: state[:in_flight] + 1)
     end
 
@@ -273,12 +288,17 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       JobQueueRetryDeadLetterPbtSupport.before_run_hook&.call(sut)
       payload = JobQueueRetryDeadLetterPbtSupport.adapt_args(name, args)
       method_name = JobQueueRetryDeadLetterPbtSupport.resolve_method_name(name, :dispatch)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
       JobQueueRetryDeadLetterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -304,6 +324,24 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Jobs#ready
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
@@ -337,12 +375,18 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def applicable?(state)
       override = JobQueueRetryDeadLetterPbtSupport.applicable_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:in_flight] > 0 # inferred scalar precondition for ack
     end
 
     def next_state(state, args)
       override = JobQueueRetryDeadLetterPbtSupport.next_state_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_next_state_override(override, state, args) if override
+      return state if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(in_flight: state[:in_flight] - 1)
     end
 
@@ -350,12 +394,17 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       JobQueueRetryDeadLetterPbtSupport.before_run_hook&.call(sut)
       payload = JobQueueRetryDeadLetterPbtSupport.adapt_args(name, args)
       method_name = JobQueueRetryDeadLetterPbtSupport.resolve_method_name(name, :ack)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
       JobQueueRetryDeadLetterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -381,6 +430,24 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Jobs#in_flight
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
@@ -407,12 +474,18 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def applicable?(state)
       override = JobQueueRetryDeadLetterPbtSupport.applicable_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:in_flight] > 0 # inferred scalar precondition for retry
     end
 
     def next_state(state, args)
       override = JobQueueRetryDeadLetterPbtSupport.next_state_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_next_state_override(override, state, args) if override
+      return state if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(ready: state[:ready] + 1, in_flight: state[:in_flight] - 1)
     end
 
@@ -420,12 +493,17 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       JobQueueRetryDeadLetterPbtSupport.before_run_hook&.call(sut)
       payload = JobQueueRetryDeadLetterPbtSupport.adapt_args(name, args)
       method_name = JobQueueRetryDeadLetterPbtSupport.resolve_method_name(name, :retry)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
       JobQueueRetryDeadLetterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -451,6 +529,24 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Jobs#in_flight
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
@@ -481,12 +577,18 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def applicable?(state)
       override = JobQueueRetryDeadLetterPbtSupport.applicable_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:in_flight] > 0 # inferred scalar precondition for dead_letter
     end
 
     def next_state(state, args)
       override = JobQueueRetryDeadLetterPbtSupport.next_state_override(name)
       return JobQueueRetryDeadLetterPbtSupport.call_next_state_override(override, state, args) if override
+      return state if JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(in_flight: state[:in_flight] - 1, dead_letter: state[:dead_letter] + 1)
     end
 
@@ -494,12 +596,17 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       JobQueueRetryDeadLetterPbtSupport.before_run_hook&.call(sut)
       payload = JobQueueRetryDeadLetterPbtSupport.adapt_args(name, args)
       method_name = JobQueueRetryDeadLetterPbtSupport.resolve_method_name(name, :dead_letter)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
       JobQueueRetryDeadLetterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -525,6 +632,24 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Jobs#in_flight
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks

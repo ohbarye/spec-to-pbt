@@ -67,6 +67,10 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -189,6 +193,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:available]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -197,6 +206,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] - delta, held: state[:held] + delta)
     end
@@ -205,12 +215,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :authorize)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -236,6 +251,24 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#available
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -270,6 +303,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:held]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -278,6 +316,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] + delta, held: state[:held] - delta)
     end
@@ -286,12 +325,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :void)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -317,6 +361,24 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#held
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -351,6 +413,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:held]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -359,6 +426,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] + delta, held: state[:held] - delta)
     end
@@ -367,12 +435,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :expire)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -398,6 +471,24 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#held
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts

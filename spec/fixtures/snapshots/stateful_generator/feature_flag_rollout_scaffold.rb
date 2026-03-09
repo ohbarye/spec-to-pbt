@@ -67,6 +67,10 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -202,12 +206,17 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       FeatureFlagRolloutPbtSupport.before_run_hook&.call(sut)
       payload = FeatureFlagRolloutPbtSupport.adapt_args(name, args)
       method_name = FeatureFlagRolloutPbtSupport.resolve_method_name(name, :enable)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
       FeatureFlagRolloutPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -272,12 +281,17 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       FeatureFlagRolloutPbtSupport.before_run_hook&.call(sut)
       payload = FeatureFlagRolloutPbtSupport.adapt_args(name, args)
       method_name = FeatureFlagRolloutPbtSupport.resolve_method_name(name, :disable)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
       FeatureFlagRolloutPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -342,12 +356,17 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       FeatureFlagRolloutPbtSupport.before_run_hook&.call(sut)
       payload = FeatureFlagRolloutPbtSupport.adapt_args(name, args)
       method_name = FeatureFlagRolloutPbtSupport.resolve_method_name(name, :rollout)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
       FeatureFlagRolloutPbtSupport.after_run_hook&.call(sut, adapted_result)

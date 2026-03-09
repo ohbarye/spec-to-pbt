@@ -67,6 +67,10 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -202,12 +206,17 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       LedgerProjectionPbtSupport.before_run_hook&.call(sut)
       payload = LedgerProjectionPbtSupport.adapt_args(name, args)
       method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_credit)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
       LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -272,12 +281,17 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       LedgerProjectionPbtSupport.before_run_hook&.call(sut)
       payload = LedgerProjectionPbtSupport.adapt_args(name, args)
       method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_debit)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
       LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)

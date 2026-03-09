@@ -67,6 +67,10 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -188,12 +192,18 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
     def applicable?(state)
       override = RateLimiterPbtSupport.applicable_override(name)
       return RateLimiterPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if RateLimiterPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:remaining] > 0 # inferred scalar precondition for allow
     end
 
     def next_state(state, args)
       override = RateLimiterPbtSupport.next_state_override(name)
       return RateLimiterPbtSupport.call_next_state_override(override, state, args) if override
+      return state if RateLimiterPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(remaining: state[:remaining] - 1)
     end
 
@@ -201,12 +211,17 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
       RateLimiterPbtSupport.before_run_hook&.call(sut)
       payload = RateLimiterPbtSupport.adapt_args(name, args)
       method_name = RateLimiterPbtSupport.resolve_method_name(name, :allow)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless RateLimiterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = RateLimiterPbtSupport.adapt_result(name, result)
       RateLimiterPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -232,6 +247,24 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = RateLimiterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = RateLimiterPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Limiter#remaining
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
@@ -274,12 +307,17 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
       RateLimiterPbtSupport.before_run_hook&.call(sut)
       payload = RateLimiterPbtSupport.adapt_args(name, args)
       method_name = RateLimiterPbtSupport.resolve_method_name(name, :reset)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless RateLimiterPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = RateLimiterPbtSupport.adapt_result(name, result)
       RateLimiterPbtSupport.after_run_hook&.call(sut, adapted_result)

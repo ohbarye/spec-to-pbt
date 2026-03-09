@@ -67,6 +67,10 @@ RSpec.describe "bag (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -185,12 +189,18 @@ RSpec.describe "bag (stateful scaffold)" do
     def applicable?(state)
       override = BagPbtSupport.applicable_override(name)
       return BagPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if BagPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       !state.empty? # inferred precondition for drop_last
     end
 
     def next_state(state, args)
       override = BagPbtSupport.next_state_override(name)
       return BagPbtSupport.call_next_state_override(override, state, args) if override
+      return state if BagPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       # Inferred transition target: Bag#elems
       state[0...-1]
     end
@@ -199,12 +209,17 @@ RSpec.describe "bag (stateful scaffold)" do
       BagPbtSupport.before_run_hook&.call(sut)
       payload = BagPbtSupport.adapt_args(name, args)
       method_name = BagPbtSupport.resolve_method_name(name, :drop_last)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BagPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BagPbtSupport.adapt_result(name, result)
       BagPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -228,6 +243,24 @@ RSpec.describe "bag (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = BagPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BagPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # Inferred collection target: Bag#elems
       before_items = before_state
       after_items = after_state

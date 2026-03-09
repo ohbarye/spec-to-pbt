@@ -67,6 +67,10 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -186,12 +190,18 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
+      return true if BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue
     end
 
     def next_state(state, args)
       override = BoundedQueuePbtSupport.next_state_override(name)
       return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
+      return state if BoundedQueuePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       # Inferred transition target: Queue#elements
       state.merge(elements: state[:elements] + [args])
     end
@@ -200,12 +210,17 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       BoundedQueuePbtSupport.before_run_hook&.call(sut)
       payload = BoundedQueuePbtSupport.adapt_args(name, args)
       method_name = BoundedQueuePbtSupport.resolve_method_name(name, :enqueue)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BoundedQueuePbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
       BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -232,6 +247,24 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BoundedQueuePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # Inferred collection target: Queue#elements
       before_items = before_state[:elements]
       after_items = after_state[:elements]
@@ -260,12 +293,18 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
+      return true if BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       !state[:elements].empty? # inferred precondition for dequeue
     end
 
     def next_state(state, args)
       override = BoundedQueuePbtSupport.next_state_override(name)
       return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
+      return state if BoundedQueuePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       # Inferred transition target: Queue#elements
       state.merge(elements: state[:elements].drop(1))
     end
@@ -274,12 +313,17 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       BoundedQueuePbtSupport.before_run_hook&.call(sut)
       payload = BoundedQueuePbtSupport.adapt_args(name, args)
       method_name = BoundedQueuePbtSupport.resolve_method_name(name, :dequeue)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless BoundedQueuePbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
       BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -306,6 +350,24 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BoundedQueuePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # Inferred collection target: Queue#elements
       before_items = before_state[:elements]
       after_items = after_state[:elements]

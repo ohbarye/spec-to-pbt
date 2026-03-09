@@ -80,6 +80,7 @@ The generated config now includes field-aware suggestions for:
 - `verify_context[:state_reader]`
 - `initial_state`
 - `next_state_override` for cases where the scaffold needs a richer model transition than the inferred default
+- `guard_failure_policy` for inferred guarded commands when you want invalid calls to be treated as `:no_op` or `:raise`
 
 The config can map spec command names to real Ruby APIs, for example:
 
@@ -105,6 +106,9 @@ StackPbtConfig = {
 `verify_context[:state_reader]` is configured.
 When only `model_arg_adapter` is configured, the scaffold reuses it for `run!` as the
 default `arg_adapter` so model/SUT arguments stay aligned unless you explicitly split them.
+For inferred guarded commands, `guard_failure_policy: :no_op` or `:raise` lets the
+generated scaffold keep the command runnable while asserting unchanged model/observed
+state or captured exceptions on guard failure.
 
 The scaffold now includes analyzer-driven hints such as:
 

@@ -67,6 +67,10 @@ RSpec.describe "cache (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -201,12 +205,17 @@ RSpec.describe "cache (stateful scaffold)" do
       CachePbtSupport.before_run_hook&.call(sut)
       payload = CachePbtSupport.adapt_args(name, args)
       method_name = CachePbtSupport.resolve_method_name(name, :rewrite)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless CachePbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = CachePbtSupport.adapt_result(name, result)
       CachePbtSupport.after_run_hook&.call(sut, adapted_result)

@@ -67,6 +67,10 @@ RSpec.describe "stack (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -200,12 +204,17 @@ RSpec.describe "stack (stateful scaffold)" do
       StackPbtSupport.before_run_hook&.call(sut)
       payload = StackPbtSupport.adapt_args(name, args)
       method_name = StackPbtSupport.resolve_method_name(name, :push_adds_element)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless StackPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = StackPbtSupport.adapt_result(name, result)
       StackPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -261,12 +270,18 @@ RSpec.describe "stack (stateful scaffold)" do
     def applicable?(state)
       override = StackPbtSupport.applicable_override(name)
       return StackPbtSupport.call_applicable_override(override, state, nil) if override
+      return true if StackPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
+
+    def guard_satisfied?(state, _args = nil)
       !state.empty? # inferred precondition for pop_removes_element
     end
 
     def next_state(state, args)
       override = StackPbtSupport.next_state_override(name)
       return StackPbtSupport.call_next_state_override(override, state, args) if override
+      return state if StackPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       # Inferred transition target: Stack#elements
       state[0...-1]
     end
@@ -275,12 +290,17 @@ RSpec.describe "stack (stateful scaffold)" do
       StackPbtSupport.before_run_hook&.call(sut)
       payload = StackPbtSupport.adapt_args(name, args)
       method_name = StackPbtSupport.resolve_method_name(name, :pop_removes_element)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless StackPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = StackPbtSupport.adapt_result(name, result)
       StackPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -307,6 +327,24 @@ RSpec.describe "stack (stateful scaffold)" do
         result: result,
         sut: sut
       )
+      policy = StackPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = StackPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # Inferred collection target: Stack#elements
       before_items = before_state
       after_items = after_state
