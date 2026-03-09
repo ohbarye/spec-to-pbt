@@ -254,7 +254,7 @@ RSpec.describe "membership_queue (stateful scaffold)" do
       # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_first
       # Related Alloy property predicates: EnqueueContains
       # Related pattern hints: membership
-      # Derived verify hints: respect_non_empty_guard, check_membership_semantics
+      # Derived verify hints: respect_non_empty_guard, check_membership_semantics, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -272,6 +272,7 @@ RSpec.describe "membership_queue (stateful scaffold)" do
       after_items = after_state
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: verify membership semantics for appended/removed elements where safe
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected

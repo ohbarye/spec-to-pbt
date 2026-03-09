@@ -185,7 +185,7 @@ RSpec.describe "bag (stateful scaffold)" do
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b.elems>0 implies#b'.elems=sub[#b.elems,1]"
       # Analyzer hints: state_field="elems", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_last
-      # Derived verify hints: respect_non_empty_guard
+      # Derived verify hints: respect_non_empty_guard, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -202,6 +202,7 @@ RSpec.describe "bag (stateful scaffold)" do
       before_items = before_state
       after_items = after_state
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected

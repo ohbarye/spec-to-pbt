@@ -189,7 +189,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       # Related Alloy assertions: QueueBounds
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
       # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -210,6 +210,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       raise "Expected available capacity before append" unless before_items.length < before_capacity
       expected_size = before_items.length + 1
       raise "Expected size to increase by 1" unless after_items.length == expected_size
@@ -260,7 +261,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       # Related Alloy assertions: QueueBounds
       # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
       # Related pattern hints: size, empty
-      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -281,6 +282,7 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: verify empty-state semantics for the inferred target
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.first
       raise "Expected dequeued value to match model" unless result == expected

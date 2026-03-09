@@ -278,6 +278,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(withdraw_amount.scalar_update_kind).to eq(:decrement_like)
         expect(withdraw_amount.rhs_source_kind).to eq(:arg)
         expect(withdraw_amount.state_update_shape).to eq(:decrement)
+        expect(withdraw_amount.derived_verify_hints).to include(:check_guard_failure_semantics)
         expect(withdraw.related_assertion_names).to eq(["AccountProperties"])
       end
     end
@@ -320,12 +321,15 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(hold.guard_kind).to eq(:arg_within_state)
         expect(hold.state_field).to eq("available")
+        expect(hold.derived_verify_hints).to include(:check_guard_failure_semantics)
         expect(hold.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :decrement], ["held", :increment]])
         expect(release.guard_kind).to eq(:arg_within_state)
         expect(release.state_field).to eq("held")
+        expect(release.derived_verify_hints).to include(:check_guard_failure_semantics)
         expect(release.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["held", :decrement]])
         expect(capture.guard_kind).to eq(:arg_within_state)
         expect(capture.state_field).to eq("held")
+        expect(capture.derived_verify_hints).to include(:check_guard_failure_semantics)
         expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["held", :decrement]])
       end
     end
@@ -339,6 +343,7 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
 
         expect(transfer.guard_kind).to eq(:arg_within_state)
         expect(transfer.state_field).to eq("source_balance")
+        expect(transfer.derived_verify_hints).to include(:check_guard_failure_semantics)
         expect(transfer.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["source_balance", :decrement], ["target_balance", :increment]])
       end
     end

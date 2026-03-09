@@ -23,6 +23,7 @@ StackPbtConfig = {
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
+      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
     }
   },

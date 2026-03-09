@@ -578,6 +578,11 @@ module SpecToPbt
       hints << :check_size_semantics if related_pattern_hints.include?(:size)
       hints << :check_membership_semantics if related_pattern_hints.include?(:membership)
       hints << :check_non_negative_scalar_state if related_texts.any? { |text| text.match?(/NonNegative|>=0/) }
+      predicate = @spec.properties.find { |item| item.name == analysis.predicate_name }
+      predicate_text = predicate ? normalized_body_for(predicate) : ""
+      if analysis.guard_kind != :none && predicate_text.include?("implies")
+        hints << :check_guard_failure_semantics
+      end
 
       hints.uniq
     end

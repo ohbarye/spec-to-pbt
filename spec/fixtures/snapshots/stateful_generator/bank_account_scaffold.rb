@@ -328,7 +328,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -346,6 +346,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       before_value = before_state
       after_value = after_state
       raise "Expected decremented value for Account#balance" unless after_value == before_value - 1
@@ -399,7 +400,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, Withdraw, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -417,6 +418,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       delta = BankAccountPbtSupport.scalar_model_arg(name, args)
       raise "Expected sufficient scalar state before decrement" unless delta <= before_state
       before_value = before_state

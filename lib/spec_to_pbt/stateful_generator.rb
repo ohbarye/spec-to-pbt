@@ -809,6 +809,9 @@ module SpecToPbt
       lines << "      # model_arg_adapter: #{suggested_model_arg_adapter_example(analysis)}"
       lines << "      # result_adapter: ->(result) { result },"
       lines << "      # applicable_override: ->(state, args = nil) { true },"
+      if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
+        lines << "      # Suggested failure/no-op handling: if your API still exposes invalid calls, use applicable_override or verify_override to assert rejection or unchanged observed state"
+      end
       lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
       lines << "    }#{suffix}"
       lines
@@ -1233,6 +1236,9 @@ module SpecToPbt
       end
       if analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
         lines << "      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state"
+      end
+      if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
+        lines << "      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged"
       end
 
       lines

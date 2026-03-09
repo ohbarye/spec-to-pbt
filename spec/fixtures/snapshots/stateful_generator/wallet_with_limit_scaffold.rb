@@ -254,7 +254,7 @@ RSpec.describe "wallet_with_limit (stateful scaffold)" do
       # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Deposit, NonNegative
       # Related pattern hints: size
-      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
+      # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -272,6 +272,7 @@ RSpec.describe "wallet_with_limit (stateful scaffold)" do
       # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       before_value = before_state[:balance]
       after_value = after_state[:balance]
       raise "Expected decremented value for Wallet#balance" unless after_value == before_value - 1

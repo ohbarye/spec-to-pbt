@@ -262,7 +262,7 @@ RSpec.describe "stack (stateful scaffold)" do
       # Related Alloy assertions: StackProperties
       # Related Alloy property predicates: PushPopIdentity, IsEmpty, LIFO
       # Related pattern hints: roundtrip, size, empty, ordering
-      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_ordering_semantics, check_roundtrip_pairing, check_size_semantics
+      # Derived verify hints: respect_non_empty_guard, check_empty_semantics, check_ordering_semantics, check_roundtrip_pairing, check_size_semantics, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -283,6 +283,7 @@ RSpec.describe "stack (stateful scaffold)" do
       # Derived from related property patterns: verify ordering semantics (for example LIFO/FIFO) where relevant
       # Derived from related property patterns: verify paired-command roundtrip behavior against sibling commands
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       raise "Expected non-empty state before removal" if before_items.empty?
       expected = before_state.last
       raise "Expected popped value to match model" unless result == expected

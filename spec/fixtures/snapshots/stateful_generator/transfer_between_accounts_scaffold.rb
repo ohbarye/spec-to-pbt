@@ -190,7 +190,7 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
       # Alloy predicate body (preview): "#a.source_balance>=amount implies#a'.source_balance=sub[#a.source_balance,amount]and#a'.target_balance=add[#a.target_balance,amount]"
       # Analyzer hints: state_field="source_balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: NonNegativeSource
-      # Derived verify hints: check_non_negative_scalar_state
+      # Derived verify hints: check_non_negative_scalar_state, check_guard_failure_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -206,6 +206,7 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Accounts#source_balance
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       delta = TransferBetweenAccountsPbtSupport.scalar_model_arg(name, args)
       before_source_balance = before_state[:source_balance]
       after_source_balance = after_state[:source_balance]
