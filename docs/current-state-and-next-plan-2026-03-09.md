@@ -206,6 +206,8 @@ Why it matters:
 
 - several strong example domains now exist
 - the next step is deciding what should become first-class generator behavior
+- there is now a concrete pattern inventory to drive that decision instead of
+  relying on memory
 
 Success looks like:
 
@@ -233,5 +235,7 @@ Recommended restart sequence:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-roadmap-2026-03-04.md`
 - retrospective:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-retrospective-2026-03-09.md`
+- domain pattern catalog:
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
 - `pbt` protocol history:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/pbt-stateful-api-feedback-2026-03-07.md`

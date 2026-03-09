@@ -6,6 +6,8 @@ Project status / handoff docs:
 
 - current state and restart guide:
   - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
+- domain pattern catalog:
+  - [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
