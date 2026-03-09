@@ -229,7 +229,7 @@ RSpec.describe "bag (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b.elems>0 implies#b'.elems=sub[#b.elems,1]"
-      # Analyzer hints: state_field="elems", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:remove_last
+      # Analyzer hints: state_field="elems", size_delta=-1, transition_kind=:pop, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, guard_field="elems", rhs_source_kind=:unknown, state_update_shape=:remove_last
       # Derived verify hints: respect_non_empty_guard, check_guard_failure_semantics
       policy = BagPbtSupport.guard_failure_policy(name)
       guard_failed = policy && !guard_satisfied?(before_state, args)

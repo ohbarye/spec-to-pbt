@@ -226,7 +226,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#j'.ready=add[#j.ready,1]"
-      # Analyzer hints: state_field="ready", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:increment
+      # Analyzer hints: state_field="ready", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, guard_field="ready", rhs_source_kind=:unknown, state_update_shape=:increment
       # Related Alloy property predicates: Dispatch, Ack, Retry, DeadLetter, NonNegativeReady
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
@@ -312,7 +312,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#j.ready>0 implies#j'.ready=sub[#j.ready,1]and#j'.in_flight=add[#j.in_flight,1]"
-      # Analyzer hints: state_field="ready", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="ready", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="ready", rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Enqueue, Ack, Retry, DeadLetter, NonNegativeReady
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -422,7 +422,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#j.in_flight>0 implies#j'.in_flight=sub[#j.in_flight,1]"
-      # Analyzer hints: state_field="in_flight", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="in_flight", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="in_flight", rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Enqueue, Dispatch, Retry, DeadLetter
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
@@ -525,7 +525,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#j.in_flight>0 implies#j'.ready=add[#j.ready,1]and#j'.in_flight=sub[#j.in_flight,1]"
-      # Analyzer hints: state_field="in_flight", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="in_flight", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="in_flight", rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Enqueue, Dispatch, Ack, DeadLetter
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
@@ -632,7 +632,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#j.in_flight>0 implies#j'.in_flight=sub[#j.in_flight,1]and#j'.dead_letter=add[#j.dead_letter,1]"
-      # Analyzer hints: state_field="in_flight", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="in_flight", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="in_flight", rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Enqueue, Dispatch, Ack, Retry
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics

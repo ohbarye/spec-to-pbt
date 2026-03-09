@@ -12,7 +12,7 @@ HoldCaptureReleasePbtConfig = {
       method: :hold,
       # Suggested real API methods: :authorize, :reserve, :place_hold
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
@@ -24,7 +24,7 @@ HoldCaptureReleasePbtConfig = {
       method: :capture,
       # Suggested real API methods: :settle
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
@@ -36,7 +36,7 @@ HoldCaptureReleasePbtConfig = {
       method: :release,
       # Suggested real API methods: :release_hold, :void_authorization
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },

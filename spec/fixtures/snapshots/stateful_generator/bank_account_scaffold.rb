@@ -225,7 +225,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a'.balance=#a.balance+1"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:increment
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, guard_field="balance", rhs_source_kind=:state_field, state_update_shape=:increment
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: DepositAmount, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
@@ -305,7 +305,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a'.balance=add[#a.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
+      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:high, guard_kind=:none, guard_field="balance", rhs_source_kind=:arg, state_update_shape=:increment
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, Withdraw, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
@@ -391,7 +391,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.balance>0 implies#a'.balance=#a.balance-1"
-      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, rhs_source_kind=:state_field, state_update_shape=:decrement
+      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:non_empty, guard_field="balance", rhs_source_kind=:state_field, state_update_shape=:decrement
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, WithdrawAmount, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size
@@ -498,7 +498,7 @@ RSpec.describe "bank_account (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.balance>=amount implies#a'.balance=sub[#a.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="balance", size_delta=-1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:high, guard_kind=:arg_within_state, guard_field="balance", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy assertions: AccountProperties
       # Related Alloy property predicates: Deposit, DepositAmount, Withdraw, DepositWithdrawIdentity, NonNegative
       # Related pattern hints: size

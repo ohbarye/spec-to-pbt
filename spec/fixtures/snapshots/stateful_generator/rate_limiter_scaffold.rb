@@ -231,7 +231,7 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l.remaining>0 implies#l'.remaining=sub[#l.remaining,1]"
-      # Analyzer hints: state_field="remaining", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="remaining", size_delta=-1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="remaining", rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Reset, NonNegativeRemaining
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -331,7 +331,7 @@ RSpec.describe "rate_limiter (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l'.remaining=#l.capacity"
-      # Analyzer hints: state_field="remaining", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:replace_value
+      # Analyzer hints: state_field="remaining", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="remaining", rhs_source_kind=:state_field, state_update_shape=:replace_value
       # Related Alloy property predicates: Allow, NonNegativeRemaining
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state

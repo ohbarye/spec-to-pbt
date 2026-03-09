@@ -107,6 +107,7 @@ Major supported capabilities:
 - structured model state generation for several multi-field cases
 - collection + projected scalar generation for append-only ledger-style patterns
 - constant replacement / bounded replacement for reset-style structured scalar commands
+- bounded replace-with-arg generation for companion-limit patterns such as rollout
 
 ## Representative Domains Covered
 

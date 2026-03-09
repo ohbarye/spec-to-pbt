@@ -224,7 +224,7 @@ RSpec.describe "box (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b'.value=#b.value"
-      # Analyzer hints: state_field="value", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_value
+      # Analyzer hints: state_field="value", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="value", rhs_source_kind=:state_field, state_update_shape=:preserve_value
       policy = BoxPbtSupport.guard_failure_policy(name)
       guard_failed = false
       # Suggested verify order:

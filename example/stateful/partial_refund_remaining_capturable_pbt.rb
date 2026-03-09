@@ -67,6 +67,10 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -188,6 +192,11 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def applicable?(state, args)
       override = PartialRefundRemainingCapturablePbtSupport.applicable_override(name)
       return PartialRefundRemainingCapturablePbtSupport.call_applicable_override(override, state, args) if override
+      return true if PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       current_value = state[:authorized]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -196,6 +205,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def next_state(state, args)
       override = PartialRefundRemainingCapturablePbtSupport.next_state_override(name)
       return PartialRefundRemainingCapturablePbtSupport.call_next_state_override(override, state, args) if override
+      return state if PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       state.merge(authorized: state[:authorized] - delta, captured: state[:captured] + delta)
     end
@@ -204,12 +214,17 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       PartialRefundRemainingCapturablePbtSupport.before_run_hook&.call(sut)
       payload = PartialRefundRemainingCapturablePbtSupport.adapt_args(name, args)
       method_name = PartialRefundRemainingCapturablePbtSupport.resolve_method_name(name, :capture)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name))
+        error
       end
       adapted_result = PartialRefundRemainingCapturablePbtSupport.adapt_result(name, result)
       PartialRefundRemainingCapturablePbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -219,10 +234,12 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.authorized>=amount implies#p'.authorized=sub[#p.authorized,amount]and#p'.captured=add[#p.captured,amount]"
-      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="authorized", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Refund, NonNegativeAuthorized
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -233,8 +250,28 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#authorized
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -243,7 +280,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       before_authorized = before_state[:authorized]
       after_authorized = after_state[:authorized]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_authorized
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:authorized]
       raise "Expected decremented value for Payment#authorized" unless after_authorized == before_authorized - delta
       raise "Expected non-negative value for Payment#authorized" unless after_authorized >= 0
       before_captured = before_state[:captured]
@@ -269,6 +306,11 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def applicable?(state, args)
       override = PartialRefundRemainingCapturablePbtSupport.applicable_override(name)
       return PartialRefundRemainingCapturablePbtSupport.call_applicable_override(override, state, args) if override
+      return true if PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       current_value = state[:captured]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -277,6 +319,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def next_state(state, args)
       override = PartialRefundRemainingCapturablePbtSupport.next_state_override(name)
       return PartialRefundRemainingCapturablePbtSupport.call_next_state_override(override, state, args) if override
+      return state if PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       state.merge(captured: state[:captured] - delta, refunded: state[:refunded] + delta)
     end
@@ -285,12 +328,17 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       PartialRefundRemainingCapturablePbtSupport.before_run_hook&.call(sut)
       payload = PartialRefundRemainingCapturablePbtSupport.adapt_args(name, args)
       method_name = PartialRefundRemainingCapturablePbtSupport.resolve_method_name(name, :refund)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name))
+        error
       end
       adapted_result = PartialRefundRemainingCapturablePbtSupport.adapt_result(name, result)
       PartialRefundRemainingCapturablePbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -300,10 +348,12 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.captured>=amount implies#p'.captured=sub[#p.captured,amount]and#p'.refunded=add[#p.refunded,amount]"
-      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Capture, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -314,8 +364,28 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#captured
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -324,7 +394,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       delta = PartialRefundRemainingCapturablePbtSupport.scalar_model_arg(name, args)
       before_captured = before_state[:captured]
       after_captured = after_state[:captured]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_captured
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:captured]
       raise "Expected decremented value for Payment#captured" unless after_captured == before_captured - delta
       raise "Expected non-negative value for Payment#captured" unless after_captured >= 0
       before_refunded = before_state[:refunded]

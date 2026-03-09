@@ -233,7 +233,7 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.source_balance>=amount implies#a'.source_balance=sub[#a.source_balance,amount]and#a'.target_balance=add[#a.target_balance,amount]"
-      # Analyzer hints: state_field="source_balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="source_balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="source_balance", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: NonNegativeSource
       # Derived verify hints: check_non_negative_scalar_state, check_guard_failure_semantics
       policy = TransferBetweenAccountsPbtSupport.guard_failure_policy(name)
@@ -277,7 +277,7 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
       delta = TransferBetweenAccountsPbtSupport.scalar_model_arg(name, args)
       before_source_balance = before_state[:source_balance]
       after_source_balance = after_state[:source_balance]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_source_balance
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:source_balance]
       raise "Expected decremented value for Accounts#source_balance" unless after_source_balance == before_source_balance - delta
       raise "Expected non-negative value for Accounts#source_balance" unless after_source_balance >= 0
       before_target_balance = before_state[:target_balance]

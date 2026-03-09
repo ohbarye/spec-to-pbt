@@ -225,7 +225,7 @@ RSpec.describe "cache (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#c'.entries=#c.entries"
-      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_size
+      # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:medium, guard_kind=:none, guard_field="entries", rhs_source_kind=:state_field, state_update_shape=:preserve_size
       policy = CachePbtSupport.guard_failure_policy(name)
       guard_failed = false
       # Suggested verify order:

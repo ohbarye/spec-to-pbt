@@ -225,7 +225,7 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=add[#l.balance,amount]"
-      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
+      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="entries", rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
       policy = LedgerProjectionPbtSupport.guard_failure_policy(name)
       guard_failed = false
@@ -305,7 +305,7 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=sub[#l.balance,amount]"
-      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
+      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="entries", rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
       policy = LedgerProjectionPbtSupport.guard_failure_policy(name)
       guard_failed = false

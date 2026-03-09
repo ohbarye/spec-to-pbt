@@ -17,6 +17,7 @@ module SpecToPbt
     :scalar_update_kind,
     :command_confidence,
     :guard_kind,
+    :guard_field,
     :rhs_source_kind,
     :rhs_source_field,
     :rhs_constant,
@@ -41,6 +42,7 @@ module SpecToPbt
     # @rbs scalar_update_kind: Symbol?
     # @rbs command_confidence: Symbol
     # @rbs guard_kind: Symbol
+    # @rbs guard_field: String?
     # @rbs rhs_source_kind: Symbol
     # @rbs rhs_source_field: String?
     # @rbs rhs_constant: String?
@@ -52,7 +54,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, guard_field: nil, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -83,7 +85,8 @@ module SpecToPbt
       body = normalized_body_for(predicate)
       field_updates = infer_state_field_updates(body, predicate, state_param_names, state_type)
       fallback_state_field = infer_state_field(body, state_param_names)
-      guard_kind, guard_field = infer_guard_details(body, predicate, field_updates.map { |item| item[:field] }, fallback_state_field)
+      guard_candidates = state_field_candidates_for(state_type, field_updates.map { |item| item[:field] }, fallback_state_field)
+      guard_kind, guard_field = infer_guard_details(body, predicate, guard_candidates, fallback_state_field)
       primary_update = primary_state_update_for(field_updates, guard_field)
       fallback_state_field_multiplicity = infer_state_field_multiplicity(state_type, fallback_state_field)
       prefer_collection_fallback = ["seq", "set"].include?(fallback_state_field_multiplicity) && !field_updates.empty?
@@ -123,6 +126,7 @@ module SpecToPbt
         scalar_update_kind: scalar_update_kind,
         command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
         guard_kind: guard_kind,
+        guard_field: guard_field,
         rhs_source_kind: rhs_source_kind,
         rhs_source_field: rhs_source_field,
         rhs_constant: rhs_constant,
@@ -221,6 +225,22 @@ module SpecToPbt
       end
 
       [:none, fallback_state_field]
+    end
+
+    # @rbs state_type: String?
+    # @rbs candidate_fields: Array[String?]
+    # @rbs fallback_state_field: String?
+    # @rbs return: Array[String]
+    def state_field_candidates_for(state_type, candidate_fields, fallback_state_field)
+      names = candidate_fields.compact.uniq
+      if state_type
+        type_entity = @spec.types.find { |item| item.name == state_type }
+        if type_entity
+          names = (names + type_entity.fields.map(&:name)).uniq
+        end
+      end
+      names << fallback_state_field if fallback_state_field
+      names.compact.uniq
     end
 
     # @rbs field_updates: Array[Hash[Symbol, untyped]]

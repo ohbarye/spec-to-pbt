@@ -21,7 +21,7 @@ RefundReversalPbtConfig = {
     refund: {
       method: :refund,
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
@@ -32,7 +32,7 @@ RefundReversalPbtConfig = {
     reverse: {
       method: :reverse,
       # arg_adapter: ->(args) { args },
-      # model_arg_adapter: ->(args) { args.abs + 1 }
+      # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },

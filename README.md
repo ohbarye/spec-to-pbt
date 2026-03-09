@@ -205,7 +205,7 @@ Useful stateful fixtures to try:
 - `spec/fixtures/alloy/connection_pool.als`
   - paired counters (`available` + `checked_out`) with capacity-preservation style checks
 - `spec/fixtures/alloy/feature_flag_rollout.als`
-  - rollout percentage state with enable/disable, constant reset, and arg-aware rollout mapping
+  - rollout percentage state with enable/disable, constant reset, and first-class bounded rollout generation
 - `spec/fixtures/alloy/authorization_expiry_void.als`
   - authorization hold release via void/expiry with amount-aware guards
 - `spec/fixtures/alloy/partial_refund_remaining_capturable.als`
@@ -310,7 +310,7 @@ bundle exec steep check
   - `applicable?(state, args)`
   - empty arg-domain handling via `Pbt::Arbitrary::EmptyDomainError`
 - The stateful generator now emits those protocol shapes when it can infer them safely
-  - for example amount-bounded withdrawals and similar scalar arg-aware commands
+  - for example amount-bounded withdrawals, transfers, and bounded rollout updates
 - Stateful scaffold execution in generated specs is gated by:
   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 - Stateful generator regression coverage includes:

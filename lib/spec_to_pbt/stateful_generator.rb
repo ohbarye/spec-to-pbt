@@ -415,9 +415,9 @@ module SpecToPbt
         "    def guard_satisfied?(#{signature})"
       ]
 
-      if scalar_arg_bound_guard?(analysis)
+      if bounded_scalar_arg_generation?(analysis)
         lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
-        lines << "      current_value = #{scalar_state_expr('state', analysis)}"
+        lines << "      current_value = #{guard_state_expr('state', analysis)}"
         lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= current_value"
       elsif collection_like_state?(analysis) && analysis.guard_kind == :non_empty
         lines << "      !#{collection_state_expr('state', analysis)}.empty? # inferred precondition for #{method_name}"
@@ -674,7 +674,7 @@ module SpecToPbt
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
         "      # TODO: translate predicate semantics into postcondition checks",
         "      # Alloy predicate body (preview): #{body_preview.inspect}",
-        "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}, guard_kind=#{analysis.guard_kind.inspect}, rhs_source_kind=#{analysis.rhs_source_kind.inspect}, state_update_shape=#{analysis.state_update_shape.inspect}"
+        "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}, guard_kind=#{analysis.guard_kind.inspect}, guard_field=#{analysis.guard_field.inspect}, rhs_source_kind=#{analysis.rhs_source_kind.inspect}, state_update_shape=#{analysis.state_update_shape.inspect}"
       ]
 
       if analysis.related_assertion_names.any?
@@ -1218,8 +1218,20 @@ module SpecToPbt
     # @rbs state_var: String
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
+    def guard_state_expr(state_var, analysis)
+      field_name = analysis.guard_field || analysis.state_field
+      if structured_scalar_state?(analysis) || structured_collection_state?(analysis)
+        "#{state_var}[:#{field_name}]"
+      else
+        state_var
+      end
+    end
+
+    # @rbs state_var: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
     def scalar_argument_domain_expr(state_var, analysis)
-      scalar_state_expr(state_var, analysis)
+      guard_state_expr(state_var, analysis)
     end
 
     # @rbs state_var: String
@@ -1327,8 +1339,8 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def suggested_model_arg_adapter_example(analysis)
-      if state_aware_scalar_arg_generation?(analysis)
-        "->(args) { args.abs + 1 }"
+      if bounded_scalar_arg_generation?(analysis)
+        "->(args) { args }"
       else
         "->(args) { args }"
       end
@@ -1382,8 +1394,8 @@ module SpecToPbt
             "      after_value = #{scalar_state_expr('after_state', analysis)}",
             "      raise \"Expected decremented value for #{state_target_label(analysis)}\" unless after_value == before_value - delta"
           ]
-          if scalar_arg_bound_guard?(analysis)
-            lines.insert(1, "      raise \"Expected sufficient scalar state before decrement\" unless delta <= #{scalar_state_expr('before_state', analysis)}")
+          if decrement_arg_bound_guard?(analysis)
+            lines.insert(1, "      raise \"Expected sufficient scalar state before decrement\" unless delta <= #{guard_state_expr('before_state', analysis)}")
           end
           lines
         elsif scalar_unit_delta?(analysis)
@@ -1399,10 +1411,14 @@ module SpecToPbt
           ]
         end
       when :replace_with_arg
-        [
+        lines = [
           "      expected = #{support_module_name}.scalar_model_arg(name, args)",
           "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
         ]
+        if replace_arg_bound_guard?(analysis)
+          lines.insert(1, "      raise \"Expected bounded scalar argument for #{state_target_label(analysis)}\" unless expected <= #{guard_state_expr('before_state', analysis)}")
+        end
+        lines
       when :replace_constant
         constant_expr = scalar_constant_expr(analysis)
         if constant_expr
@@ -1461,8 +1477,8 @@ module SpecToPbt
           increment_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} + delta" : "before_#{update[:field]} + 1"
           lines << "      raise \"Expected incremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{increment_expr}"
         when :decrement
-          if update[:rhs_source_kind] == :arg && update[:field] == analysis.state_field && scalar_arg_bound_guard?(analysis)
-            lines << "      raise \"Expected sufficient scalar state before decrement\" unless delta <= before_#{update[:field]}"
+          if update[:rhs_source_kind] == :arg && update[:field] == analysis.state_field && decrement_arg_bound_guard?(analysis)
+            lines << "      raise \"Expected sufficient scalar state before decrement\" unless delta <= #{guard_state_expr('before_state', analysis)}"
           end
           decrement_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} - delta" : "before_#{update[:field]} - 1"
           lines << "      raise \"Expected decremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{decrement_expr}"
@@ -1472,6 +1488,9 @@ module SpecToPbt
           lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}" if source_expr
         when :replace_with_arg
           lines << "      expected_#{update[:field]} = #{support_module_name}.scalar_model_arg(name, args)"
+          if replace_arg_bound_guard?(analysis)
+            lines << "      raise \"Expected bounded scalar argument for #{analysis.state_type}##{update[:field]}\" unless expected_#{update[:field]} <= #{guard_state_expr('before_state', analysis)}"
+          end
           lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
         when :preserve_value
           lines << "      raise \"Expected preserved value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == before_#{update[:field]}"
@@ -1568,7 +1587,7 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def guard_supportable?(analysis)
-      return true if scalar_arg_bound_guard?(analysis)
+      return true if bounded_scalar_arg_generation?(analysis)
       return true if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
       return true if collection_like_state?(analysis) && analysis.guard_kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
       return true if !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
@@ -1764,11 +1783,27 @@ module SpecToPbt
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
-    def scalar_arg_bound_guard?(analysis)
+    def decrement_arg_bound_guard?(analysis)
       !collection_like_state?(analysis) &&
         analysis.guard_kind == :arg_within_state &&
         analysis.rhs_source_kind == :arg &&
         analysis.state_update_shape == :decrement
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def replace_arg_bound_guard?(analysis)
+      !collection_like_state?(analysis) &&
+        analysis.guard_kind == :arg_within_state &&
+        analysis.rhs_source_kind == :arg &&
+        analysis.state_update_shape == :replace_with_arg &&
+        !analysis.guard_field.nil?
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: bool
+    def bounded_scalar_arg_generation?(analysis)
+      decrement_arg_bound_guard?(analysis) || replace_arg_bound_guard?(analysis)
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -1783,7 +1818,7 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def state_aware_scalar_arg_generation?(analysis)
-      scalar_arg_bound_guard?(analysis) &&
+      bounded_scalar_arg_generation?(analysis) &&
         analysis.argument_params.length == 1 &&
         analysis.argument_params.first.type == "Int"
     end
@@ -1791,7 +1826,7 @@ module SpecToPbt
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def arg_aware_applicability?(analysis)
-      scalar_arg_bound_guard?(analysis)
+      bounded_scalar_arg_generation?(analysis)
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

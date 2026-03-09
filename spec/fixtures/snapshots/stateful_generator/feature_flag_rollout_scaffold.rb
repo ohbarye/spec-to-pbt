@@ -226,7 +226,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f'.rollout=#f.max_rollout"
-      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:replace_value
+      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", rhs_source_kind=:state_field, state_update_shape=:replace_value
       # Related Alloy property predicates: Disable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
@@ -305,7 +305,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f'.rollout=0"
-      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:constant, state_update_shape=:replace_constant
+      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", rhs_source_kind=:constant, state_update_shape=:replace_constant
       # Related Alloy property predicates: Enable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
@@ -344,19 +344,27 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       :rollout
     end
 
-    def arguments
-      Pbt.integer
+    def arguments(state)
+      Pbt.integer(min: 1, max: state[:max_rollout])
     end
 
-    def applicable?(state)
+    def applicable?(state, args)
       override = FeatureFlagRolloutPbtSupport.applicable_override(name)
-      return FeatureFlagRolloutPbtSupport.call_applicable_override(override, state, nil) if override
-      true
+      return FeatureFlagRolloutPbtSupport.call_applicable_override(override, state, args) if override
+      return true if FeatureFlagRolloutPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
+      delta = FeatureFlagRolloutPbtSupport.scalar_model_arg(name, args)
+      current_value = state[:max_rollout]
+      delta.is_a?(Numeric) && delta.positive? && delta <= current_value
     end
 
     def next_state(state, args)
       override = FeatureFlagRolloutPbtSupport.next_state_override(name)
       return FeatureFlagRolloutPbtSupport.call_next_state_override(override, state, args) if override
+      return state if FeatureFlagRolloutPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       state.merge(rollout: FeatureFlagRolloutPbtSupport.scalar_model_arg(name, args))
     end
 
@@ -384,12 +392,12 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f.max_rollout>=percent implies#f'.rollout=#percent"
-      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
+      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="max_rollout", rhs_source_kind=:arg, state_update_shape=:replace_with_arg
       # Related Alloy property predicates: Enable, Disable, RolloutBounded
       # Related pattern hints: size
-      # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
+      # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
       policy = FeatureFlagRolloutPbtSupport.guard_failure_policy(name)
-      guard_failed = false
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -404,12 +412,32 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
         guard_failed: guard_failed,
         guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = FeatureFlagRolloutPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Flag#rollout
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
       expected = FeatureFlagRolloutPbtSupport.scalar_model_arg(name, args)
+      raise "Expected bounded scalar argument for Flag#rollout" unless expected <= before_state[:max_rollout]
       raise "Expected replaced value for Flag#rollout" unless after_state[:rollout] == expected
       raise "Expected non-negative value for Flag#rollout" unless after_state[:rollout] >= 0
       [sut, args] && nil

@@ -224,7 +224,7 @@ RSpec.describe "wallet_reset_limit (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#w'.balance=#w.credit_limit"
-      # Analyzer hints: state_field="balance", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:replace_value
+      # Analyzer hints: state_field="balance", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="balance", rhs_source_kind=:state_field, state_update_shape=:replace_value
       # Related Alloy property predicates: NonNegative
       # Derived verify hints: check_non_negative_scalar_state
       policy = WalletResetLimitPbtSupport.guard_failure_policy(name)

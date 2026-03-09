@@ -550,9 +550,10 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       let(:source) { File.read(File.expand_path("../fixtures/alloy/feature_flag_rollout.als", __dir__)) }
       let(:spec) { SpecToPbt::Parser.new.parse(source) }
 
-      it "recognizes constant reset updates distinctly from arg/state-field replacement" do
+      it "recognizes constant reset updates distinctly from arg/state-field replacement and bounded arg replacement" do
         disable = analyzer.analyze(spec.predicates.find { |p| p.name == "Disable" })
         enable = analyzer.analyze(spec.predicates.find { |p| p.name == "Enable" })
+        rollout = analyzer.analyze(spec.predicates.find { |p| p.name == "Rollout" })
 
         expect(disable.state_field).to eq("rollout")
         expect(disable.rhs_source_kind).to eq(:constant)
@@ -562,6 +563,12 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(enable.rhs_source_kind).to eq(:state_field)
         expect(enable.rhs_source_field).to eq("max_rollout")
         expect(enable.state_update_shape).to eq(:replace_value)
+
+        expect(rollout.state_field).to eq("rollout")
+        expect(rollout.guard_kind).to eq(:arg_within_state)
+        expect(rollout.guard_field).to eq("max_rollout")
+        expect(rollout.rhs_source_kind).to eq(:arg)
+        expect(rollout.state_update_shape).to eq(:replace_with_arg)
       end
     end
   end

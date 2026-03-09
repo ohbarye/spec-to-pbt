@@ -67,6 +67,10 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -189,6 +193,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:available]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -197,6 +206,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] - delta, held: state[:held] + delta)
     end
@@ -205,12 +215,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :authorize)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name))
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -220,10 +235,12 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.available>=amount implies#a'.available=sub[#a.available,amount]and#a'.held=add[#a.held,amount]"
-      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="available", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Void, Expire, NonNegativeAvailable
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -234,8 +251,28 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#available
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -244,7 +281,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       before_available = before_state[:available]
       after_available = after_state[:available]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_available
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:available]
       raise "Expected decremented value for Authorization#available" unless after_available == before_available - delta
       raise "Expected non-negative value for Authorization#available" unless after_available >= 0
       before_held = before_state[:held]
@@ -270,6 +307,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:held]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -278,6 +320,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] + delta, held: state[:held] - delta)
     end
@@ -286,12 +329,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :void)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name))
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -301,10 +349,12 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.held>=amount implies#a'.available=add[#a.available,amount]and#a'.held=sub[#a.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Authorize, Expire, NonNegativeHeld
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -315,8 +365,28 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#held
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -329,7 +399,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       raise "Expected non-negative value for Authorization#available" unless after_available >= 0
       before_held = before_state[:held]
       after_held = after_state[:held]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_held
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:held]
       raise "Expected decremented value for Authorization#held" unless after_held == before_held - delta
       raise "Expected non-negative value for Authorization#held" unless after_held >= 0
       raise "Expected total scalar value to stay the same" unless after_available + after_held == before_available + before_held
@@ -351,6 +421,11 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def applicable?(state, args)
       override = AuthorizationExpiryVoidPbtSupport.applicable_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_applicable_override(override, state, args) if override
+      return true if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state, args)
+    end
+
+    def guard_satisfied?(state, args = nil)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       current_value = state[:held]
       delta.is_a?(Numeric) && delta.positive? && delta <= current_value
@@ -359,6 +434,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def next_state(state, args)
       override = AuthorizationExpiryVoidPbtSupport.next_state_override(name)
       return AuthorizationExpiryVoidPbtSupport.call_next_state_override(override, state, args) if override
+      return state if AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
       delta = AuthorizationExpiryVoidPbtSupport.scalar_model_arg(name, args)
       state.merge(available: state[:available] + delta, held: state[:held] - delta)
     end
@@ -367,12 +443,17 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       AuthorizationExpiryVoidPbtSupport.before_run_hook&.call(sut)
       payload = AuthorizationExpiryVoidPbtSupport.adapt_args(name, args)
       method_name = AuthorizationExpiryVoidPbtSupport.resolve_method_name(name, :expire)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name))
+        error
       end
       adapted_result = AuthorizationExpiryVoidPbtSupport.adapt_result(name, result)
       AuthorizationExpiryVoidPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -382,10 +463,12 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.held>=amount implies#a'.available=add[#a.available,amount]and#a'.held=sub[#a.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Authorize, Void, NonNegativeHeld
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = AuthorizationExpiryVoidPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -396,8 +479,28 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = AuthorizationExpiryVoidPbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Authorization#held
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -410,7 +513,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
       raise "Expected non-negative value for Authorization#available" unless after_available >= 0
       before_held = before_state[:held]
       after_held = after_state[:held]
-      raise "Expected sufficient scalar state before decrement" unless delta <= before_held
+      raise "Expected sufficient scalar state before decrement" unless delta <= before_state[:held]
       raise "Expected decremented value for Authorization#held" unless after_held == before_held - delta
       raise "Expected non-negative value for Authorization#held" unless after_held >= 0
       raise "Expected total scalar value to stay the same" unless after_available + after_held == before_available + before_held

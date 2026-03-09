@@ -18,7 +18,6 @@ FeatureFlagRolloutPbtConfig = {
     },
     rollout: {
       method: :set_rollout,
-      model_arg_adapter: ->(args) { args.abs % 101 },
       verify_override: ->(after_state:, observed_state:, **) do
         raise "Expected observed rollout state after set_rollout to match model" unless observed_state == after_state
       end

@@ -33,6 +33,8 @@ FeatureFlagRolloutPbtConfig = {
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
+      # guard_failure_policy: :no_op, # or :raise / :custom
+      # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
     }
   },

@@ -612,7 +612,6 @@ RSpec.describe "Stateful regenerated workflows" do
           },
           rollout: {
             method: :set_rollout,
-            model_arg_adapter: ->(args) { args.abs % 101 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed rollout state after set_rollout to match model" unless observed_state == after_state
             end
@@ -678,21 +677,18 @@ RSpec.describe "Stateful regenerated workflows" do
         command_mappings: {
           authorize: {
             method: :authorize,
-            model_arg_adapter: ->(args) { args.abs + 1 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed authorization state after authorize to match model" unless observed_state == after_state
             end
           },
           void: {
             method: :void_authorization,
-            model_arg_adapter: ->(args) { args.abs + 1 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed authorization state after void to match model" unless observed_state == after_state
             end
           },
           expire: {
             method: :expire_authorization,
-            model_arg_adapter: ->(args) { args.abs + 1 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed authorization state after expiry to match model" unless observed_state == after_state
             end
@@ -751,14 +747,12 @@ RSpec.describe "Stateful regenerated workflows" do
         command_mappings: {
           capture: {
             method: :capture,
-            model_arg_adapter: ->(args) { args.abs + 1 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed payment state after capture to match model" unless observed_state == after_state
             end
           },
           refund: {
             method: :refund,
-            model_arg_adapter: ->(args) { args.abs + 1 },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed payment state after refund to match model" unless observed_state == after_state
             end

@@ -86,6 +86,12 @@ Current generator behavior:
 
 - constant replacement such as `rollout = 0` is generated directly
 - replace-from-sibling-field such as `balance = credit_limit` is generated
+- bounded replace-with-arg such as `max_rollout >= percent implies rollout = percent`
+  now generates:
+  - `arguments(state)` bounded by the inferred guard field
+  - `applicable?(state, args)`
+  - `next_state`
+  - bounded scalar verify checks
 - safe `verify!` checks cover replaced value equality
 
 Remaining gaps:
