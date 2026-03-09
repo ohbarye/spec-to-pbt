@@ -79,7 +79,7 @@ Remaining:
 
 Status:
 
-- in progress, major progress already made and now in the final practical-quality phase
+- in progress, but now well into the final practical-quality phase
 
 Completed:
 
@@ -104,6 +104,7 @@ Remaining:
 - reduce command extraction and related-hint noise further
 - keep fixture/snapshot coverage growing with new analyzer shapes
 - decide which repeated domain patterns should become first-class rather than config-driven
+- keep broad practical workflow coverage in place as the main regression net
 
 ### 5. Reduce Alloy-specific coupling
 
@@ -135,6 +136,7 @@ Remaining:
 
 - continue moving generator decisions onto analyzer output
 - keep Alloy-specific text handling concentrated in the analyzer/front-end layer
+- keep promotion of new first-class patterns tied to recurring cross-domain evidence
 
 ### 6. Release hardening
 
@@ -156,6 +158,7 @@ Remaining:
 - commit cleanup if needed
 - release-time API review
 - final alignment check against the desired `pbt` API surface
+- decide whether the current practical-quality boundary is sufficient for a first real release
 
 ## Current Position
 
@@ -170,6 +173,9 @@ More specifically:
 - config-driven practical workflows are established
 - regenerated workflow coverage is established
 - frontend-neutral core and Alloy adapter are established
+- recurring pattern coverage now includes:
+  - append-only projection across ledger and inventory
+  - lifecycle status transitions across payment and job domains
 
 This is the right path for the longer-term goal because it improves output
 quality without pushing more Alloy-specific logic directly into the generator.
@@ -208,44 +214,42 @@ quality without pushing more Alloy-specific logic directly into the generator.
 
 ## Highest-Value Next Work
 
-### 1. Failure / no-op semantics
+### 1. Keep the first-class boundary conservative
 
 Why:
 
-- many practical domains need more than successful-transition checks
-- reject vs no-op vs unchanged-state behavior is still only partly automated
+- the project now has enough capability that the main risk is over-generalizing
+  into domain-owned semantics
+- unsupported guards and business-rule-heavy invalid paths should remain
+  config-owned unless recurring structural evidence appears
 
-Examples:
-
-- financial invalid-call behavior
-- lifecycle systems with rejected transitions
-- richer guidance or safe automation around unchanged-state semantics
-
-### 2. Improve derived-state pattern inference
+### 2. Promote only recurring structural patterns
 
 Why:
 
-- domains like ledger projection still require config-level `next_state_override`
-- there is likely a reusable pattern for append-only logs plus projected state
+- append-only projection is now confirmed in more than one domain
+- lifecycle status transitions are now confirmed in more than one domain
+- future generalization should follow the same standard
 
 Examples:
 
-- log + balance projection
-- event sequence + aggregate view
-- other derived-state relationships that should become analyzer facts
+- status + amount/counter hybrid state machines
+- richer projection families beyond simple append-only logs
+- broader multi-field bounded systems only if they recur across domains
 
-### 3. Generalize repeated domain patterns
+### 3. Keep workflow regression coverage ahead of heuristics
 
 Why:
 
-- the project now has broad domain coverage
-- the next question is what deserves first-class generator support
+- broad practical examples now exist
+- the product contract is increasingly about end-to-end generated workflows, not
+  just unit-level string generation
 
 Examples:
 
-- financial paired-balance flows
-- bounded/resource-limited systems
-- lifecycle queues and similar multi-counter models
+- auto-discovered example workflow coverage
+- regenerated workflow coverage for new recurring patterns
+- adding a new practical domain only when it strengthens the pattern catalog
 
 ## Practical Summary
 

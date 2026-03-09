@@ -258,6 +258,118 @@ With that change, the generator could emit much more natural command shapes for:
 ### What we learned
 
 At some point, the bottleneck stopped being `spec-to-pbt` and started being the
+backend protocol. Pushing the right additive fix upstream was higher quality
+than building more local workarounds.
+
+## Phase 6: Pattern Pressure From Real Domains Changed The Roadmap
+
+### The problem
+
+Once the scaffold became practical, the main question stopped being
+"can it run?" and became:
+
+- which patterns are truly recurring?
+- which should become first-class?
+- which should remain config-owned?
+
+At that point, abstract discussion was no longer enough.
+We needed pressure from real domains.
+
+### The change
+
+We added a broad set of practical domains, including:
+
+- financial:
+  - bank account
+  - hold / capture / release
+  - transfer between accounts
+  - refund / reversal
+  - authorization expiry / void
+  - partial refund / remaining capturable
+  - payment status lifecycle
+- software-general:
+  - rate limiter
+  - connection pool
+  - feature flag rollout
+  - job queue retry / dead letter
+  - job status lifecycle
+- derived-state domains:
+  - ledger projection
+  - inventory projection
+
+### What changed architecturally
+
+Two repeated patterns crossed the threshold from "interesting example" to
+"recurring structural family":
+
+1. append-only collection + projected scalar
+2. lifecycle status transitions expressed as scalar equality guards plus
+   constant replacement
+
+Those were promoted because they appeared in more than one domain and could be
+handled conservatively.
+
+### What we learned
+
+The right bar for promotion is not "we can probably infer it".
+The right bar is:
+
+- recurring in more than one domain
+- structurally inferable
+- conservative default behavior is possible
+
+That decision rule is now one of the most important project heuristics.
+
+## Phase 7: Regression Strategy Became A Product Concern
+
+### The problem
+
+As the number of practical examples grew, enumerating them manually in tests
+became a maintenance risk.
+The product claim had shifted from "supports one good example" to
+"supports a broad practical workflow set".
+
+### The change
+
+We strengthened regression coverage in two ways:
+
+- regenerated workflow specs kept growing with new domains
+- example workflows moved to auto-discovered coverage so new `*_pbt.rb` examples
+  are harder to forget
+
+### Why this matters
+
+At this stage, regression coverage is not just test hygiene.
+It is how the project preserves trust while heuristics are still evolving.
+
+### What we learned
+
+When a generator becomes practical, workflow coverage matters as much as unit
+coverage.
+The real contract is no longer just "generated string looks right".
+It is:
+
+- generated scaffold
+- config
+- implementation
+- `pbt`
+- real execution
+
+all continuing to work together.
+
+## Current Summary
+
+The project is now well past MVP and well past early scaffold-quality work.
+
+The current shape is:
+
+- frontend-neutral internally
+- practical and regeneration-safe externally
+- backed by broad domain coverage
+- intentionally conservative about where automation stops
+
+The remaining work is mostly about keeping that boundary sharp, not about making
+the generator maximally aggressive.
 stateful protocol contract in `pbt`.
 
 It was correct to fix the backend abstraction rather than keep adding hacks on

@@ -58,7 +58,6 @@ Representative current workflow baseline:
 
 - generated scaffold examples under `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/`
   are exercised by auto-discovered example-workflow integration coverage
-  are exercised by auto-discovered example-workflow integration coverage
 - regenerated workflow coverage under:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
@@ -111,6 +110,12 @@ Major supported capabilities:
 - constant replacement / bounded replacement for reset-style structured scalar commands
 - bounded replace-with-arg generation for companion-limit patterns such as rollout
 - scalar equality-guard lifecycle transitions such as `status = 1 implies status' = 2`
+- broad recurring-pattern coverage now exists across:
+  - collection mutation
+  - scalar mutation
+  - paired counters / conservation
+  - append-only projection
+  - lifecycle status machines
 
 ## Representative Domains Covered
 
@@ -180,7 +185,8 @@ That separation is intentional and should be preserved.
   but unsupported guards, lifecycle-specific rejection, and business-rule-heavy
   invalid paths are intentionally left config-owned
 - some derived state still needs `next_state_override`, but append-only ledger-style
-  collection + projected scalar patterns are now scaffolded directly
+  collection + projected scalar patterns are now scaffolded directly and validated
+  across both ledger and inventory domains
 - Alloy is still the only public input frontend
 - parsing is still regex-based, not full AST-based
 - some domain patterns are practical only because config provides the final mile
@@ -206,27 +212,28 @@ Success looks like:
   `next_state_override`
 - docs, generated comments, and examples stay aligned on that boundary
 
-### 2. Derived-state pattern inference only where the structure is reusable
+### 2. Expand recurring structural patterns only when a second domain confirms them
 
 Why it matters:
 
-- append-only log + projected scalar is now partially first-class
-- there may still be reusable value in broadening derived-state relationships
-  beyond the current ledger-style pattern, but only when the shape is clearly
-  structural rather than domain-owned
+- the project now has at least two confirmed recurring families:
+  - append-only projection
+  - lifecycle status transitions
+- future generalization should follow the same bar: do not promote a pattern
+  after only one domain example
 
 Success looks like:
 
-- fewer manual `next_state_override` cases for log/projection domains
-- analyzer facts that explicitly represent derived-state relationships
+- new first-class behavior only lands after recurring evidence exists
+- examples and regenerated workflows prove that the pattern is not domain-local
 
-### 3. Harden repeated practical workflows instead of widening heuristics blindly
+### 3. Keep the practical workflow regression net ahead of new heuristics
 
 Why it matters:
 
 - several strong example domains now exist
-- the next step is to keep first-class behavior limited to recurring, safe
-  structural patterns and use regenerated examples to validate the boundary
+- the auto-discovered example workflow spec now makes it cheaper to keep that set
+  honest as new practical examples are added
 
 Success looks like:
 
