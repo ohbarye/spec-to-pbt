@@ -162,8 +162,11 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/transfer
 # Run a settlement refund/reversal workflow with observed-state verification
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/refund_reversal_pbt.rb
 
-# Run a ledger projection workflow using config-driven next_state overrides
+# Run a ledger projection workflow using generated projection state updates
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_projection_pbt.rb
+
+# Run an inventory projection workflow using the same append-only projection pattern
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/inventory_projection_pbt.rb
 
 # Run a rate limiter workflow with structured remaining-capacity state
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/rate_limiter_pbt.rb
@@ -207,6 +210,8 @@ Useful stateful fixtures to try:
   - settlement capture/refund/reversal flow with multi-field balance preservation
 - `spec/fixtures/alloy/ledger_projection.als`
   - append-only ledger entries plus derived balance, now generated as a structured collection + projected scalar scaffold
+- `spec/fixtures/alloy/inventory_projection.als`
+  - append-only inventory adjustments plus projected stock, used to confirm the ledger-style derived-state pattern is recurring
 - `spec/fixtures/alloy/rate_limiter.als`
   - structured scalar state (`remaining` + `capacity`) with reset-to-capacity behavior
 - `spec/fixtures/alloy/connection_pool.als`
@@ -228,6 +233,7 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `transfer_between_accounts.als` -> CLI-regenerated scaffold + config-driven initial state + transfer balance verification
 - `refund_reversal.als` -> CLI-regenerated scaffold + observed settlement-state verification
 - `ledger_projection.als` -> CLI-regenerated scaffold + observed-state verification for derived ledger state
+- `inventory_projection.als` -> CLI-regenerated scaffold + observed-state verification for a second append-only projection domain
 - `rate_limiter.als` -> CLI-regenerated scaffold + config-driven initial state + observed limiter-state verification
 - `connection_pool.als` -> CLI-regenerated scaffold + paired-counter observed-state verification
 - `feature_flag_rollout.als` -> CLI-regenerated scaffold + config-driven rollout mapping without custom disable `next_state_override`
@@ -238,6 +244,7 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 - `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
 - `ledger_projection.als` -> user-owned example with append-only entries and balance projection without custom `next_state_override`
+- `inventory_projection.als` -> user-owned example with append-only adjustments and stock projection without custom `next_state_override`
 - `rate_limiter.als` -> user-owned example with remaining-capacity reset semantics
 - `connection_pool.als` -> user-owned example with paired availability counters
 - `feature_flag_rollout.als` -> user-owned example with config-driven rollout range normalization and generated disable reset semantics

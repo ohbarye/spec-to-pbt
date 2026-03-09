@@ -1761,7 +1761,7 @@ module SpecToPbt
     # @rbs field_name: String
     # @rbs return: String
     def collection_observed_reader_expr(field_name)
-      if field_name.match?(/\Aentries|elements|items|values|jobs/i)
+      if field_name.match?(/\Aentries|elements|items|values|jobs|adjustments|movements|events/i)
         "sut.#{field_name}.dup"
       else
         "sut.#{field_name}"

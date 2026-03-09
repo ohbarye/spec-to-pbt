@@ -522,6 +522,28 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with inventory projection transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/inventory_projection.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates a second append-only projection scaffold without requiring next_state overrides" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { adjustments: [], stock: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state.merge(adjustments: state[:adjustments] + [delta], stock: state[:stock] + delta)")
+        expect(code).to include("state.merge(adjustments: state[:adjustments] + [-delta], stock: state[:stock] - delta)")
+        expect(code).to include('raise "Expected appended projection entry to match the model delta" unless after_items.last == delta')
+        expect(code).to include('raise "Expected appended projection entry to match the model delta" unless after_items.last == -delta')
+        expect(code).to include('raise "Expected incremented value for Inventory#stock" unless after_stock == before_stock + delta')
+        expect(code).to include('raise "Expected decremented value for Inventory#stock" unless after_stock == before_stock - delta')
+        expect(config).to include("# initial_state: { adjustments: [], stock: 0 }")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }")
+        expect(config).to include('observed_state == after_state')
+      end
+    end
+
     context "with feature-flag rollout transitions" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/feature_flag_rollout.als", __dir__) }
       let(:source) { File.read(fixture_path) }

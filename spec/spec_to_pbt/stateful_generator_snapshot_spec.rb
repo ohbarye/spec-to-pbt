@@ -24,6 +24,7 @@ RSpec.describe "SpecToPbt::StatefulGenerator snapshots" do
     "transfer_between_accounts" => "transfer_between_accounts.als",
     "refund_reversal" => "refund_reversal.als",
     "ledger_projection" => "ledger_projection.als",
+    "inventory_projection" => "inventory_projection.als",
     "rate_limiter" => "rate_limiter.als",
     "connection_pool" => "connection_pool.als",
     "feature_flag_rollout" => "feature_flag_rollout.als",

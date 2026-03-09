@@ -433,6 +433,71 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("ledger_projection_pbt.rb")
   end
 
+  it "runs a regenerated inventory projection workflow without custom next-state overrides" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("inventory_projection.als")
+
+    File.write(File.join(output_dir, "inventory_projection_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class InventoryProjectionImpl
+        attr_reader :adjustments, :stock
+
+        def initialize(adjustments: [], stock: 0)
+          @adjustments = adjustments.dup
+          @stock = stock
+        end
+
+        def receive(amount)
+          raise "amount must be positive" if amount <= 0
+
+          @adjustments << amount
+          @stock += amount
+          nil
+        end
+
+        def ship(amount)
+          raise "amount must be positive" if amount <= 0
+
+          @adjustments << -amount
+          @stock -= amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "inventory_projection_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      InventoryProjectionPbtConfig = {
+        sut_factory: -> { InventoryProjectionImpl.new },
+        initial_state: { adjustments: [], stock: 0 },
+        command_mappings: {
+          receive: {
+            method: :receive,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed inventory projection after receive to match model" unless observed_state == after_state
+            end
+          },
+          ship: {
+            method: :ship,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed inventory projection after ship to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("inventory_projection_pbt.rb")
+  end
+
   it "runs a regenerated rate limiter workflow with config-driven initial state" do
     skip_unless_local_pbt!
 

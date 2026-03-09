@@ -52,11 +52,13 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `224 examples, 0 failures`
+- current result: `226 examples, 0 failures`
 
 Representative current workflow baseline:
 
 - generated scaffold examples under `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/`
+  are exercised by auto-discovered example-workflow integration coverage
+  are exercised by auto-discovered example-workflow integration coverage
 - regenerated workflow coverage under:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
@@ -105,7 +107,7 @@ Major supported capabilities:
 - generation of `arguments(state)` where inferable
 - generation of `applicable?(state, args)` where inferable
 - structured model state generation for several multi-field cases
-- collection + projected scalar generation for append-only ledger-style patterns
+- collection + projected scalar generation for append-only ledger/inventory-style patterns
 - constant replacement / bounded replacement for reset-style structured scalar commands
 - bounded replace-with-arg generation for companion-limit patterns such as rollout
 
@@ -136,6 +138,7 @@ Major supported capabilities:
 - connection pool
 - feature flag rollout
 - job queue retry / dead letter
+- inventory projection
 
 ## Most Important Decisions
 

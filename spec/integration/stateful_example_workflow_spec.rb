@@ -3,283 +3,48 @@
 require "spec_helper"
 require "open3"
 
+PROJECT_ROOT = File.expand_path("../..", __dir__)
+EXAMPLE_SPECS = Dir.glob(File.join(PROJECT_ROOT, "example/stateful/*_pbt.rb")).sort
+
 RSpec.describe "Stateful example workflows" do
-  let(:project_root) { File.expand_path("../..", __dir__) }
+  let(:project_root) { PROJECT_ROOT }
   let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
 
-  it "runs the bounded queue example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
+  it "keeps the example workflow inventory current" do
+    basenames = EXAMPLE_SPECS.map { |path| File.basename(path) }
 
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/bounded_queue_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Bounded queue example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
+    expect(basenames).to include(
+      "stack_pbt.rb",
+      "ledger_projection_pbt.rb",
+      "feature_flag_rollout_pbt.rb",
+      "job_queue_retry_dead_letter_pbt.rb"
+    )
   end
 
-  it "runs the bank account example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+  EXAMPLE_SPECS.each do |spec_path|
+    basename = File.basename(spec_path)
+
+    it "runs #{basename} against local pbt main" do
+      unless Dir.exist?(pbt_repo_dir)
+        skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+      end
+
+      env = {
+        "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+        "PBT_REPO_DIR" => pbt_repo_dir
+      }
+
+      stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", spec_path, chdir: project_root)
+
+      expect(status.success?).to be(true), <<~MSG
+        Stateful example workflow failed for #{basename}.
+        STDOUT:
+        #{stdout}
+        STDERR:
+        #{stderr}
+      MSG
+      expect(stdout).to include("1 example")
+      expect(stdout).to include("0 failures")
     end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/bank_account_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Bank account example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the hold/capture/release example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/hold_capture_release_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Hold/capture/release example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the transfer-between-accounts example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/transfer_between_accounts_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Transfer-between-accounts example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the refund/reversal example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/refund_reversal_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Refund/reversal example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the ledger projection example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/ledger_projection_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Ledger projection example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the rate limiter example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/rate_limiter_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Rate limiter example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the connection pool example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/connection_pool_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Connection pool example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the feature flag rollout example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/feature_flag_rollout_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Feature flag rollout example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the authorization expiry/void example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/authorization_expiry_void_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Authorization expiry/void example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the partial refund example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/partial_refund_remaining_capturable_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Partial refund example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
-  end
-
-  it "runs the job queue retry/dead-letter example against local pbt main" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "PBT_REPO_DIR" => pbt_repo_dir
-    }
-
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/job_queue_retry_dead_letter_pbt.rb", chdir: project_root)
-
-    expect(status.success?).to be(true), <<~MSG
-      Job queue retry/dead-letter example workflow failed.
-      STDOUT:
-      #{stdout}
-      STDERR:
-      #{stderr}
-    MSG
-    expect(stdout).to include("1 example")
-    expect(stdout).to include("0 failures")
   end
 end

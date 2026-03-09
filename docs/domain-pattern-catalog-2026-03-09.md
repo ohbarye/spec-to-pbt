@@ -178,6 +178,7 @@ Remaining gaps:
 Representative domains:
 
 - ledger projection
+- inventory projection
 
 Current generator behavior:
 

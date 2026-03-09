@@ -546,6 +546,32 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with inventory projection transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/inventory_projection.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "treats a second append-only projection domain like the ledger pattern" do
+        receive = analyzer.analyze(spec.predicates.find { |p| p.name == "Receive" })
+        ship = analyzer.analyze(spec.predicates.find { |p| p.name == "Ship" })
+
+        expect(receive.state_field).to eq("adjustments")
+        expect(receive.state_field_multiplicity).to eq("seq")
+        expect(receive.transition_kind).to eq(:append)
+        expect(receive.state_update_shape).to eq(:append_like)
+        expect(receive.command_confidence).to eq(:high)
+        expect(receive.state_field_updates).to include(include(field: "stock", update_shape: :increment, rhs_source_kind: :arg))
+        expect(receive.derived_verify_hints).to include(:check_projection_semantics)
+
+        expect(ship.state_field).to eq("adjustments")
+        expect(ship.state_field_multiplicity).to eq("seq")
+        expect(ship.transition_kind).to eq(:append)
+        expect(ship.state_update_shape).to eq(:append_like)
+        expect(ship.command_confidence).to eq(:high)
+        expect(ship.state_field_updates).to include(include(field: "stock", update_shape: :decrement, rhs_source_kind: :arg))
+        expect(ship.derived_verify_hints).to include(:check_projection_semantics)
+      end
+    end
+
     context "with constant replacement transitions" do
       let(:source) { File.read(File.expand_path("../fixtures/alloy/feature_flag_rollout.als", __dir__)) }
       let(:spec) { SpecToPbt::Parser.new.parse(source) }
