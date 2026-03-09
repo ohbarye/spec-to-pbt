@@ -145,6 +145,15 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/connecti
 
 # Run a feature flag rollout workflow with config-driven rollout mapping
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/feature_flag_rollout_pbt.rb
+
+# Run an authorization expiry/void workflow with observed-state verification
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/authorization_expiry_void_pbt.rb
+
+# Run a partial refund workflow with three-field payment state
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/partial_refund_remaining_capturable_pbt.rb
+
+# Run a job queue retry/dead-letter workflow with observed-state verification
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_queue_retry_dead_letter_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
@@ -176,6 +185,12 @@ Useful stateful fixtures to try:
   - paired counters (`available` + `checked_out`) with capacity-preservation style checks
 - `spec/fixtures/alloy/feature_flag_rollout.als`
   - rollout percentage state with enable/disable and arg-aware rollout mapping
+- `spec/fixtures/alloy/authorization_expiry_void.als`
+  - authorization hold release via void/expiry with amount-aware guards
+- `spec/fixtures/alloy/partial_refund_remaining_capturable.als`
+  - three-field payment state (`authorized` / `captured` / `refunded`) for partial refund flows
+- `spec/fixtures/alloy/job_queue_retry_dead_letter.als`
+  - job lifecycle counters (`ready` / `in_flight` / `dead_letter`) with retry and dead-letter transitions
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 
@@ -188,6 +203,9 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `rate_limiter.als` -> CLI-regenerated scaffold + config-driven initial state + observed limiter-state verification
 - `connection_pool.als` -> CLI-regenerated scaffold + paired-counter observed-state verification
 - `feature_flag_rollout.als` -> CLI-regenerated scaffold + config-driven rollout mapping and disable override
+- `authorization_expiry_void.als` -> CLI-regenerated scaffold + observed authorization-state verification
+- `partial_refund_remaining_capturable.als` -> CLI-regenerated scaffold + three-field payment-state verification
+- `job_queue_retry_dead_letter.als` -> CLI-regenerated scaffold + observed queue lifecycle verification
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 - `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
@@ -195,6 +213,9 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `rate_limiter.als` -> user-owned example with remaining-capacity reset semantics
 - `connection_pool.als` -> user-owned example with paired availability counters
 - `feature_flag_rollout.als` -> user-owned example with config-driven rollout range normalization
+- `authorization_expiry_void.als` -> user-owned example with void/expiry authorization release semantics
+- `partial_refund_remaining_capturable.als` -> user-owned example with partial refund payment flows
+- `job_queue_retry_dead_letter.als` -> user-owned example with retry/dead-letter queue lifecycle checks
 
 For current stateful work and roadmap details, see:
 

@@ -16,7 +16,10 @@ RSpec.describe "SpecToPbt::StatefulGenerator config snapshots" do
     "ledger_projection" => "ledger_projection.als",
     "rate_limiter" => "rate_limiter.als",
     "connection_pool" => "connection_pool.als",
-    "feature_flag_rollout" => "feature_flag_rollout.als"
+    "feature_flag_rollout" => "feature_flag_rollout.als",
+    "authorization_expiry_void" => "authorization_expiry_void.als",
+    "partial_refund_remaining_capturable" => "partial_refund_remaining_capturable.als",
+    "job_queue_retry_dead_letter" => "job_queue_retry_dead_letter.als"
   }.each do |name, fixture_name|
     it "matches the #{name} config snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))

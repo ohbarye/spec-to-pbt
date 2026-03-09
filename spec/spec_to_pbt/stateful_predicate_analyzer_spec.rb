@@ -384,6 +384,68 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
       end
     end
 
+    context "with authorization expiry/void transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/authorization_expiry_void.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks paired authorization release updates" do
+        authorize = analyzer.analyze(spec.predicates.find { |p| p.name == "Authorize" })
+        void_op = analyzer.analyze(spec.predicates.find { |p| p.name == "Void" })
+        expire = analyzer.analyze(spec.predicates.find { |p| p.name == "Expire" })
+
+        expect(authorize.guard_kind).to eq(:arg_within_state)
+        expect(authorize.state_field).to eq("available")
+        expect(authorize.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :decrement], ["held", :increment]])
+        expect(void_op.guard_kind).to eq(:arg_within_state)
+        expect(void_op.state_field).to eq("held")
+        expect(void_op.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["held", :decrement]])
+        expect(expire.guard_kind).to eq(:arg_within_state)
+        expect(expire.state_field).to eq("held")
+        expect(expire.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["available", :increment], ["held", :decrement]])
+      end
+    end
+
+    context "with partial refund remaining-capturable transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/partial_refund_remaining_capturable.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks capture/refund guards across three payment fields" do
+        capture = analyzer.analyze(spec.predicates.find { |p| p.name == "Capture" })
+        refund = analyzer.analyze(spec.predicates.find { |p| p.name == "Refund" })
+
+        expect(capture.guard_kind).to eq(:arg_within_state)
+        expect(capture.state_field).to eq("authorized")
+        expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["authorized", :decrement], ["captured", :increment]])
+        expect(refund.guard_kind).to eq(:arg_within_state)
+        expect(refund.state_field).to eq("captured")
+        expect(refund.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["captured", :decrement], ["refunded", :increment]])
+      end
+    end
+
+    context "with job queue retry/dead-letter transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/job_queue_retry_dead_letter.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks ready/in_flight/dead_letter guards and updates" do
+        dispatch = analyzer.analyze(spec.predicates.find { |p| p.name == "Dispatch" })
+        ack = analyzer.analyze(spec.predicates.find { |p| p.name == "Ack" })
+        retry_op = analyzer.analyze(spec.predicates.find { |p| p.name == "Retry" })
+        dead_letter = analyzer.analyze(spec.predicates.find { |p| p.name == "DeadLetter" })
+
+        expect(dispatch.guard_kind).to eq(:non_empty)
+        expect(dispatch.state_field).to eq("ready")
+        expect(dispatch.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["ready", :decrement], ["in_flight", :increment]])
+        expect(ack.guard_kind).to eq(:non_empty)
+        expect(ack.state_field).to eq("in_flight")
+        expect(retry_op.guard_kind).to eq(:non_empty)
+        expect(retry_op.state_field).to eq("in_flight")
+        expect(retry_op.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["ready", :increment], ["in_flight", :decrement]])
+        expect(dead_letter.guard_kind).to eq(:non_empty)
+        expect(dead_letter.state_field).to eq("in_flight")
+        expect(dead_letter.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to eq([["in_flight", :decrement], ["dead_letter", :increment]])
+      end
+    end
+
     context "with scalar replacement without # prefix on rhs" do
       let(:source) do
         <<~ALLOY

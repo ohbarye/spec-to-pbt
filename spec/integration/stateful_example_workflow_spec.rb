@@ -213,4 +213,73 @@ RSpec.describe "Stateful example workflows" do
     expect(stdout).to include("1 example")
     expect(stdout).to include("0 failures")
   end
+
+  it "runs the authorization expiry/void example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/authorization_expiry_void_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Authorization expiry/void example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
+
+  it "runs the partial refund example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/partial_refund_remaining_capturable_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Partial refund example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
+
+  it "runs the job queue retry/dead-letter example against local pbt main" do
+    unless Dir.exist?(pbt_repo_dir)
+      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
+    end
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "PBT_REPO_DIR" => pbt_repo_dir
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", "example/stateful/job_queue_retry_dead_letter_pbt.rb", chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Job queue retry/dead-letter example workflow failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+    expect(stdout).to include("1 example")
+    expect(stdout).to include("0 failures")
+  end
 end

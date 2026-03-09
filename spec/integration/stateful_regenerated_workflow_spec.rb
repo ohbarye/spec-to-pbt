@@ -636,6 +636,254 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("feature_flag_rollout_pbt.rb")
   end
 
+  it "runs a regenerated authorization expiry/void workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("authorization_expiry_void.als")
+
+    File.write(File.join(output_dir, "authorization_expiry_void_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class AuthorizationExpiryVoidImpl
+        attr_reader :available, :held
+
+        def initialize(available: 20, held: 0)
+          @available = available
+          @held = held
+        end
+
+        def authorize(amount)
+          raise "insufficient available balance" if amount > @available
+
+          @available -= amount
+          @held += amount
+          nil
+        end
+
+        def void_authorization(amount)
+          raise "insufficient held balance" if amount > @held
+
+          @available += amount
+          @held -= amount
+          nil
+        end
+
+        def expire_authorization(amount)
+          raise "insufficient held balance" if amount > @held
+
+          @available += amount
+          @held -= amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "authorization_expiry_void_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      AuthorizationExpiryVoidPbtConfig = {
+        sut_factory: -> { AuthorizationExpiryVoidImpl.new(available: 20, held: 0) },
+        initial_state: { available: 20, held: 0 },
+        command_mappings: {
+          authorize: {
+            method: :authorize,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed authorization state after authorize to match model" unless observed_state == after_state
+            end
+          },
+          void: {
+            method: :void_authorization,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed authorization state after void to match model" unless observed_state == after_state
+            end
+          },
+          expire: {
+            method: :expire_authorization,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed authorization state after expiry to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { available: sut.available, held: sut.held } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("authorization_expiry_void_pbt.rb")
+  end
+
+  it "runs a regenerated partial refund workflow with three-field payment state" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("partial_refund_remaining_capturable.als")
+
+    File.write(File.join(output_dir, "partial_refund_remaining_capturable_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PartialRefundRemainingCapturableImpl
+        attr_reader :authorized, :captured, :refunded
+
+        def initialize(authorized: 20, captured: 0, refunded: 0)
+          @authorized = authorized
+          @captured = captured
+          @refunded = refunded
+        end
+
+        def capture(amount)
+          raise "insufficient authorized balance" if amount > @authorized
+
+          @authorized -= amount
+          @captured += amount
+          nil
+        end
+
+        def refund(amount)
+          raise "insufficient captured balance" if amount > @captured
+
+          @captured -= amount
+          @refunded += amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "partial_refund_remaining_capturable_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PartialRefundRemainingCapturablePbtConfig = {
+        sut_factory: -> { PartialRefundRemainingCapturableImpl.new(authorized: 20, captured: 0, refunded: 0) },
+        initial_state: { authorized: 20, captured: 0, refunded: 0 },
+        command_mappings: {
+          capture: {
+            method: :capture,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment state after capture to match model" unless observed_state == after_state
+            end
+          },
+          refund: {
+            method: :refund,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment state after refund to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { authorized: sut.authorized, captured: sut.captured, refunded: sut.refunded } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("partial_refund_remaining_capturable_pbt.rb")
+  end
+
+  it "runs a regenerated job queue retry/dead-letter workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("job_queue_retry_dead_letter.als")
+
+    File.write(File.join(output_dir, "job_queue_retry_dead_letter_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class JobQueueRetryDeadLetterImpl
+        attr_reader :ready, :in_flight, :dead_letter_count
+
+        def initialize(ready: 2, in_flight: 0, dead_letter: 0)
+          @ready = ready
+          @in_flight = in_flight
+          @dead_letter_count = dead_letter
+        end
+
+        def enqueue
+          @ready += 1
+          nil
+        end
+
+        def dispatch
+          raise "no ready jobs" if @ready <= 0
+
+          @ready -= 1
+          @in_flight += 1
+          :job
+        end
+
+        def ack
+          raise "no in-flight jobs" if @in_flight <= 0
+
+          @in_flight -= 1
+          nil
+        end
+
+        def retry
+          raise "no in-flight jobs" if @in_flight <= 0
+
+          @in_flight -= 1
+          @ready += 1
+          nil
+        end
+
+        def move_to_dead_letter
+          raise "no in-flight jobs" if @in_flight <= 0
+
+          @in_flight -= 1
+          @dead_letter_count += 1
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "job_queue_retry_dead_letter_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      JobQueueRetryDeadLetterPbtConfig = {
+        sut_factory: -> { JobQueueRetryDeadLetterImpl.new(ready: 2, in_flight: 0, dead_letter: 0) },
+        initial_state: { ready: 2, in_flight: 0, dead_letter: 0 },
+        command_mappings: {
+          enqueue: {
+            method: :enqueue,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job queue state after enqueue to match model" unless observed_state == after_state
+            end
+          },
+          dispatch: {
+            method: :dispatch,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job queue state after dispatch to match model" unless observed_state == after_state
+            end
+          },
+          ack: {
+            method: :ack,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job queue state after ack to match model" unless observed_state == after_state
+            end
+          },
+          retry: {
+            method: :retry,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job queue state after retry to match model" unless observed_state == after_state
+            end
+          },
+          dead_letter: {
+            method: :move_to_dead_letter,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job queue state after dead-letter to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { ready: sut.ready, in_flight: sut.in_flight, dead_letter: sut.dead_letter_count } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("job_queue_retry_dead_letter_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!
