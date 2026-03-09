@@ -185,7 +185,7 @@ module SpecToPbt
       return "[]" if analyses.empty?
       if analyses.all? { |analysis| collection_like_state?(analysis) }
         structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
-        return "{ #{structured_state_example_pairs(structured_analysis).join(', ')} }" if structured_analysis
+        return "{ #{structured_collection_example_pairs(structured_analysis).join(', ')} }" if structured_analysis
 
         return "[]"
       end
@@ -204,6 +204,18 @@ module SpecToPbt
     def structured_state_example_pairs(analysis)
       state_type_fields_for(analysis).map do |field|
         "#{field.name}: #{default_scalar_placeholder_for(field)}"
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def structured_collection_example_pairs(analysis)
+      state_type_fields_for(analysis).map do |field|
+        if field.name == analysis.state_field
+          "#{field.name}: []"
+        else
+          "#{field.name}: #{default_scalar_placeholder_for(field)}"
+        end
       end
     end
 
@@ -435,14 +447,7 @@ module SpecToPbt
 
       case behavior
       when :append
-        [
-          "    def next_state(state, args)",
-          "      override = #{support_module_name}.next_state_override(name)",
-          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
-          *guard_failed_next_state_lines(analysis),
-          "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
-        ]
+        collection_append_next_state_lines(analysis, state_items)
       when :pop
         [
           "    def next_state(state, args)",
@@ -579,6 +584,32 @@ module SpecToPbt
       pairs = updates.map { |update| "#{update[:field]}: #{scalar_field_update_expr('state', update)}" }
       lines << "      state.merge(#{pairs.join(', ')})"
       lines << "    end"
+      lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs state_items: String
+    # @rbs return: Array[String]
+    def collection_append_next_state_lines(analysis, state_items)
+      lines = [
+        "    def next_state(state, args)",
+        "      override = #{support_module_name}.next_state_override(name)",
+        "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+        *guard_failed_next_state_lines(analysis),
+        "      # Inferred transition target: #{state_target_label(analysis)}"
+      ]
+
+      if projection_collection_state?(analysis)
+        lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)"
+        pairs = ["#{analysis.state_field}: #{state_items} + [#{collection_append_item_expr(analysis)}]"]
+        collection_projection_updates_for(analysis).each do |update|
+          pairs << "#{update[:field]}: #{scalar_field_update_expr('state', update)}"
+        end
+        lines << "      state.merge(#{pairs.join(', ')})"
+      else
+        lines << "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
+      end
+
       lines
     end
 
@@ -749,6 +780,7 @@ module SpecToPbt
       when :append
         lines << "      expected_size = before_items.length + 1"
         lines << "      raise \"Expected size to increase by 1\" unless after_items.length == expected_size"
+        lines.concat(collection_projection_verify_lines(analysis))
         if analysis.derived_verify_hints.include?(:check_membership_semantics)
           lines << "      raise \"Expected appended argument to be present in model state\" unless after_items.include?(args)"
         end
@@ -1002,7 +1034,25 @@ module SpecToPbt
       return false unless analysis
       return false unless collection_like_state?(analysis)
 
-      !companion_scalar_fields_for(analysis).empty?
+      stable_companion_collection_state?(analysis) || projection_collection_state?(analysis)
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def stable_companion_collection_state?(analysis)
+      return false unless analysis
+      return false unless collection_like_state?(analysis)
+
+      companion_scalar_fields_for(analysis).any? { |field| stable_companion_scalar_field?(field) }
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: bool
+    def projection_collection_state?(analysis)
+      return false unless analysis
+      return false unless collection_like_state?(analysis)
+
+      collection_projection_updates_for(analysis).any?
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -1200,6 +1250,13 @@ module SpecToPbt
     # @rbs return: String
     def suggested_state_reader_comment
       analyses = selected_command_predicates.map { |predicate| predicate_analysis(predicate) }
+      projection_analysis = analyses.find { |analysis| projection_collection_state?(analysis) }
+      if projection_analysis
+        fields = [projection_analysis.state_field, *collection_projection_updates_for(projection_analysis).map { |update| update[:field] }].uniq
+        pairs = fields.map { |field| "#{field}: #{collection_observed_reader_expr(field)}" }
+        return "suggested: ->(sut) { { #{pairs.join(', ')} } }"
+      end
+
       return "suggested: ->(sut) { sut.snapshot }" if analyses.any? && analyses.all? { |analysis| collection_like_state?(analysis) }
 
       structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
@@ -1225,7 +1282,9 @@ module SpecToPbt
     def suggested_verify_override_example(analysis)
       message = suggested_verify_override_message(analysis)
       if collection_like_state?(analysis)
-        if structured_collection_state?(analysis)
+        if projection_collection_state?(analysis)
+          "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state }"
+        elsif structured_collection_state?(analysis)
           "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state[:#{analysis.state_field}] }"
         else
           "->(after_state:, observed_state:, **) { raise \\\"#{message}\\\" unless observed_state == after_state }"
@@ -1413,6 +1472,9 @@ module SpecToPbt
       if analysis.derived_verify_hints.include?(:check_membership_semantics)
         lines << "      # Derived from related property patterns: verify membership semantics for appended/removed elements where safe"
       end
+      if analysis.derived_verify_hints.include?(:check_projection_semantics)
+        lines << "      # Derived from collection/scalar updates: verify append-only projection semantics against companion scalar fields"
+      end
       if analysis.derived_verify_hints.include?(:check_non_negative_scalar_state)
         lines << "      # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state"
       end
@@ -1563,6 +1625,82 @@ module SpecToPbt
         field_expr
       else
         field_expr
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: Array[Hash[Symbol, untyped]]
+    def collection_projection_updates_for(analysis)
+      return [] unless analysis
+      return [] unless collection_like_state?(analysis)
+
+      scalar_field_updates_for(analysis).select do |update|
+        update[:field] != analysis.state_field &&
+          [:increment, :decrement, :replace_with_arg, :replace_value, :preserve_value].include?(update[:update_shape])
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def collection_append_item_expr(analysis)
+      update = collection_projection_updates_for(analysis).first
+      return "args" unless update
+
+      case update[:update_shape]
+      when :increment
+        update[:rhs_source_kind] == :arg ? "delta" : "args"
+      when :decrement
+        update[:rhs_source_kind] == :arg ? "-delta" : "args"
+      when :replace_with_arg
+        "#{support_module_name}.scalar_model_arg(name, args)"
+      else
+        "args"
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def collection_projection_verify_lines(analysis)
+      updates = collection_projection_updates_for(analysis)
+      return [] if updates.empty?
+
+      lines = [] #: Array[String]
+      needs_delta = updates.any? { |update| update[:rhs_source_kind] == :arg } || collection_append_item_expr(analysis).include?("delta")
+      lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if needs_delta
+      if analysis.derived_verify_hints.include?(:check_projection_semantics)
+        lines << "      raise \"Expected appended projection entry to match the model delta\" unless after_items.last == #{collection_append_item_expr(analysis)}"
+      end
+      updates.each do |update|
+        lines << "      before_#{update[:field]} = before_state[:#{update[:field]}]"
+        lines << "      after_#{update[:field]} = after_state[:#{update[:field]}]"
+        case update[:update_shape]
+        when :increment
+          increment_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} + delta" : "before_#{update[:field]} + 1"
+          lines << "      raise \"Expected incremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{increment_expr}"
+        when :decrement
+          decrement_expr = update[:rhs_source_kind] == :arg ? "before_#{update[:field]} - delta" : "before_#{update[:field]} - 1"
+          lines << "      raise \"Expected decremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{decrement_expr}"
+        when :replace_with_arg
+          lines << "      expected_#{update[:field]} = #{support_module_name}.scalar_model_arg(name, args)"
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
+        when :replace_value
+          source_expr = scalar_field_update_expr('before_state', update)
+          lines << "      expected_#{update[:field]} = #{source_expr}"
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
+        when :preserve_value
+          lines << "      raise \"Expected preserved value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == before_#{update[:field]}"
+        end
+      end
+      lines
+    end
+
+    # @rbs field_name: String
+    # @rbs return: String
+    def collection_observed_reader_expr(field_name)
+      if field_name.match?(/\Aentries|elements|items|values|jobs/i)
+        "sut.#{field_name}.dup"
+      else
+        "sut.#{field_name}"
       end
     end
 

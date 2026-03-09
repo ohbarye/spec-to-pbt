@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `219 examples, 0 failures`
+- current result: `221 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -102,6 +102,7 @@ Major supported capabilities:
 - generation of `arguments(state)` where inferable
 - generation of `applicable?(state, args)` where inferable
 - structured model state generation for several multi-field cases
+- collection + projected scalar generation for append-only ledger-style patterns
 
 ## Representative Domains Covered
 
@@ -162,7 +163,8 @@ That separation is intentional and should be preserved.
 
 - failure / no-op semantics are partly automated for inferred guarded commands via
   `guard_failure_policy`, but still incomplete for richer domain-specific cases
-- derived state often still needs `next_state_override`
+- some derived state still needs `next_state_override`, but append-only ledger-style
+  collection + projected scalar patterns are now scaffolded directly
 - Alloy is still the only public input frontend
 - parsing is still regex-based, not full AST-based
 - some domain patterns are practical only because config provides the final mile
@@ -189,9 +191,9 @@ Success looks like:
 
 Why it matters:
 
-- domains like ledger projection still need `next_state_override`
-- there is likely reusable value in recognizing append-only log + projected
-  scalar patterns
+- append-only log + projected scalar is now partially first-class
+- there is still likely reusable value in broadening derived-state relationships
+  beyond the current ledger-style pattern
 
 Success looks like:
 

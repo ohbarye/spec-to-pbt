@@ -519,5 +519,31 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(result.command_confidence).to eq(:medium)
       end
     end
+
+    context "with ledger projection transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/ledger_projection.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "prefers the append-only collection as state target while retaining projected scalar updates" do
+        credit = analyzer.analyze(spec.predicates.find { |p| p.name == "PostCredit" })
+        debit = analyzer.analyze(spec.predicates.find { |p| p.name == "PostDebit" })
+
+        expect(credit.state_field).to eq("entries")
+        expect(credit.state_field_multiplicity).to eq("seq")
+        expect(credit.transition_kind).to eq(:append)
+        expect(credit.state_update_shape).to eq(:append_like)
+        expect(credit.command_confidence).to eq(:high)
+        expect(credit.state_field_updates).to include(include(field: "balance", update_shape: :increment, rhs_source_kind: :arg))
+        expect(credit.derived_verify_hints).to include(:check_projection_semantics)
+
+        expect(debit.state_field).to eq("entries")
+        expect(debit.state_field_multiplicity).to eq("seq")
+        expect(debit.transition_kind).to eq(:append)
+        expect(debit.state_update_shape).to eq(:append_like)
+        expect(debit.command_confidence).to eq(:high)
+        expect(debit.state_field_updates).to include(include(field: "balance", update_shape: :decrement, rhs_source_kind: :arg))
+        expect(debit.derived_verify_hints).to include(:check_projection_semantics)
+      end
+    end
   end
 end

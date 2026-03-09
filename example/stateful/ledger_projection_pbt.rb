@@ -67,6 +67,10 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       command_config(command_name)[:next_state_override]
     end
 
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
+    end
+
     def call_applicable_override(override, state, args)
       parameters = override.parameters
       if parameters.any? { |kind, _name| kind == :rest }
@@ -165,7 +169,7 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     end
 
     def initial_state
-      default_state = nil # TODO: replace with a domain-specific scalar/model state
+      default_state = { entries: [], balance: 0 } # TODO: replace with a domain-specific structured model state
       LedgerProjectionPbtSupport.initial_state(default_state)
     end
 
@@ -175,8 +179,6 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
   end
 
   class PostCreditCommand
-    # Analyzer command confidence: medium
-    # TODO: confirm this predicate should be modeled as a command
     def name
       :post_credit
     end
@@ -194,20 +196,26 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def next_state(state, args)
       override = LedgerProjectionPbtSupport.next_state_override(name)
       return LedgerProjectionPbtSupport.call_next_state_override(override, state, args) if override
+      # Inferred transition target: Ledger#entries
       delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
-      state + delta
+      state.merge(entries: state[:entries] + [delta], balance: state[:balance] + delta)
     end
 
     def run!(sut, args)
       LedgerProjectionPbtSupport.before_run_hook&.call(sut)
       payload = LedgerProjectionPbtSupport.adapt_args(name, args)
       method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_credit)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
       LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -217,10 +225,8 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=add[#l.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:increment
-      # Related Alloy property predicates: PostDebit
-      # Related pattern hints: size
-      # Derived verify hints: check_size_semantics
+      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
+      # Derived verify hints: check_projection_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -233,20 +239,22 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
         result: result,
         sut: sut
       )
-      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Ledger#balance
-      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Inferred collection target: Ledger#entries
+      before_items = before_state[:entries]
+      after_items = after_state[:entries]
+      # Derived from collection/scalar updates: verify append-only projection semantics against companion scalar fields
+      expected_size = before_items.length + 1
+      raise "Expected size to increase by 1" unless after_items.length == expected_size
       delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
-      before_value = before_state
-      after_value = after_state
-      raise "Expected incremented value for Ledger#balance" unless after_value == before_value + delta
+      raise "Expected appended projection entry to match the model delta" unless after_items.last == delta
+      before_balance = before_state[:balance]
+      after_balance = after_state[:balance]
+      raise "Expected incremented value for Ledger#balance" unless after_balance == before_balance + delta
       [sut, args] && nil
     end
   end
 
   class PostDebitCommand
-    # Analyzer command confidence: medium
-    # TODO: confirm this predicate should be modeled as a command
     def name
       :post_debit
     end
@@ -264,20 +272,26 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def next_state(state, args)
       override = LedgerProjectionPbtSupport.next_state_override(name)
       return LedgerProjectionPbtSupport.call_next_state_override(override, state, args) if override
+      # Inferred transition target: Ledger#entries
       delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
-      state - delta
+      state.merge(entries: state[:entries] + [-delta], balance: state[:balance] - delta)
     end
 
     def run!(sut, args)
       LedgerProjectionPbtSupport.before_run_hook&.call(sut)
       payload = LedgerProjectionPbtSupport.adapt_args(name, args)
       method_name = LedgerProjectionPbtSupport.resolve_method_name(name, :post_debit)
-      result = if payload.nil?
-        sut.public_send(method_name)
-      elsif payload.is_a?(Array)
-        sut.public_send(method_name, *payload)
-      else
-        sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
       LedgerProjectionPbtSupport.after_run_hook&.call(sut, adapted_result)
@@ -287,10 +301,8 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=sub[#l.balance,amount]"
-      # Analyzer hints: state_field="balance", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:decrement
-      # Related Alloy property predicates: PostCredit
-      # Related pattern hints: size
-      # Derived verify hints: check_size_semantics
+      # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
+      # Derived verify hints: check_projection_semantics
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -303,13 +315,17 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
         result: result,
         sut: sut
       )
-      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
-      # Inferred state target: Ledger#balance
-      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Inferred collection target: Ledger#entries
+      before_items = before_state[:entries]
+      after_items = after_state[:entries]
+      # Derived from collection/scalar updates: verify append-only projection semantics against companion scalar fields
+      expected_size = before_items.length + 1
+      raise "Expected size to increase by 1" unless after_items.length == expected_size
       delta = LedgerProjectionPbtSupport.scalar_model_arg(name, args)
-      before_value = before_state
-      after_value = after_state
-      raise "Expected decremented value for Ledger#balance" unless after_value == before_value - delta
+      raise "Expected appended projection entry to match the model delta" unless after_items.last == -delta
+      before_balance = before_state[:balance]
+      after_balance = after_state[:balance]
+      raise "Expected decremented value for Ledger#balance" unless after_balance == before_balance - delta
       [sut, args] && nil
     end
   end

@@ -368,7 +368,7 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("refund_reversal_pbt.rb")
   end
 
-  it "runs a regenerated ledger projection workflow with config-driven next-state overrides" do
+  it "runs a regenerated ledger projection workflow without custom next-state overrides" do
     skip_unless_local_pbt!
 
     generate_stateful_with_config!("ledger_projection.als")
@@ -412,10 +412,6 @@ RSpec.describe "Stateful regenerated workflows" do
           post_credit: {
             method: :post_credit,
             model_arg_adapter: ->(args) { args.abs + 1 },
-            next_state_override: ->(state, args) do
-              delta = args.abs + 1
-              { entries: state[:entries] + [delta], balance: state[:balance] + delta }
-            end,
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed ledger projection after credit to match model" unless observed_state == after_state
             end
@@ -423,10 +419,6 @@ RSpec.describe "Stateful regenerated workflows" do
           post_debit: {
             method: :post_debit,
             model_arg_adapter: ->(args) { args.abs + 1 },
-            next_state_override: ->(state, args) do
-              delta = args.abs + 1
-              { entries: state[:entries] + [-delta], balance: state[:balance] - delta }
-            end,
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed ledger projection after debit to match model" unless observed_state == after_state
             end

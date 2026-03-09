@@ -497,6 +497,28 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with ledger projection transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/ledger_projection.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates append-only collection state plus projected balance updates without requiring next_state overrides" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { entries: [], balance: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state.merge(entries: state[:entries] + [delta], balance: state[:balance] + delta)")
+        expect(code).to include("state.merge(entries: state[:entries] + [-delta], balance: state[:balance] - delta)")
+        expect(code).to include('raise "Expected appended projection entry to match the model delta" unless after_items.last == delta')
+        expect(code).to include('raise "Expected appended projection entry to match the model delta" unless after_items.last == -delta')
+        expect(code).to include('raise "Expected incremented value for Ledger#balance" unless after_balance == before_balance + delta')
+        expect(code).to include('raise "Expected decremented value for Ledger#balance" unless after_balance == before_balance - delta')
+        expect(config).to include("# initial_state: { entries: [], balance: 0 }")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { entries: sut.entries.dup, balance: sut.balance } }")
+        expect(config).to include('observed_state == after_state')
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

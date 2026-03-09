@@ -6,7 +6,7 @@
 
 LedgerProjectionPbtConfig = {
   sut_factory: -> { LedgerProjectionImpl.new },
-  # initial_state: nil,
+  # initial_state: { entries: [], balance: 0 },
   command_mappings: {
     post_credit: {
       method: :post_credit,
@@ -15,7 +15,7 @@ LedgerProjectionPbtConfig = {
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
     },
     post_debit: {
       method: :post_debit,
@@ -24,11 +24,11 @@ LedgerProjectionPbtConfig = {
       # result_adapter: ->(result) { result },
       # applicable_override: ->(state, args = nil) { true },
       # next_state_override: ->(state, args) { state },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state }
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
     }
   },
   verify_context: {
-    state_reader: nil, # suggested: expose a snapshot/reader for the model state
+    state_reader: nil, # suggested: ->(sut) { { entries: sut.entries.dup, balance: sut.balance } }
   }
   # before_run: ->(sut) { },
   # after_run: ->(sut, result) { }

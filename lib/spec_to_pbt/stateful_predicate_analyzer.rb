@@ -83,8 +83,10 @@ module SpecToPbt
       fallback_state_field = infer_state_field(body, state_param_names)
       guard_kind, guard_field = infer_guard_details(body, predicate, field_updates.map { |item| item[:field] }, fallback_state_field)
       primary_update = primary_state_update_for(field_updates, guard_field)
-      state_field = primary_update&.fetch(:field) || fallback_state_field
-      state_field_multiplicity = infer_state_field_multiplicity(state_type, state_field)
+      fallback_state_field_multiplicity = infer_state_field_multiplicity(state_type, fallback_state_field)
+      prefer_collection_fallback = ["seq", "set"].include?(fallback_state_field_multiplicity) && !field_updates.empty?
+      state_field = prefer_collection_fallback ? fallback_state_field : (primary_update&.fetch(:field) || fallback_state_field)
+      state_field_multiplicity = prefer_collection_fallback ? fallback_state_field_multiplicity : infer_state_field_multiplicity(state_type, state_field)
       size_delta = infer_size_delta(body)
       requires_non_empty_state = guard_kind == :non_empty
       transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
@@ -581,6 +583,10 @@ module SpecToPbt
       hints << :check_size_semantics if related_pattern_hints.include?(:size)
       hints << :check_membership_semantics if related_pattern_hints.include?(:membership)
       hints << :check_non_negative_scalar_state if related_texts.any? { |text| text.match?(/NonNegative|>=0/) }
+      if ["seq", "set"].include?(analysis.state_field_multiplicity) &&
+          analysis.state_field_updates.any? { |update| [:increment, :decrement].include?(update[:update_shape]) && update[:rhs_source_kind] == :arg }
+        hints << :check_projection_semantics
+      end
       predicate = @spec.properties.find { |item| item.name == analysis.predicate_name }
       predicate_text = predicate ? normalized_body_for(predicate) : ""
       if analysis.guard_kind != :none && predicate_text.include?("implies")
