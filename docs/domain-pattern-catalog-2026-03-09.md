@@ -11,6 +11,15 @@ covered by `spec-to-pbt` and classifies them into:
 
 Use this document when deciding what to generalize next.
 
+Current recommendation:
+
+- promote only recurring patterns that are structurally safe to infer
+- keep unsupported guards, lifecycle-specific invalid-path behavior, and
+  business-rule-heavy semantics config-owned
+- treat `applicable_override`, `next_state_override`, `verify_override`, and
+  `guard_failure_policy: :custom` as the intentional escape hatches rather than
+  as temporary hacks
+
 ## Current Classification
 
 ### Tier 1: First-Class Or Near First-Class In Generator
@@ -161,7 +170,8 @@ Current taxonomy:
 Remaining gaps:
 
 - richer reject/no-op semantics are still partial
-- unsupported guards still fall back to config/custom logic
+- unsupported guards intentionally stay config/custom unless a new safe
+  structural pattern is clearly recurring
 
 #### 5. Append-only collection + projected scalar
 
@@ -241,6 +251,8 @@ Why config still matters:
 
 - the difference between reject, no-op, and error is domain-owned
 - `guard_failure_policy` only covers the safe common subset
+- lifecycle-specific invalid-path semantics should stay config-owned unless they
+  collapse into a reusable structural rule
 
 ### Tier 3: Likely To Stay Config-Owned
 
@@ -258,6 +270,19 @@ These are patterns where automatic inference is probably not worth the risk.
 - business-rule-heavy assertions
 - side effects outside the model state
 - event emission / persistence behavior
+- lifecycle-specific rejection or status semantics that are not reducible to a
+  simple inferred guard + unchanged-state contract
+
+## Decision Rule
+
+When deciding whether to generalize a new pattern:
+
+1. Is the pattern recurring across multiple domains already in this repo?
+2. Can the analyzer infer it from structure rather than from domain wording?
+3. Can the generator emit a conservative default without misleading invalid-path
+   behavior?
+
+If any answer is "no", the pattern should remain config-owned.
 
 #### 3. Semantic choices not explicit in the spec shape
 

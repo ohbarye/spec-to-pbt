@@ -375,7 +375,7 @@ module SpecToPbt
           lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
           lines << "      guard_satisfied?(state, args)"
         else
-          lines << "      true # TODO: refine arg-aware applicability for #{method_name}"
+          lines << "      true # TODO: unsupported arg-aware guard shape; keep this config-owned via applicable_override (and next_state_override / verify_override if invalid calls have domain-specific semantics)"
         end
         lines << "    end"
         return lines
@@ -390,7 +390,7 @@ module SpecToPbt
         lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
         lines << "      guard_satisfied?(state)"
       elsif analysis.guard_kind != :none
-        lines << "      true # TODO: infer a scalar/domain-specific precondition"
+        lines << "      true # TODO: unsupported guard shape; keep this config-owned via applicable_override or a custom invalid-path contract"
       else
         lines << "      true"
       end
@@ -1047,13 +1047,13 @@ module SpecToPbt
       lines << "      # arg_adapter: ->(args) { args },"
       lines << "      # model_arg_adapter: #{suggested_model_arg_adapter_example(analysis)}"
       lines << "      # result_adapter: ->(result) { result },"
-      lines << "      # applicable_override: ->(state, args = nil) { true },"
-      lines << "      # next_state_override: ->(state, args) { state },"
+      lines << "      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions"
+      lines << "      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition"
       if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
         lines << "      # guard_failure_policy: :no_op, # or :raise / :custom"
         lines << "      # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific"
       end
-      lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
+      lines << "      # verify_override: #{suggested_verify_override_example(analysis)} # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics"
       lines << "    }#{suffix}"
       lines
     end

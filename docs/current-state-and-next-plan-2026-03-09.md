@@ -171,7 +171,8 @@ That separation is intentional and should be preserved.
   - invalid-but-unchanged via `guard_failure_policy: :no_op`
   - invalid-and-raises via `guard_failure_policy: :raise`
   - domain-owned invalid path via `guard_failure_policy: :custom` + `verify_override`
-  but richer domain-specific cases are still only partly automated
+  but unsupported guards, lifecycle-specific rejection, and business-rule-heavy
+  invalid paths are intentionally left config-owned
 - some derived state still needs `next_state_override`, but append-only ledger-style
   collection + projected scalar patterns are now scaffolded directly
 - Alloy is still the only public input frontend
@@ -182,48 +183,51 @@ That separation is intentional and should be preserved.
 
 ## Recommended Next Work
 
-### 1. Failure / no-op semantics beyond inferred guards
+### 1. Keep the first-class boundary explicit and conservative
 
 Why it matters:
 
-- many practical domains care as much about invalid-call behavior as successful
-  transitions
-- finance and lifecycle workflows especially depend on this
+- the generator is now strong enough that the main risk is overreaching into
+  domain-specific semantics
+- future work should not blur the line between safe inference and config-owned
+  business rules
 
 Success looks like:
 
-- broader coverage than the current inferred-guard taxonomy
-- safe automation where semantics are genuinely inferable
-- explicit criteria for what remains config-owned
-- no loss of trust from speculative checks
+- unsupported guards remain routed to `applicable_override`
+- invalid paths beyond inferred guards remain routed to
+  `guard_failure_policy: :custom`, `verify_override`, and
+  `next_state_override`
+- docs, generated comments, and examples stay aligned on that boundary
 
-### 2. Derived-state pattern inference
+### 2. Derived-state pattern inference only where the structure is reusable
 
 Why it matters:
 
 - append-only log + projected scalar is now partially first-class
-- there is still likely reusable value in broadening derived-state relationships
-  beyond the current ledger-style pattern
+- there may still be reusable value in broadening derived-state relationships
+  beyond the current ledger-style pattern, but only when the shape is clearly
+  structural rather than domain-owned
 
 Success looks like:
 
 - fewer manual `next_state_override` cases for log/projection domains
 - analyzer facts that explicitly represent derived-state relationships
 
-### 3. Domain-pattern generalization
+### 3. Harden repeated practical workflows instead of widening heuristics blindly
 
 Why it matters:
 
 - several strong example domains now exist
-- the next step is deciding what should become first-class generator behavior
-- there is now a concrete pattern inventory to drive that decision instead of
-  relying on memory
+- the next step is to keep first-class behavior limited to recurring, safe
+  structural patterns and use regenerated examples to validate the boundary
 
 Success looks like:
 
 - explicit identification of reusable patterns worth hardening
-- less config needed for repeated families of domains
-- no regression in current practical workflows
+- stable regenerated workflows across the current domain set
+- no regression in current practical workflows while keeping domain-specific
+  logic config-owned
 
 ## How To Resume
 

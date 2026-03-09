@@ -118,6 +118,13 @@ For inferred guarded commands:
   while keeping the conservative model default of unchanged state unless you also
   provide `next_state_override`
 
+The intended boundary is:
+
+- keep recurring, structurally safe transitions in the generator
+- keep unsupported guards in `applicable_override`
+- keep domain-specific invalid-path semantics in `verify_override`
+- keep richer failure-state model changes in `next_state_override`
+
 The scaffold now includes analyzer-driven hints such as:
 
 - inferred state target (for example `Stack#elements` or `Machine#value`)

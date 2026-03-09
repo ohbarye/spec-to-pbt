@@ -13,18 +13,18 @@ LedgerProjectionPbtConfig = {
       # arg_adapter: ->(args) { args },
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
-      # applicable_override: ->(state, args = nil) { true },
-      # next_state_override: ->(state, args) { state },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
+      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
     },
     post_debit: {
       method: :post_debit,
       # arg_adapter: ->(args) { args },
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result },
-      # applicable_override: ->(state, args = nil) { true },
-      # next_state_override: ->(state, args) { state },
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state }
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
+      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
     }
   },
   verify_context: {
