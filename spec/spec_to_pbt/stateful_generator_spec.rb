@@ -571,6 +571,29 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with lifecycle status transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/payment_status_lifecycle.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates inferred equality guards for no-arg status-machine commands" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = 0 # TODO: replace with a domain-specific scalar model state")
+        expect(code).to include("state == 0 # inferred scalar lifecycle/status precondition for authorize")
+        expect(code).to include("state == 1 # inferred scalar lifecycle/status precondition for capture")
+        expect(code).to include("return true if PaymentStatusLifecyclePbtSupport.guard_failure_policy(name)")
+        expect(code).to include("def next_state(state, args)")
+        expect(code).to include("      1")
+        expect(code).to include("      2")
+        expect(code).to include("raise \"Expected replaced value for Payment#status\" unless after_state == expected")
+        expect(code).to include("expected = 1")
+        expect(code).to include("expected = 2")
+        expect(config).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

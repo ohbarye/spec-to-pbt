@@ -185,6 +185,12 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/partial_
 
 # Run a job queue retry/dead-letter workflow with observed-state verification
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_queue_retry_dead_letter_pbt.rb
+
+# Run a payment lifecycle status-machine workflow with inferred status guards
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_status_lifecycle_pbt.rb
+
+# Run a job lifecycle status-machine workflow with inferred status guards
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_status_lifecycle_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
@@ -224,6 +230,10 @@ Useful stateful fixtures to try:
   - three-field payment state (`authorized` / `captured` / `refunded`) for partial refund flows
 - `spec/fixtures/alloy/job_queue_retry_dead_letter.als`
   - job lifecycle counters (`ready` / `in_flight` / `dead_letter`) with retry and dead-letter transitions
+- `spec/fixtures/alloy/payment_status_lifecycle.als`
+  - scalar status machine with inferred equality guards and constant status transitions
+- `spec/fixtures/alloy/job_status_lifecycle.als`
+  - job workflow status machine with inferred equality guards and config-driven invalid-transition handling
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 
@@ -240,6 +250,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `authorization_expiry_void.als` -> CLI-regenerated scaffold + observed authorization-state verification
 - `partial_refund_remaining_capturable.als` -> CLI-regenerated scaffold + three-field payment-state verification
 - `job_queue_retry_dead_letter.als` -> CLI-regenerated scaffold + observed queue lifecycle verification
+- `payment_status_lifecycle.als` -> CLI-regenerated scaffold + invalid-transition raise handling for a payment status machine
+- `job_status_lifecycle.als` -> CLI-regenerated scaffold + method remapping for a job status machine
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 - `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
@@ -251,6 +263,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `authorization_expiry_void.als` -> user-owned example with void/expiry authorization release semantics
 - `partial_refund_remaining_capturable.als` -> user-owned example with partial refund payment flows
 - `job_queue_retry_dead_letter.als` -> user-owned example with retry/dead-letter queue lifecycle checks
+- `payment_status_lifecycle.als` -> user-owned example with inferred status guards and invalid-transition raise semantics
+- `job_status_lifecycle.als` -> user-owned example with inferred status guards and method-remapped lifecycle transitions
 
 For current stateful work and roadmap details, see:
 

@@ -225,7 +225,7 @@ RSpec.describe "inventory_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#i'.adjustments=add[#i.adjustments,1]and#i'.stock=add[#i.stock,amount]"
-      # Analyzer hints: state_field="adjustments", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="adjustments", rhs_source_kind=:arg, state_update_shape=:append_like
+      # Analyzer hints: state_field="adjustments", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="adjustments", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
       policy = InventoryProjectionPbtSupport.guard_failure_policy(name)
       guard_failed = false
@@ -305,7 +305,7 @@ RSpec.describe "inventory_projection (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#i'.adjustments=add[#i.adjustments,1]and#i'.stock=sub[#i.stock,amount]"
-      # Analyzer hints: state_field="adjustments", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="adjustments", rhs_source_kind=:arg, state_update_shape=:append_like
+      # Analyzer hints: state_field="adjustments", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="adjustments", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
       policy = InventoryProjectionPbtSupport.guard_failure_policy(name)
       guard_failed = false

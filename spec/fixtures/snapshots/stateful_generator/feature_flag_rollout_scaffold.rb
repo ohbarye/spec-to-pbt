@@ -226,7 +226,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f'.rollout=#f.max_rollout"
-      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", rhs_source_kind=:state_field, state_update_shape=:replace_value
+      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", guard_constant=nil, rhs_source_kind=:state_field, state_update_shape=:replace_value
       # Related Alloy property predicates: Disable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
@@ -305,7 +305,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f'.rollout=0"
-      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", rhs_source_kind=:constant, state_update_shape=:replace_constant
+      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="rollout", guard_constant=nil, rhs_source_kind=:constant, state_update_shape=:replace_constant
       # Related Alloy property predicates: Enable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
@@ -392,7 +392,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f.max_rollout>=percent implies#f'.rollout=#percent"
-      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="max_rollout", rhs_source_kind=:arg, state_update_shape=:replace_with_arg
+      # Analyzer hints: state_field="rollout", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="max_rollout", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
       # Related Alloy property predicates: Enable, Disable, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics

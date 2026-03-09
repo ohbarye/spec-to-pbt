@@ -224,7 +224,7 @@ RSpec.describe "membership_queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q'.elements=add[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="elements", rhs_source_kind=:unknown, state_update_shape=:append_like
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, guard_field="elements", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:append_like
       # Related Alloy property predicates: EnqueueContains
       # Related pattern hints: membership
       # Derived verify hints: check_membership_semantics
@@ -307,7 +307,7 @@ RSpec.describe "membership_queue (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#q.elements>0 implies#q'.elements=sub[#q.elements,1]"
-      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, guard_field="elements", rhs_source_kind=:unknown, state_update_shape=:remove_first
+      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, guard_field="elements", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:remove_first
       # Related Alloy property predicates: EnqueueContains
       # Related pattern hints: membership
       # Derived verify hints: respect_non_empty_guard, check_membership_semantics, check_guard_failure_semantics

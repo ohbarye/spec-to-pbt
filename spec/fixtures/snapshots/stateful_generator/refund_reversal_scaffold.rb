@@ -227,7 +227,7 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#s'.captured=add[#s.captured,amount]"
-      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, guard_field="captured", rhs_source_kind=:arg, state_update_shape=:increment
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, guard_field="captured", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:increment
       # Related Alloy property predicates: Refund, Reverse, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state
@@ -316,7 +316,7 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#s.captured>=amount implies#s'.captured=sub[#s.captured,amount]and#s'.refunded=add[#s.refunded,amount]"
-      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Capture, Reverse, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -430,7 +430,7 @@ RSpec.describe "refund_reversal (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#s.refunded>=amount implies#s'.captured=add[#s.captured,amount]and#s'.refunded=sub[#s.refunded,amount]"
-      # Analyzer hints: state_field="refunded", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="refunded", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="refunded", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="refunded", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Capture, Refund, NonNegativeRefunded
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics

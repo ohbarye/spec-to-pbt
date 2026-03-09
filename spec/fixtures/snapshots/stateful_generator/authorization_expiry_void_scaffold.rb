@@ -235,7 +235,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.available>=amount implies#a'.available=sub[#a.available,amount]and#a'.held=add[#a.held,amount]"
-      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="available", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="available", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Void, Expire, NonNegativeAvailable
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -349,7 +349,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.held>=amount implies#a'.available=add[#a.available,amount]and#a'.held=sub[#a.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Authorize, Expire, NonNegativeHeld
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -463,7 +463,7 @@ RSpec.describe "authorization_expiry_void (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#a.held>=amount implies#a'.available=add[#a.available,amount]and#a'.held=sub[#a.held,amount]"
-      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="held", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="held", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Authorize, Void, NonNegativeHeld
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics

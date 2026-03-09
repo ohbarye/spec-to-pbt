@@ -428,6 +428,8 @@ module SpecToPbt
         else
           lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
         end
+      elsif !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
+        lines << "      #{guard_state_expr('state', analysis)} == #{analysis.guard_constant} # inferred scalar lifecycle/status precondition for #{method_name}"
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
         lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
       else
@@ -674,7 +676,7 @@ module SpecToPbt
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
         "      # TODO: translate predicate semantics into postcondition checks",
         "      # Alloy predicate body (preview): #{body_preview.inspect}",
-        "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}, guard_kind=#{analysis.guard_kind.inspect}, guard_field=#{analysis.guard_field.inspect}, rhs_source_kind=#{analysis.rhs_source_kind.inspect}, state_update_shape=#{analysis.state_update_shape.inspect}"
+        "      # Analyzer hints: state_field=#{analysis.state_field.inspect}, size_delta=#{analysis.size_delta.inspect}, transition_kind=#{analysis.transition_kind.inspect}, requires_non_empty_state=#{analysis.requires_non_empty_state}, scalar_update_kind=#{analysis.scalar_update_kind.inspect}, command_confidence=#{analysis.command_confidence.inspect}, guard_kind=#{analysis.guard_kind.inspect}, guard_field=#{analysis.guard_field.inspect}, guard_constant=#{analysis.guard_constant.inspect}, rhs_source_kind=#{analysis.rhs_source_kind.inspect}, state_update_shape=#{analysis.state_update_shape.inspect}"
       ]
 
       if analysis.related_assertion_names.any?
@@ -1591,6 +1593,7 @@ module SpecToPbt
       return true if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
       return true if collection_like_state?(analysis) && analysis.guard_kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
       return true if !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
+      return true if !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
 
       false
     end

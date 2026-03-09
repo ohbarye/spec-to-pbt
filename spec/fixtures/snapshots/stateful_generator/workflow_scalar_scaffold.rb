@@ -224,7 +224,7 @@ RSpec.describe "workflow (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#m'.value=add[#m.value,1]"
-      # Analyzer hints: state_field="value", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, guard_field="value", rhs_source_kind=:unknown, state_update_shape=:increment
+      # Analyzer hints: state_field="value", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:increment_like, command_confidence=:medium, guard_kind=:none, guard_field="value", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:increment
       policy = WorkflowPbtSupport.guard_failure_policy(name)
       guard_failed = false
       # Suggested verify order:

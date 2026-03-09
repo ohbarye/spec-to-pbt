@@ -90,6 +90,8 @@ Representative domains:
 - feature flag rollout
 - wallet reset-to-limit
 - enable-to-max / disable-to-zero style commands
+- payment status lifecycle
+- job status lifecycle
 
 Current generator behavior:
 
@@ -108,6 +110,33 @@ Remaining gaps:
 - richer bounded/domain reset families are not fully generalized yet
 - some constant-like replacements may still need config when the target is not
   structurally obvious
+
+#### 2c. Lifecycle status transitions
+
+Representative domains:
+
+- payment status lifecycle
+- job status lifecycle
+
+Current generator behavior:
+
+- scalar equality guards such as `status = 1 implies status' = 2` are inferred
+- no-arg lifecycle commands generate:
+  - `applicable?`
+  - `guard_satisfied?`
+  - concrete `next_state`
+  - constant replacement `verify!`
+- invalid transitions can now use the same inferred-guard taxonomy as other
+  guarded commands:
+  - reject
+  - `guard_failure_policy: :no_op`
+  - `guard_failure_policy: :raise`
+  - `guard_failure_policy: :custom`
+
+Remaining gaps:
+
+- symbolic/enum-like status values are still represented as scalar constants
+- domain-specific lifecycle effects still belong in config
 
 #### 3. Multi-field scalar conservation / paired updates
 

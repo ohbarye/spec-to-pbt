@@ -934,6 +934,186 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("job_queue_retry_dead_letter_pbt.rb")
   end
 
+  it "runs a regenerated payment status lifecycle workflow with invalid-transition raise semantics" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("payment_status_lifecycle.als")
+
+    File.write(File.join(output_dir, "payment_status_lifecycle_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PaymentStatusLifecycleImpl
+        attr_reader :status
+
+        def initialize(status: 0)
+          @status = status
+        end
+
+        def authorize
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def capture
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+
+        def void
+          raise "invalid transition" unless @status == 1
+
+          @status = 3
+          nil
+        end
+
+        def refund
+          raise "invalid transition" unless @status == 2
+
+          @status = 4
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "payment_status_lifecycle_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PaymentStatusLifecyclePbtConfig = {
+        sut_factory: -> { PaymentStatusLifecycleImpl.new(status: 0) },
+        initial_state: 0,
+        command_mappings: {
+          authorize: {
+            method: :authorize,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment status after authorize to match model" unless observed_state == after_state
+            end
+          },
+          capture: {
+            method: :capture,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment status after capture to match model" unless observed_state == after_state
+            end
+          },
+          void: {
+            method: :void,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment status after void to match model" unless observed_state == after_state
+            end
+          },
+          refund: {
+            method: :refund,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment status after refund to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.status }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("payment_status_lifecycle_pbt.rb")
+  end
+
+  it "runs a regenerated job status lifecycle workflow with method remapping and invalid-transition raise semantics" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("job_status_lifecycle.als")
+
+    File.write(File.join(output_dir, "job_status_lifecycle_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class JobStatusLifecycleImpl
+        attr_reader :status
+
+        def initialize(status: 0)
+          @status = status
+        end
+
+        def start
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def complete
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+
+        def mark_failed
+          raise "invalid transition" unless @status == 1
+
+          @status = 3
+          nil
+        end
+
+        def move_to_dead_letter
+          raise "invalid transition" unless @status == 3
+
+          @status = 4
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "job_status_lifecycle_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      JobStatusLifecyclePbtConfig = {
+        sut_factory: -> { JobStatusLifecycleImpl.new(status: 0) },
+        initial_state: 0,
+        command_mappings: {
+          start: {
+            method: :start,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job status after start to match model" unless observed_state == after_state
+            end
+          },
+          complete: {
+            method: :complete,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job status after complete to match model" unless observed_state == after_state
+            end
+          },
+          fail: {
+            method: :mark_failed,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job status after fail to match model" unless observed_state == after_state
+            end
+          },
+          dead_letter: {
+            method: :move_to_dead_letter,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job status after dead-letter to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.status }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("job_status_lifecycle_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

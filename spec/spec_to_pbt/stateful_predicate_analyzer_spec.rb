@@ -597,5 +597,29 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(rollout.state_update_shape).to eq(:replace_with_arg)
       end
     end
+
+    context "with lifecycle status transitions" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/payment_status_lifecycle.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "recognizes scalar equality guards before constant replacements" do
+        authorize = analyzer.analyze(spec.predicates.find { |p| p.name == "Authorize" })
+        capture = analyzer.analyze(spec.predicates.find { |p| p.name == "Capture" })
+
+        expect(authorize.state_field).to eq("status")
+        expect(authorize.guard_kind).to eq(:state_equals_constant)
+        expect(authorize.guard_field).to eq("status")
+        expect(authorize.guard_constant).to eq("0")
+        expect(authorize.rhs_source_kind).to eq(:constant)
+        expect(authorize.rhs_constant).to eq("1")
+        expect(authorize.state_update_shape).to eq(:replace_constant)
+
+        expect(capture.guard_kind).to eq(:state_equals_constant)
+        expect(capture.guard_field).to eq("status")
+        expect(capture.guard_constant).to eq("1")
+        expect(capture.rhs_constant).to eq("2")
+        expect(capture.state_update_shape).to eq(:replace_constant)
+      end
+    end
   end
 end

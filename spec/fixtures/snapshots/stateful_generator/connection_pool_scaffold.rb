@@ -231,7 +231,7 @@ RSpec.describe "connection_pool (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.available>0 implies#p'.available=sub[#p.available,1]and#p'.checked_out=add[#p.checked_out,1]"
-      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="available", rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="available", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="available", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Checkin, CapacityPreserved
       # Related pattern hints: size, invariant
       # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_size_semantics, check_guard_failure_semantics
@@ -339,7 +339,7 @@ RSpec.describe "connection_pool (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.checked_out>0 implies#p'.available=add[#p.available,1]and#p'.checked_out=sub[#p.checked_out,1]"
-      # Analyzer hints: state_field="checked_out", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="checked_out", rhs_source_kind=:unknown, state_update_shape=:decrement
+      # Analyzer hints: state_field="checked_out", size_delta=1, transition_kind=nil, requires_non_empty_state=true, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:non_empty, guard_field="checked_out", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:decrement
       # Related Alloy property predicates: Checkout
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics

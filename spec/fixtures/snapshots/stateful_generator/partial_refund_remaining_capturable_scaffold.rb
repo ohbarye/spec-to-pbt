@@ -234,7 +234,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.authorized>=amount implies#p'.authorized=sub[#p.authorized,amount]and#p'.captured=add[#p.captured,amount]"
-      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="authorized", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="authorized", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Refund, NonNegativeAuthorized
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -348,7 +348,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.captured>=amount implies#p'.captured=sub[#p.captured,amount]and#p'.refunded=add[#p.refunded,amount]"
-      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Capture, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics

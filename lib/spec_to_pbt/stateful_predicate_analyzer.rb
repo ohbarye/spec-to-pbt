@@ -18,6 +18,7 @@ module SpecToPbt
     :command_confidence,
     :guard_kind,
     :guard_field,
+    :guard_constant,
     :rhs_source_kind,
     :rhs_source_field,
     :rhs_constant,
@@ -43,6 +44,7 @@ module SpecToPbt
     # @rbs command_confidence: Symbol
     # @rbs guard_kind: Symbol
     # @rbs guard_field: String?
+    # @rbs guard_constant: String?
     # @rbs rhs_source_kind: Symbol
     # @rbs rhs_source_field: String?
     # @rbs rhs_constant: String?
@@ -54,7 +56,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, guard_field: nil, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, guard_field: nil, guard_constant: nil, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -86,7 +88,7 @@ module SpecToPbt
       field_updates = infer_state_field_updates(body, predicate, state_param_names, state_type)
       fallback_state_field = infer_state_field(body, state_param_names)
       guard_candidates = state_field_candidates_for(state_type, field_updates.map { |item| item[:field] }, fallback_state_field)
-      guard_kind, guard_field = infer_guard_details(body, predicate, guard_candidates, fallback_state_field)
+      guard_kind, guard_field, guard_constant = infer_guard_details(body, predicate, guard_candidates, fallback_state_field)
       primary_update = primary_state_update_for(field_updates, guard_field)
       fallback_state_field_multiplicity = infer_state_field_multiplicity(state_type, fallback_state_field)
       prefer_collection_fallback = ["seq", "set"].include?(fallback_state_field_multiplicity) && !field_updates.empty?
@@ -127,6 +129,7 @@ module SpecToPbt
         command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
         guard_kind: guard_kind,
         guard_field: guard_field,
+        guard_constant: guard_constant,
         rhs_source_kind: rhs_source_kind,
         rhs_source_field: rhs_source_field,
         rhs_constant: rhs_constant,
@@ -203,13 +206,18 @@ module SpecToPbt
     # @rbs body: String
     # @rbs predicate: Core::Entity
     # @rbs state_field: String?
-    # @rbs return: Symbol
+    # @rbs return: [Symbol, String?, String?]
     def infer_guard_details(body, predicate, candidate_fields, fallback_state_field)
-      non_empty_match = body.match(/#\w+\.(\w+)\s*(?:>\s*0|>=\s*1)/)
-      return [:non_empty, non_empty_match[1]] if non_empty_match
+      guard_text = body.include?("implies") ? body.split("implies", 2).first.to_s : body
 
-      capacity_match = body.match(/#\w+\.(\w+)\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
-      return [:below_capacity, capacity_match[1]] if capacity_match
+      non_empty_match = guard_text.match(/#\w+\.(\w+)\s*(?:>\s*0|>=\s*1)/)
+      return [:non_empty, non_empty_match[1], nil] if non_empty_match
+
+      capacity_match = guard_text.match(/#\w+\.(\w+)\s*<\s*#\w+\.(?:capacity|limit|max(?:imum)?)/i)
+      return [:below_capacity, capacity_match[1], nil] if capacity_match
+
+      state_constant_match = guard_text.match(/#\w+\.(\w+)\s*=\s*(-?\d+)\b/)
+      return [:state_equals_constant, state_constant_match[1], state_constant_match[2]] if state_constant_match
 
       field_names = candidate_fields.compact.uniq
       field_names << fallback_state_field if fallback_state_field
@@ -221,10 +229,10 @@ module SpecToPbt
           body.match?(/#\w+\.#{Regexp.escape(field_name)}\s*(?:>=|>)\s*#?#{Regexp.escape(param.name)}\b/)
         end
 
-        return [:arg_within_state, field_name]
+        return [:arg_within_state, field_name, nil]
       end
 
-      [:none, fallback_state_field]
+      [:none, fallback_state_field, nil]
     end
 
     # @rbs state_type: String?

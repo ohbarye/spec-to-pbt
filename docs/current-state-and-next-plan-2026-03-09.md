@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `226 examples, 0 failures`
+- current result: `242 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -110,6 +110,7 @@ Major supported capabilities:
 - collection + projected scalar generation for append-only ledger/inventory-style patterns
 - constant replacement / bounded replacement for reset-style structured scalar commands
 - bounded replace-with-arg generation for companion-limit patterns such as rollout
+- scalar equality-guard lifecycle transitions such as `status = 1 implies status' = 2`
 
 ## Representative Domains Covered
 
@@ -131,6 +132,7 @@ Major supported capabilities:
 - authorization expiry / void
 - partial refund / remaining capturable
 - ledger projection
+- payment status lifecycle
 
 ### Software-general domains
 
@@ -139,6 +141,7 @@ Major supported capabilities:
 - feature flag rollout
 - job queue retry / dead letter
 - inventory projection
+- job status lifecycle
 
 ## Most Important Decisions
 

@@ -224,7 +224,7 @@ RSpec.describe "thermostat (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#t'.target=next"
-      # Analyzer hints: state_field="target", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="target", rhs_source_kind=:arg, state_update_shape=:replace_with_arg
+      # Analyzer hints: state_field="target", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, guard_field="target", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
       policy = ThermostatPbtSupport.guard_failure_policy(name)
       guard_failed = false
       # Suggested verify order:

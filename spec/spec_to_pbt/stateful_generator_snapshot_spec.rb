@@ -30,7 +30,9 @@ RSpec.describe "SpecToPbt::StatefulGenerator snapshots" do
     "feature_flag_rollout" => "feature_flag_rollout.als",
     "authorization_expiry_void" => "authorization_expiry_void.als",
     "partial_refund_remaining_capturable" => "partial_refund_remaining_capturable.als",
-    "job_queue_retry_dead_letter" => "job_queue_retry_dead_letter.als"
+    "job_queue_retry_dead_letter" => "job_queue_retry_dead_letter.als",
+    "payment_status_lifecycle" => "payment_status_lifecycle.als",
+    "job_status_lifecycle" => "job_status_lifecycle.als"
   }.each do |name, fixture_name|
     it "matches the #{name} scaffold snapshot" do
       source = File.read(File.expand_path("../fixtures/alloy/#{fixture_name}", __dir__))
