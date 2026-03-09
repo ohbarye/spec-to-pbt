@@ -274,7 +274,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def next_state(state, args)
       override = FeatureFlagRolloutPbtSupport.next_state_override(name)
       return FeatureFlagRolloutPbtSupport.call_next_state_override(override, state, args) if override
-      state # TODO: replace Flag#rollout using args/result
+      state.merge(rollout: 0)
     end
 
     def run!(sut, args)
@@ -301,7 +301,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#f'.rollout=0"
-      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:unknown, state_update_shape=:replace_value
+      # Analyzer hints: state_field="rollout", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:constant, state_update_shape=:replace_constant
       # Related Alloy property predicates: Enable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
@@ -322,8 +322,8 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
       # Derived from related assertions/facts: keep non-negative scalar invariants aligned with the model state
-      # TODO: verify replaced value for Flag#rollout
-      # Example shape: compare the inferred target against args/result
+      expected = 0
+      raise "Expected replaced value for Flag#rollout" unless after_state[:rollout] == expected
       raise "Expected non-negative value for Flag#rollout" unless after_state[:rollout] >= 0
       [sut, args] && nil
     end

@@ -495,6 +495,8 @@ module SpecToPbt
           "decrement #{state_target_label(analysis)} based on args/result"
         when :replace_with_arg
           "replace #{state_target_label(analysis)} using args"
+        when :replace_constant
+          "replace #{state_target_label(analysis)} using an inferred constant"
         when :replace_value
           "replace #{state_target_label(analysis)} using args/result"
         when :preserve_value
@@ -548,6 +550,15 @@ module SpecToPbt
           "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
           *guard_failed_next_state_lines(analysis),
           "      #{scalar_state_update_expr('state', analysis, "#{support_module_name}.scalar_model_arg(name, args)")}",
+          "    end"
+        ]
+      elsif analysis.state_update_shape == :replace_constant && (constant_expr = scalar_constant_expr(analysis))
+        [
+          "    def next_state(state, args)",
+          "      override = #{support_module_name}.next_state_override(name)",
+          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+          *guard_failed_next_state_lines(analysis),
+          "      #{scalar_state_update_expr('state', analysis, constant_expr)}",
           "    end"
         ]
       elsif analysis.state_update_shape == :replace_value && (source_expr = scalar_replace_source_expr("state", analysis))
@@ -1373,6 +1384,19 @@ module SpecToPbt
           "      expected = #{support_module_name}.scalar_model_arg(name, args)",
           "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
         ]
+      when :replace_constant
+        constant_expr = scalar_constant_expr(analysis)
+        if constant_expr
+          [
+            "      expected = #{constant_expr}",
+            "      raise \"Expected replaced value for #{state_target_label(analysis)}\" unless #{scalar_state_expr('after_state', analysis)} == expected"
+          ]
+        else
+          [
+            "      # TODO: verify replaced constant value for #{state_target_label(analysis)}",
+            "      # Example shape: compare the inferred target against a known reset/bounded constant"
+          ]
+        end
       when :replace_value
         source_expr = scalar_replace_source_expr("before_state", analysis)
         if source_expr
@@ -1618,6 +1642,8 @@ module SpecToPbt
         update[:rhs_source_kind] == :arg ? "#{field_expr} - delta" : "#{field_expr} - 1"
       when :replace_with_arg
         "#{support_module_name}.scalar_model_arg(name, args)"
+      when :replace_constant
+        update[:rhs_constant] || field_expr
       when :replace_value
         source_field = update[:rhs_source_field]
         source_field ? "#{state_var}[:#{source_field}]" : field_expr
@@ -1724,6 +1750,15 @@ module SpecToPbt
         analysis.guard_kind == :arg_within_state &&
         analysis.rhs_source_kind == :arg &&
         analysis.state_update_shape == :decrement
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String?
+    def scalar_constant_expr(analysis)
+      return analysis.rhs_constant if analysis.rhs_constant
+
+      update = scalar_field_updates_for(analysis).find { |item| item[:field] == analysis.state_field && item[:rhs_constant] }
+      update && update[:rhs_constant]
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

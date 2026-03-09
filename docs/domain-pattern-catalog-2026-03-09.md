@@ -72,7 +72,27 @@ Current generator behavior:
 Remaining gaps:
 
 - richer domain guards still sometimes need config
-- constant replacement is still uneven
+- bounded/domain-specific replacement still still has gaps beyond the safe common cases
+
+#### 2b. Constant replacement / reset-to-boundary
+
+Representative domains:
+
+- feature flag rollout
+- wallet reset-to-limit
+- enable-to-max / disable-to-zero style commands
+
+Current generator behavior:
+
+- constant replacement such as `rollout = 0` is generated directly
+- replace-from-sibling-field such as `balance = credit_limit` is generated
+- safe `verify!` checks cover replaced value equality
+
+Remaining gaps:
+
+- richer bounded/domain reset families are not fully generalized yet
+- some constant-like replacements may still need config when the target is not
+  structurally obvious
 
 #### 3. Multi-field scalar conservation / paired updates
 

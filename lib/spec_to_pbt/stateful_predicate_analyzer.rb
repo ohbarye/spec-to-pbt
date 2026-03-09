@@ -19,6 +19,7 @@ module SpecToPbt
     :guard_kind,
     :rhs_source_kind,
     :rhs_source_field,
+    :rhs_constant,
     :state_field_updates,
     :state_update_shape,
     :related_predicate_names,
@@ -42,6 +43,7 @@ module SpecToPbt
     # @rbs guard_kind: Symbol
     # @rbs rhs_source_kind: Symbol
     # @rbs rhs_source_field: String?
+    # @rbs rhs_constant: String?
     # @rbs state_field_updates: Array[Hash[Symbol, untyped]]
     # @rbs state_update_shape: Symbol
     # @rbs related_predicate_names: Array[String]
@@ -50,7 +52,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -93,8 +95,9 @@ module SpecToPbt
       scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
       rhs_source_kind = primary_update&.fetch(:rhs_source_kind) || :unknown
       rhs_source_field = primary_update&.fetch(:rhs_source_field)
+      rhs_constant = primary_update&.fetch(:rhs_constant)
       if primary_update.nil? || rhs_source_kind == :unknown
-        rhs_source_kind, rhs_source_field = infer_rhs_source_details(body, predicate, state_field, state_param_names)
+        rhs_source_kind, rhs_source_field, rhs_constant = infer_rhs_source_details(body, predicate, state_field, state_param_names)
       end
       state_update_shape = infer_state_update_shape(
         state_field_multiplicity: state_field_multiplicity,
@@ -122,6 +125,7 @@ module SpecToPbt
         guard_kind: guard_kind,
         rhs_source_kind: rhs_source_kind,
         rhs_source_field: rhs_source_field,
+        rhs_constant: rhs_constant,
         state_field_updates: field_updates,
         state_update_shape: state_update_shape
       )
@@ -353,33 +357,36 @@ module SpecToPbt
     # @rbs predicate: Core::Entity
     # @rbs state_field: String?
     # @rbs state_param_names: Array[String]
-    # @rbs return: Array[Symbol | String?]
+    # @rbs return: [Symbol, String?, String?]
     def infer_rhs_source_details(body, predicate, state_field, state_param_names)
-      return [:unknown, nil] if state_field.nil?
+      return [:unknown, nil, nil] if state_field.nil?
 
       predicate.params.each do |param|
         next if param.name.end_with?("'")
         next if state_param_names.include?(param.name)
         next if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?\w+\.#{Regexp.escape(state_field)}/)
 
-        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
-        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add|sub)\[#\w+\.#{Regexp.escape(state_field)},#?#{Regexp.escape(param.name)}\]/)
-        return [:arg, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}[+-]#?#{Regexp.escape(param.name)}\b/)
+        return [:arg, nil, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\b/)
+        return [:arg, nil, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=(?:add|sub)\[#\w+\.#{Regexp.escape(state_field)},#?#{Regexp.escape(param.name)}\]/)
+        return [:arg, nil, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}[+-]#?#{Regexp.escape(param.name)}\b/)
 
         arg_field_match = body.match(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param.name)}\.(\w+)\b/)
-        return [:arg_field, arg_field_match[1]] if arg_field_match
+        return [:arg_field, arg_field_match[1], nil] if arg_field_match
       end
 
-      return [:state_field, state_field] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}\b/)
+      return [:state_field, state_field, nil] if body.match?(/#\w+'?\.#{Regexp.escape(state_field)}=#\w+\.#{Regexp.escape(state_field)}\b/)
 
       state_param_names.each do |param_name|
         source_match = body.match(/#\w+'?\.#{Regexp.escape(state_field)}=#?#{Regexp.escape(param_name)}\.(\w+)\b/)
         next unless source_match
 
-        return [:state_field, source_match[1]]
+        return [:state_field, source_match[1], nil]
       end
 
-      [:unknown, nil]
+      constant_match = body.match(/#\w+'?\.#{Regexp.escape(state_field)}=(-?\d+)\b/)
+      return [:constant, nil, constant_match[1]] if constant_match
+
+      [:unknown, nil, nil]
     end
 
     # @rbs rhs: String
@@ -394,7 +401,8 @@ module SpecToPbt
         return {
           update_shape: :preserve_value,
           rhs_source_kind: :state_field,
-          rhs_source_field: target_field
+          rhs_source_field: target_field,
+          rhs_constant: nil
         }
       end
 
@@ -403,7 +411,8 @@ module SpecToPbt
         return {
           update_shape: (state_field_match[2] == target_field ? :preserve_value : :replace_value),
           rhs_source_kind: :state_field,
-          rhs_source_field: state_field_match[2]
+          rhs_source_field: state_field_match[2],
+          rhs_constant: nil
         }
       end
 
@@ -414,7 +423,8 @@ module SpecToPbt
         return {
           update_shape: (add_sub_match[1] == "sub" ? :decrement : :increment),
           rhs_source_kind: (state_param_names.include?(param_name) ? :state_field : :arg),
-          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil)
+          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil),
+          rhs_constant: nil
         } if params_by_name.key?(param_name)
       end
       if arithmetic_match
@@ -422,19 +432,21 @@ module SpecToPbt
         return {
           update_shape: (arithmetic_match[1] == "-" ? :decrement : :increment),
           rhs_source_kind: (state_param_names.include?(param_name) ? :state_field : :arg),
-          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil)
+          rhs_source_field: (state_param_names.include?(param_name) ? target_field : nil),
+          rhs_constant: nil
         } if params_by_name.key?(param_name)
       end
 
-      return { update_shape: :increment, rhs_source_kind: :unknown, rhs_source_field: nil } if rhs.match?(/\A(?:add\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}\+1)\z/)
-      return { update_shape: :decrement, rhs_source_kind: :unknown, rhs_source_field: nil } if rhs.match?(/\A(?:sub\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}-1)\z/)
+      return { update_shape: :increment, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil } if rhs.match?(/\A(?:add\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}\+1)\z/)
+      return { update_shape: :decrement, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil } if rhs.match?(/\A(?:sub\[#\w+\.#{Regexp.escape(target_field)},1\]|#\w+\.#{Regexp.escape(target_field)}-1)\z/)
 
       arg_field_match = rhs.match(/\A#?(\w+)\.(\w+)\z/)
       if arg_field_match && params_by_name.key?(arg_field_match[1]) && !state_param_names.include?(arg_field_match[1])
         return {
           update_shape: :replace_value,
           rhs_source_kind: :arg_field,
-          rhs_source_field: arg_field_match[2]
+          rhs_source_field: arg_field_match[2],
+          rhs_constant: nil
         }
       end
 
@@ -443,14 +455,25 @@ module SpecToPbt
         return {
           update_shape: :replace_with_arg,
           rhs_source_kind: :arg,
-          rhs_source_field: nil
+          rhs_source_field: nil,
+          rhs_constant: nil
         } if params_by_name.key?(param_name) && !state_param_names.include?(param_name)
+      end
+
+      if rhs.match?(/\A-?\d+\z/)
+        return {
+          update_shape: :replace_constant,
+          rhs_source_kind: :constant,
+          rhs_source_field: nil,
+          rhs_constant: rhs
+        }
       end
 
       {
         update_shape: :unknown,
         rhs_source_kind: :unknown,
-        rhs_source_field: nil
+        rhs_source_field: nil,
+        rhs_constant: nil
       }
     end
 
@@ -475,6 +498,7 @@ module SpecToPbt
       return :increment if scalar_update_kind == :increment_like
       return :decrement if scalar_update_kind == :decrement_like
       return :replace_with_arg if scalar_update_kind == :replace_like && rhs_source_kind == :arg
+      return :replace_constant if scalar_update_kind == :replace_like && rhs_source_kind == :constant
       return :replace_value if scalar_update_kind == :replace_like
 
       :unknown
@@ -492,7 +516,7 @@ module SpecToPbt
       return :high if [:append, :pop, :dequeue].include?(transition_kind)
       return :high if [:append_like, :remove_first, :remove_last].include?(state_update_shape)
       return :medium if transition_kind == :size_no_change
-      return :medium if [:increment, :decrement, :replace_with_arg, :replace_value, :preserve_value].include?(state_update_shape)
+      return :medium if [:increment, :decrement, :replace_with_arg, :replace_constant, :replace_value, :preserve_value].include?(state_update_shape)
       return :medium if !scalar_update_kind.nil?
       return :medium if !size_delta.nil? || requires_non_empty_state
 

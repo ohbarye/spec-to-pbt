@@ -606,7 +606,6 @@ RSpec.describe "Stateful regenerated workflows" do
           },
           disable: {
             method: :disable_globally,
-            next_state_override: ->(state, _args) { state.merge(rollout: 0) },
             verify_override: ->(after_state:, observed_state:, **) do
               raise "Expected observed rollout state after disable to match model" unless observed_state == after_state
             end

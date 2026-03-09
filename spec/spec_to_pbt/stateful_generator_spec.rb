@@ -519,6 +519,26 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with feature-flag rollout transitions" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/feature_flag_rollout.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates constant and bounded replacement transitions without requiring next_state overrides for disable" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { rollout: 0, max_rollout: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state.merge(rollout: state[:max_rollout])")
+        expect(code).to include("state.merge(rollout: 0)")
+        expect(code).to include('raise "Expected replaced value for Flag#rollout" unless after_state[:rollout] == expected')
+        expect(code).to include("expected = 0")
+        expect(code).to include("state.merge(rollout: FeatureFlagRolloutPbtSupport.scalar_model_arg(name, args))")
+        expect(config).to include("# initial_state: { rollout: 0, max_rollout: 3 }")
+        expect(config).not_to include("next_state_override: ->(state, _args) { state.merge(rollout: 0) }")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `221 examples, 0 failures`
+- current result: `223 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -103,6 +103,7 @@ Major supported capabilities:
 - generation of `applicable?(state, args)` where inferable
 - structured model state generation for several multi-field cases
 - collection + projected scalar generation for append-only ledger-style patterns
+- constant replacement / bounded replacement for reset-style structured scalar commands
 
 ## Representative Domains Covered
 

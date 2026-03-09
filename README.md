@@ -199,7 +199,7 @@ Useful stateful fixtures to try:
 - `spec/fixtures/alloy/connection_pool.als`
   - paired counters (`available` + `checked_out`) with capacity-preservation style checks
 - `spec/fixtures/alloy/feature_flag_rollout.als`
-  - rollout percentage state with enable/disable and arg-aware rollout mapping
+  - rollout percentage state with enable/disable, constant reset, and arg-aware rollout mapping
 - `spec/fixtures/alloy/authorization_expiry_void.als`
   - authorization hold release via void/expiry with amount-aware guards
 - `spec/fixtures/alloy/partial_refund_remaining_capturable.als`
@@ -217,7 +217,7 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `ledger_projection.als` -> CLI-regenerated scaffold + observed-state verification for derived ledger state
 - `rate_limiter.als` -> CLI-regenerated scaffold + config-driven initial state + observed limiter-state verification
 - `connection_pool.als` -> CLI-regenerated scaffold + paired-counter observed-state verification
-- `feature_flag_rollout.als` -> CLI-regenerated scaffold + config-driven rollout mapping and disable override
+- `feature_flag_rollout.als` -> CLI-regenerated scaffold + config-driven rollout mapping without custom disable `next_state_override`
 - `authorization_expiry_void.als` -> CLI-regenerated scaffold + observed authorization-state verification
 - `partial_refund_remaining_capturable.als` -> CLI-regenerated scaffold + three-field payment-state verification
 - `job_queue_retry_dead_letter.als` -> CLI-regenerated scaffold + observed queue lifecycle verification
@@ -227,7 +227,7 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `ledger_projection.als` -> user-owned example with append-only entries and balance projection without custom `next_state_override`
 - `rate_limiter.als` -> user-owned example with remaining-capacity reset semantics
 - `connection_pool.als` -> user-owned example with paired availability counters
-- `feature_flag_rollout.als` -> user-owned example with config-driven rollout range normalization
+- `feature_flag_rollout.als` -> user-owned example with config-driven rollout range normalization and generated disable reset semantics
 - `authorization_expiry_void.als` -> user-owned example with void/expiry authorization release semantics
 - `partial_refund_remaining_capturable.als` -> user-owned example with partial refund payment flows
 - `job_queue_retry_dead_letter.als` -> user-owned example with retry/dead-letter queue lifecycle checks
