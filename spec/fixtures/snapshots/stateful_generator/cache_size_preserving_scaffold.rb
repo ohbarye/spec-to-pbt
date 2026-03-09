@@ -214,7 +214,7 @@ RSpec.describe "cache (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless CachePbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(CachePbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = CachePbtSupport.adapt_result(name, result)
@@ -226,6 +226,8 @@ RSpec.describe "cache (stateful scaffold)" do
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#c'.entries=#c.entries"
       # Analyzer hints: state_field="entries", size_delta=0, transition_kind=:size_no_change, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_size
+      policy = CachePbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -236,7 +238,9 @@ RSpec.describe "cache (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # Inferred collection target: Cache#entries
       before_items = before_state

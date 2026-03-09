@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `223 examples, 0 failures`
+- current result: `224 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -96,7 +96,10 @@ Major supported capabilities:
 - config-driven `next_state_override`
 - config-driven `verify_override`
 - config-driven `state_reader`
-- config-driven `guard_failure_policy` for inferred guarded commands
+- config-driven `guard_failure_policy` for inferred guarded commands:
+  - `:no_op`
+  - `:raise`
+  - `:custom` with `verify_override`
 - config-driven method remapping and arg adaptation
 - analyzer-driven `verify!` hints and safe executable checks
 - generation of `arguments(state)` where inferable
@@ -162,8 +165,12 @@ That separation is intentional and should be preserved.
 
 ## Known Boundaries
 
-- failure / no-op semantics are partly automated for inferred guarded commands via
-  `guard_failure_policy`, but still incomplete for richer domain-specific cases
+- failure / no-op semantics now have a basic taxonomy for inferred guarded commands:
+  - reject by `applicable?`
+  - invalid-but-unchanged via `guard_failure_policy: :no_op`
+  - invalid-and-raises via `guard_failure_policy: :raise`
+  - domain-owned invalid path via `guard_failure_policy: :custom` + `verify_override`
+  but richer domain-specific cases are still only partly automated
 - some derived state still needs `next_state_override`, but append-only ledger-style
   collection + projected scalar patterns are now scaffolded directly
 - Alloy is still the only public input frontend
@@ -174,7 +181,7 @@ That separation is intentional and should be preserved.
 
 ## Recommended Next Work
 
-### 1. Failure / no-op semantics
+### 1. Failure / no-op semantics beyond inferred guards
 
 Why it matters:
 
@@ -184,8 +191,9 @@ Why it matters:
 
 Success looks like:
 
-- clearer policy for reject vs no-op vs unchanged-state verification
+- broader coverage than the current inferred-guard taxonomy
 - safe automation where semantics are genuinely inferable
+- explicit criteria for what remains config-owned
 - no loss of trust from speculative checks
 
 ### 2. Derived-state pattern inference

@@ -655,7 +655,7 @@ module SpecToPbt
         "          sut.public_send(method_name, payload)",
         "        end",
         "      rescue StandardError => error",
-        "        raise unless #{support_module_name}.guard_failure_policy(name) == :raise",
+        "        raise unless [:raise, :custom].include?(#{support_module_name}.guard_failure_policy(name))",
         "        error",
         "      end",
         "      adapted_result = #{support_module_name}.adapt_result(name, result)",
@@ -692,6 +692,7 @@ module SpecToPbt
       if analysis.derived_verify_hints.any?
         lines << "      # Derived verify hints: #{analysis.derived_verify_hints.map(&:to_s).join(', ')}"
       end
+      lines.concat(guard_failure_context_lines(analysis))
       lines << "      # Suggested verify order:"
       lines << "      # 1. Command-specific postconditions"
       lines << "      # 2. Related Alloy assertions/facts"
@@ -702,7 +703,9 @@ module SpecToPbt
       lines << "        after_state: after_state,"
       lines << "        args: args,"
       lines << "        result: result,"
-      lines << "        sut: sut"
+      lines << "        sut: sut,"
+      lines << "        guard_failed: guard_failed,"
+      lines << "        guard_failure_policy: policy"
       lines << "      )"
       lines.concat(guard_failure_verify_lines(analysis))
 
@@ -739,6 +742,22 @@ module SpecToPbt
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: Array[String]
+    def guard_failure_context_lines(analysis)
+      if guard_supportable?(analysis) && analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
+        [
+          "      policy = #{support_module_name}.guard_failure_policy(name)",
+          "      guard_failed = policy && !guard_satisfied?(before_state, args)"
+        ]
+      else
+        [
+          "      policy = #{support_module_name}.guard_failure_policy(name)",
+          "      guard_failed = false"
+        ]
+      end
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
     def guard_failure_verify_lines(analysis)
       return [] unless guard_supportable?(analysis) && analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
 
@@ -750,8 +769,6 @@ module SpecToPbt
         end
 
       [
-        "      policy = #{support_module_name}.guard_failure_policy(name)",
-        "      guard_failed = policy && !guard_satisfied?(before_state, args)",
         "      raise result if result.is_a?(StandardError) && !guard_failed",
         "      if guard_failed",
         "        observed = #{support_module_name}.observed_state(sut)",
@@ -763,6 +780,8 @@ module SpecToPbt
         "          raise \"Expected guard failure to surface as an exception\" unless result.is_a?(StandardError)",
         "          raise \"Expected unchanged model state on guard failure\" unless after_state == before_state",
         "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{expected_observed_expr}",
+        "        when :custom",
+        "          raise \"guard_failure_policy :custom requires verify_override to assert invalid-path semantics\"",
         "        else",
         "          raise \"Unsupported guard_failure_policy: \#{policy.inspect}\"",
         "        end",
@@ -1031,8 +1050,8 @@ module SpecToPbt
       lines << "      # applicable_override: ->(state, args = nil) { true },"
       lines << "      # next_state_override: ->(state, args) { state },"
       if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
-        lines << "      # guard_failure_policy: :no_op, # or :raise"
-        lines << "      # Suggested failure/no-op handling: if your API still exposes invalid calls, guard_failure_policy lets the scaffold assert unchanged state or captured exceptions before falling back to verify_override"
+        lines << "      # guard_failure_policy: :no_op, # or :raise / :custom"
+        lines << "      # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific"
       end
       lines << "      # verify_override: #{suggested_verify_override_example(analysis)}"
       lines << "    }#{suffix}"

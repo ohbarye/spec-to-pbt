@@ -220,7 +220,7 @@ RSpec.describe "connection_pool (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless ConnectionPoolPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(ConnectionPoolPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = ConnectionPoolPbtSupport.adapt_result(name, result)
@@ -235,6 +235,8 @@ RSpec.describe "connection_pool (stateful scaffold)" do
       # Related Alloy property predicates: Checkin, CapacityPreserved
       # Related pattern hints: size, invariant
       # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_size_semantics, check_guard_failure_semantics
+      policy = ConnectionPoolPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -245,10 +247,10 @@ RSpec.describe "connection_pool (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = ConnectionPoolPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = ConnectionPoolPbtSupport.observed_state(sut)
@@ -260,6 +262,8 @@ RSpec.describe "connection_pool (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
@@ -324,7 +328,7 @@ RSpec.describe "connection_pool (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless ConnectionPoolPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(ConnectionPoolPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = ConnectionPoolPbtSupport.adapt_result(name, result)
@@ -339,6 +343,8 @@ RSpec.describe "connection_pool (stateful scaffold)" do
       # Related Alloy property predicates: Checkout
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
+      policy = ConnectionPoolPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -349,10 +355,10 @@ RSpec.describe "connection_pool (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = ConnectionPoolPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = ConnectionPoolPbtSupport.observed_state(sut)
@@ -364,6 +370,8 @@ RSpec.describe "connection_pool (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end

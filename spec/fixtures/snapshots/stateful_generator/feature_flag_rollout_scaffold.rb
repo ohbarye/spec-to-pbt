@@ -215,7 +215,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(FeatureFlagRolloutPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
@@ -230,6 +230,8 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       # Related Alloy property predicates: Disable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
+      policy = FeatureFlagRolloutPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -240,7 +242,9 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Flag#rollout
@@ -290,7 +294,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(FeatureFlagRolloutPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
@@ -305,6 +309,8 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       # Related Alloy property predicates: Enable, Rollout, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
+      policy = FeatureFlagRolloutPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -315,7 +321,9 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Flag#rollout
@@ -365,7 +373,7 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless FeatureFlagRolloutPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(FeatureFlagRolloutPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = FeatureFlagRolloutPbtSupport.adapt_result(name, result)
@@ -380,6 +388,8 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
       # Related Alloy property predicates: Enable, Disable, RolloutBounded
       # Related pattern hints: size
       # Derived verify hints: respect_capacity_guard, check_size_semantics, check_non_negative_scalar_state
+      policy = FeatureFlagRolloutPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -390,7 +400,9 @@ RSpec.describe "feature_flag_rollout (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Flag#rollout

@@ -129,11 +129,28 @@ Representative domains:
 Current generator behavior:
 
 - inferred guards drive `applicable?`
-- config can now set `guard_failure_policy: :no_op | :raise`
+- config can now set:
+  - `guard_failure_policy: :no_op`
+  - `guard_failure_policy: :raise`
+  - `guard_failure_policy: :custom` with `verify_override`
 - scaffold can automatically verify:
   - unchanged model state on guard failure
   - unchanged observed state on guard failure
   - captured exception on guard failure when configured as `:raise`
+
+Current taxonomy:
+
+- reject/skip:
+  - keep the invalid path out of generation by leaving `applicable?` strict
+- no-op:
+  - allow the invalid path through and assert unchanged state with `:no_op`
+- raise:
+  - allow the invalid path through and assert captured exceptions with `:raise`
+- custom:
+  - allow the invalid path through but delegate domain-specific assertions to
+    `verify_override`
+  - keep unchanged model state as the conservative default unless
+    `next_state_override` is also provided
 
 Remaining gaps:
 

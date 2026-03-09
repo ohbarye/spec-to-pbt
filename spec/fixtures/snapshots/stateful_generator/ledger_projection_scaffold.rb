@@ -214,7 +214,7 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(LedgerProjectionPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
@@ -227,6 +227,8 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=add[#l.balance,amount]"
       # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
+      policy = LedgerProjectionPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -237,7 +239,9 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # Inferred collection target: Ledger#entries
       before_items = before_state[:entries]
@@ -290,7 +294,7 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless LedgerProjectionPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(LedgerProjectionPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = LedgerProjectionPbtSupport.adapt_result(name, result)
@@ -303,6 +307,8 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
       # Alloy predicate body (preview): "#l'.entries=add[#l.entries,1]and#l'.balance=sub[#l.balance,amount]"
       # Analyzer hints: state_field="entries", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:append_like
       # Derived verify hints: check_projection_semantics
+      policy = LedgerProjectionPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -313,7 +319,9 @@ RSpec.describe "ledger_projection (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # Inferred collection target: Ledger#entries
       before_items = before_state[:entries]

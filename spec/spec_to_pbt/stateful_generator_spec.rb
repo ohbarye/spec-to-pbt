@@ -288,8 +288,11 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state - delta")
         expect(code).to include("policy = BankAccountPbtSupport.guard_failure_policy(name)")
         expect(code).to include("guard_failed = policy && !guard_satisfied?(before_state, args)")
+        expect(code).to include("guard_failed: guard_failed,")
+        expect(code).to include("guard_failure_policy: policy")
         expect(code).to include('raise "Expected unchanged model state on guard failure" unless after_state == before_state')
         expect(code).to include('raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)')
+        expect(code).to include('raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"')
         expect(code).to include("Expected decremented value for Account#balance")
         expect(code).to include("Expected sufficient scalar state before decrement")
         expect(code).to include("Expected non-negative value for Account#balance")
@@ -697,8 +700,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Suggested real API methods: :authorize, :reserve, :place_hold")
         expect(code).to include("Suggested real API methods: :settle")
         expect(code).to include("Suggested real API methods: :release_hold, :void_authorization")
-        expect(code).to include("# guard_failure_policy: :no_op, # or :raise")
-        expect(code).to include("guard_failure_policy lets the scaffold assert unchanged state or captured exceptions")
+        expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
+        expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed reservation state to match model')
       end
     end
@@ -715,8 +718,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
         expect(code).to include("# initial_state: { source_balance: 0, target_balance: 0 }")
         expect(code).to include("Suggested real API methods: :move_funds, :transfer_amount, :post_transfer")
-        expect(code).to include("# guard_failure_policy: :no_op, # or :raise")
-        expect(code).to include("guard_failure_policy lets the scaffold assert unchanged state or captured exceptions")
+        expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
+        expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed account balances to match model')
       end
     end

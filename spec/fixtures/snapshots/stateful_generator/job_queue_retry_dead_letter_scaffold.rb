@@ -215,7 +215,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
@@ -230,6 +230,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       # Related Alloy property predicates: Dispatch, Ack, Retry, DeadLetter, NonNegativeReady
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -240,7 +242,9 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Jobs#ready
@@ -297,7 +301,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
@@ -312,6 +316,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       # Related Alloy property predicates: Enqueue, Ack, Retry, DeadLetter, NonNegativeReady
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -322,10 +328,10 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
@@ -337,6 +343,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
@@ -403,7 +411,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
@@ -418,6 +426,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       # Related Alloy property predicates: Enqueue, Dispatch, Retry, DeadLetter
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -428,10 +438,10 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
@@ -443,6 +453,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
@@ -502,7 +514,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
@@ -517,6 +529,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       # Related Alloy property predicates: Enqueue, Dispatch, Ack, DeadLetter
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -527,10 +541,10 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
@@ -542,6 +556,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
@@ -605,7 +621,7 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = JobQueueRetryDeadLetterPbtSupport.adapt_result(name, result)
@@ -620,6 +636,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
       # Related Alloy property predicates: Enqueue, Dispatch, Ack, Retry
       # Related pattern hints: size
       # Derived verify hints: respect_non_empty_guard, check_size_semantics, check_guard_failure_semantics
+      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -630,10 +648,10 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = JobQueueRetryDeadLetterPbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = JobQueueRetryDeadLetterPbtSupport.observed_state(sut)
@@ -645,6 +663,8 @@ RSpec.describe "job_queue_retry_dead_letter (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end

@@ -213,7 +213,7 @@ RSpec.describe "box (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless BoxPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(BoxPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = BoxPbtSupport.adapt_result(name, result)
@@ -225,6 +225,8 @@ RSpec.describe "box (stateful scaffold)" do
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#b'.value=#b.value"
       # Analyzer hints: state_field="value", size_delta=0, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:state_field, state_update_shape=:preserve_value
+      policy = BoxPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -235,7 +237,9 @@ RSpec.describe "box (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Box#value

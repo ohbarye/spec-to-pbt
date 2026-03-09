@@ -213,7 +213,7 @@ RSpec.describe "thermostat (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless ThermostatPbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(ThermostatPbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = ThermostatPbtSupport.adapt_result(name, result)
@@ -225,6 +225,8 @@ RSpec.describe "thermostat (stateful scaffold)" do
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#t'.target=next"
       # Analyzer hints: state_field="target", size_delta=nil, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:replace_like, command_confidence=:medium, guard_kind=:none, rhs_source_kind=:arg, state_update_shape=:replace_with_arg
+      policy = ThermostatPbtSupport.guard_failure_policy(name)
+      guard_failed = false
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -235,7 +237,9 @@ RSpec.describe "thermostat (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Thermostat#target

@@ -223,7 +223,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = PartialRefundRemainingCapturablePbtSupport.adapt_result(name, result)
@@ -238,6 +238,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       # Related Alloy property predicates: Refund, NonNegativeAuthorized
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -248,10 +250,10 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
@@ -263,6 +265,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
@@ -333,7 +337,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
           sut.public_send(method_name, payload)
         end
       rescue StandardError => error
-        raise unless PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name) == :raise
+        raise unless [:raise, :custom].include?(PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name))
         error
       end
       adapted_result = PartialRefundRemainingCapturablePbtSupport.adapt_result(name, result)
@@ -348,6 +352,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
       # Related Alloy property predicates: Capture, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
+      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
       # Suggested verify order:
       # 1. Command-specific postconditions
       # 2. Related Alloy assertions/facts
@@ -358,10 +364,10 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-      policy = PartialRefundRemainingCapturablePbtSupport.guard_failure_policy(name)
-      guard_failed = policy && !guard_satisfied?(before_state, args)
       raise result if result.is_a?(StandardError) && !guard_failed
       if guard_failed
         observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
@@ -373,6 +379,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
           raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end

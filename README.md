@@ -82,7 +82,7 @@ The generated config now includes field-aware suggestions for:
 - `verify_context[:state_reader]`
 - `initial_state`
 - `next_state_override` for cases where the scaffold needs a richer model transition than the inferred default
-- `guard_failure_policy` for inferred guarded commands when you want invalid calls to be treated as `:no_op` or `:raise`
+- `guard_failure_policy` for inferred guarded commands when you want invalid calls to be treated as `:no_op`, `:raise`, or delegated to a custom invalid-path contract
 
 The config can map spec command names to real Ruby APIs, for example:
 
@@ -105,12 +105,18 @@ StackPbtConfig = {
 ```
 
 `verify_override` receives the normal verification inputs plus `observed_state:` when
-`verify_context[:state_reader]` is configured.
+`verify_context[:state_reader]` is configured. For inferred guarded commands it also
+receives `guard_failed:` and `guard_failure_policy:` so custom invalid-path behavior
+can stay in config instead of requiring direct scaffold edits.
 When only `model_arg_adapter` is configured, the scaffold reuses it for `run!` as the
 default `arg_adapter` so model/SUT arguments stay aligned unless you explicitly split them.
-For inferred guarded commands, `guard_failure_policy: :no_op` or `:raise` lets the
-generated scaffold keep the command runnable while asserting unchanged model/observed
-state or captured exceptions on guard failure.
+For inferred guarded commands:
+
+- `guard_failure_policy: :no_op` asserts unchanged model/observed state
+- `guard_failure_policy: :raise` asserts captured exceptions plus unchanged state
+- `guard_failure_policy: :custom` delegates the invalid path to `verify_override`
+  while keeping the conservative model default of unchanged state unless you also
+  provide `next_state_override`
 
 The scaffold now includes analyzer-driven hints such as:
 
