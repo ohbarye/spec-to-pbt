@@ -2,6 +2,7 @@
 
 HoldCaptureReleasePbtConfig = {
   sut_factory: -> { HoldCaptureReleaseImpl.new(available: 10, held: 0) },
+  initial_state: { available: 10, held: 0 },
   command_mappings: {
     hold: {
       method: :hold,

@@ -132,7 +132,7 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/transfer
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
-`verify_override`, `verify_context[:state_reader]`, `model_arg_adapter`, and where useful
+`verify_override`, `verify_context[:state_reader]`, `initial_state`, `model_arg_adapter`, and where useful
 `arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
 `../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
 
@@ -153,6 +153,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 
 - `bounded_queue.als` -> generated scaffold + generated config + user-owned impl/config edits
 - `bank_account.als` -> generated scaffold + config-driven API remapping + amount-aware commands
+- `hold_capture_release.als` -> CLI-regenerated scaffold + config-driven initial state + observed-state verification
+- `transfer_between_accounts.als` -> CLI-regenerated scaffold + config-driven initial state + transfer balance verification
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 

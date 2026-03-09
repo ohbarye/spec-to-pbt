@@ -164,6 +164,131 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("bank_account_pbt.rb")
   end
 
+  it "runs a regenerated hold/capture/release workflow with config-driven initial state and observed-state checks" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("hold_capture_release.als")
+
+    File.write(File.join(output_dir, "hold_capture_release_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class HoldCaptureReleaseImpl
+        attr_reader :available, :held
+
+        def initialize(available: 10, held: 0)
+          @available = available
+          @held = held
+        end
+
+        def hold(amount)
+          raise "insufficient available balance" if amount > @available
+
+          @available -= amount
+          @held += amount
+          nil
+        end
+
+        def capture(amount)
+          raise "insufficient held balance" if amount > @held
+
+          @held -= amount
+          nil
+        end
+
+        def release(amount)
+          raise "insufficient held balance" if amount > @held
+
+          @available += amount
+          @held -= amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "hold_capture_release_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      HoldCaptureReleasePbtConfig = {
+        sut_factory: -> { HoldCaptureReleaseImpl.new(available: 10, held: 0) },
+        initial_state: { available: 10, held: 0 },
+        command_mappings: {
+          hold: {
+            method: :hold,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed reservation state after hold to match model" unless observed_state == after_state
+            end
+          },
+          capture: {
+            method: :capture,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed reservation state after capture to match model" unless observed_state == after_state
+            end
+          },
+          release: {
+            method: :release,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed reservation state after release to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { available: sut.available, held: sut.held } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("hold_capture_release_pbt.rb")
+  end
+
+  it "runs a regenerated transfer-between-accounts workflow with config-driven initial state" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("transfer_between_accounts.als")
+
+    File.write(File.join(output_dir, "transfer_between_accounts_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class TransferBetweenAccountsImpl
+        attr_reader :source_balance, :target_balance
+
+        def initialize(source_balance: 10, target_balance: 0)
+          @source_balance = source_balance
+          @target_balance = target_balance
+        end
+
+        def transfer(amount)
+          raise "insufficient source balance" if amount > @source_balance
+
+          @source_balance -= amount
+          @target_balance += amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "transfer_between_accounts_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      TransferBetweenAccountsPbtConfig = {
+        sut_factory: -> { TransferBetweenAccountsImpl.new(source_balance: 10, target_balance: 0) },
+        initial_state: { source_balance: 10, target_balance: 0 },
+        command_mappings: {
+          transfer: {
+            method: :transfer,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed account balances after transfer to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("transfer_between_accounts_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

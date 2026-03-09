@@ -6,6 +6,7 @@
 
 StackPbtConfig = {
   sut_factory: -> { StackImpl.new },
+  # initial_state: [],
   command_mappings: {
     push_adds_element: {
       method: :push_adds_element,

@@ -26,6 +26,10 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
       config.fetch(:sut_factory, default_factory)
     end
 
+    def initial_state(default_state)
+      config.fetch(:initial_state, default_state)
+    end
+
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
     end
@@ -137,7 +141,8 @@ RSpec.describe "transfer_between_accounts (stateful scaffold)" do
     end
 
     def initial_state
-      { source_balance: 10, target_balance: 0 } # Example refinement: seed the source account so transfers are reachable
+      default_state = { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state
+      TransferBetweenAccountsPbtSupport.initial_state(default_state)
     end
 
     def commands(_state)

@@ -2,6 +2,7 @@
 
 TransferBetweenAccountsPbtConfig = {
   sut_factory: -> { TransferBetweenAccountsImpl.new(source_balance: 10, target_balance: 0) },
+  initial_state: { source_balance: 10, target_balance: 0 },
   command_mappings: {
     transfer: {
       method: :transfer,

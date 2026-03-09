@@ -26,6 +26,10 @@ RSpec.describe "queue (stateful scaffold)" do
       config.fetch(:sut_factory, default_factory)
     end
 
+    def initial_state(default_state)
+      config.fetch(:initial_state, default_state)
+    end
+
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
     end
@@ -138,7 +142,8 @@ RSpec.describe "queue (stateful scaffold)" do
     end
 
     def initial_state
-      [] # TODO: replace with a domain-specific collection state
+      default_state = [] # TODO: replace with a domain-specific collection state
+      QueuePbtSupport.initial_state(default_state)
     end
 
     def commands(_state)

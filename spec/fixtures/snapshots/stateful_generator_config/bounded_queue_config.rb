@@ -6,6 +6,7 @@
 
 BoundedQueuePbtConfig = {
   sut_factory: -> { BoundedQueueImpl.new },
+  # initial_state: { elements: nil, capacity: 3 },
   command_mappings: {
     enqueue: {
       method: :enqueue,

@@ -24,6 +24,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
         expect(code).to include('require_relative "stack_pbt_config" if File.exist?')
         expect(code).to include("edit stack_pbt_config.rb for SUT wiring and durable API mapping")
+        expect(code).to include("default_state = [] # TODO: replace with a domain-specific collection state")
+        expect(code).to include("StackPbtSupport.initial_state(default_state)")
       end
 
       it "generates a model class for the module" do
@@ -266,7 +268,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "emits scalar arg-aware next_state and verify guidance" do
         code = generator.generate
 
-        expect(code).to include("def initial_state\n      0 # TODO: replace with a domain-specific scalar model state\n    end")
+        expect(code).to include("default_state = 0 # TODO: replace with a domain-specific scalar model state")
+        expect(code).to include("BankAccountPbtSupport.initial_state(default_state)")
         expect(code).to include("class DepositAmountCommand")
         expect(code).to include("delta = BankAccountPbtSupport.scalar_model_arg(name, args)")
         expect(code).to include("state + delta")
@@ -306,7 +309,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "generates a structured scalar model and field-aware updates" do
         code = generator.generate
 
-        expect(code).to include("def initial_state\n      { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("default_state = { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("default_state = { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("WalletWithLimitPbtSupport.initial_state(default_state)")
         expect(code).to include("state[:balance] > 0 # inferred scalar precondition for withdraw")
         expect(code).to include("state.merge(balance: state[:balance] + 1)")
         expect(code).to include("state.merge(balance: state[:balance] - 1)")
@@ -416,7 +421,8 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "generates field-aware next_state and verify checks" do
         code = generator.generate
 
-        expect(code).to include("def initial_state\n      { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("default_state = { balance: 0, credit_limit: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("WalletResetLimitPbtSupport.initial_state(default_state)")
         expect(code).to include("def next_state(state, _args)\n      state.merge(balance: state[:credit_limit])")
         expect(code).to include("expected = before_state[:credit_limit]")
         expect(code).to include('raise "Expected replaced value for Wallet#balance" unless after_state[:balance] == expected')
@@ -432,7 +438,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "generates multi-field structured scalar updates and checks" do
         code = generator.generate
 
-        expect(code).to include("def initial_state\n      { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("default_state = { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("default_state = { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("HoldCaptureReleasePbtSupport.initial_state(default_state)")
         expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:available])\n    end")
         expect(code).to include("class ReleaseCommand")
         expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:held])\n    end")
@@ -454,7 +462,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "generates transfer-style paired balance checks" do
         code = generator.generate
 
-        expect(code).to include("def initial_state\n      { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state\n    end")
+        expect(code).to include("default_state = { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("default_state = { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("TransferBetweenAccountsPbtSupport.initial_state(default_state)")
         expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:source_balance])\n    end")
         expect(code).to include("current_value = state[:source_balance]")
         expect(code).to include("state.merge(source_balance: state[:source_balance] - delta, target_balance: state[:target_balance] + delta)")
@@ -548,6 +558,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("StackPbtConfig = {")
         expect(code).to include("sut_factory: -> { StackImpl.new }")
+        expect(code).to include("# initial_state: []")
         expect(code).to include("push_adds_element: {")
         expect(code).to include("method: :push_adds_element")
         expect(code).to include("Suggested real API methods: :push")
@@ -584,6 +595,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.balance }")
+        expect(code).to include("# initial_state: 0")
         expect(code).to include("Suggested real API methods: :credit, :deposit")
         expect(code).to include("Suggested real API methods: :debit, :withdraw")
         expect(code).to include("model_arg_adapter: ->(args) { args.abs + 1 }")
@@ -601,6 +613,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { balance: sut.balance, credit_limit: sut.credit_limit } }")
+        expect(code).to include("# initial_state: { balance: 0, credit_limit: 3 }")
         expect(code).to include('observed_state == after_state')
       end
     end
@@ -615,6 +628,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }")
+        expect(code).to include("# initial_state: { available: 0, held: 0 }")
         expect(code).to include("Suggested real API methods: :authorize, :reserve, :place_hold")
         expect(code).to include("Suggested real API methods: :settle")
         expect(code).to include("Suggested real API methods: :release_hold, :void_authorization")
@@ -633,6 +647,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
+        expect(code).to include("# initial_state: { source_balance: 0, target_balance: 0 }")
         expect(code).to include("Suggested real API methods: :move_funds, :transfer_amount, :post_transfer")
         expect(code).to include("Suggested failure/no-op handling: if your API still exposes invalid calls")
         expect(code).to include('Expected observed account balances to match model')

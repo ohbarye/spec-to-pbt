@@ -6,6 +6,7 @@
 
 BankAccountPbtConfig = {
   sut_factory: -> { BankAccountImpl.new },
+  # initial_state: 0,
   command_mappings: {
     deposit: {
       method: :deposit,

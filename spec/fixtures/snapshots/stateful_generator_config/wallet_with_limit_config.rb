@@ -6,6 +6,7 @@
 
 WalletWithLimitPbtConfig = {
   sut_factory: -> { WalletWithLimitImpl.new },
+  # initial_state: { balance: 0, credit_limit: 3 },
   command_mappings: {
     deposit: {
       method: :deposit,

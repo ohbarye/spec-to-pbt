@@ -26,6 +26,10 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       config.fetch(:sut_factory, default_factory)
     end
 
+    def initial_state(default_state)
+      config.fetch(:initial_state, default_state)
+    end
+
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
     end
@@ -138,7 +142,8 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def initial_state
-      { elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state
+      default_state = { elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state
+      BoundedQueuePbtSupport.initial_state(default_state)
     end
 
     def commands(_state)

@@ -63,7 +63,8 @@ module SpecToPbt
       lines << "    end"
       lines << ""
       lines << "    def initial_state"
-      lines << "      #{initial_state_code}"
+      lines << "      default_state = #{initial_state_code}"
+      lines << "      #{support_module_name}.initial_state(default_state)"
       lines << "    end"
       lines << ""
       lines << "    def commands(_state)"
@@ -97,6 +98,7 @@ module SpecToPbt
       lines << ""
       lines << "#{config_constant_name} = {"
       lines << "  sut_factory: -> { #{sut_factory_code} },"
+      lines << "  # initial_state: #{initial_state_config_example},"
       lines << "  command_mappings: {"
       selected_command_predicates.each_with_index do |predicate, index|
         suffix = index == selected_command_predicates.length - 1 ? "" : ","
@@ -175,6 +177,34 @@ module SpecToPbt
       end
 
       "nil # TODO: replace with a domain-specific scalar/model state"
+    end
+
+    # @rbs return: String
+    def initial_state_config_example
+      analyses = selected_command_predicates.map { |predicate| predicate_analysis(predicate) }
+      return "[]" if analyses.empty?
+      if analyses.all? { |analysis| collection_like_state?(analysis) }
+        structured_analysis = analyses.find { |analysis| structured_collection_state?(analysis) }
+        return "{ #{structured_state_example_pairs(structured_analysis).join(', ')} }" if structured_analysis
+
+        return "[]"
+      end
+
+      structured_scalar_analysis = analyses.find { |analysis| structured_scalar_state?(analysis) }
+      return "{ #{structured_state_example_pairs(structured_scalar_analysis).join(', ')} }" if structured_scalar_analysis
+
+      scalar_field = single_scalar_state_field_for(analyses)
+      return default_scalar_placeholder_for(scalar_field) if scalar_field
+
+      "nil"
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: Array[String]
+    def structured_state_example_pairs(analysis)
+      state_type_fields_for(analysis).map do |field|
+        "#{field.name}: #{default_scalar_placeholder_for(field)}"
+      end
     end
 
     # @rbs predicate: Core::Entity
@@ -697,6 +727,10 @@ module SpecToPbt
         "",
         "    def sut_factory(default_factory)",
         "      config.fetch(:sut_factory, default_factory)",
+        "    end",
+        "",
+        "    def initial_state(default_state)",
+        "      config.fetch(:initial_state, default_state)",
         "    end",
         "",
         "    def command_config(command_name)",

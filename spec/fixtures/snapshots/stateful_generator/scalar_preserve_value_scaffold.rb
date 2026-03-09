@@ -26,6 +26,10 @@ RSpec.describe "box (stateful scaffold)" do
       config.fetch(:sut_factory, default_factory)
     end
 
+    def initial_state(default_state)
+      config.fetch(:initial_state, default_state)
+    end
+
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
     end
@@ -137,7 +141,8 @@ RSpec.describe "box (stateful scaffold)" do
     end
 
     def initial_state
-      0 # TODO: replace with a domain-specific scalar model state
+      default_state = 0 # TODO: replace with a domain-specific scalar model state
+      BoxPbtSupport.initial_state(default_state)
     end
 
     def commands(_state)
