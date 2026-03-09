@@ -1114,6 +1114,169 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("job_status_lifecycle_pbt.rb")
   end
 
+  it "runs a regenerated payment status+counters workflow with mixed constant and counter updates" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("payment_status_counters.als")
+
+    File.write(File.join(output_dir, "payment_status_counters_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PaymentStatusCountersImpl
+        attr_reader :status, :authorized, :captured
+
+        def initialize(status: 0, authorized: 0, captured: 0)
+          @status = status
+          @authorized = authorized
+          @captured = captured
+        end
+
+        def authorize_one
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          @authorized += 1
+          nil
+        end
+
+        def capture_one
+          raise "invalid transition" unless @status == 1 && @authorized.positive?
+
+          @status = 2
+          @authorized -= 1
+          @captured += 1
+          nil
+        end
+
+        def reset
+          raise "invalid transition" unless @status == 2
+
+          @status = 0
+          @authorized = 0
+          @captured = 0
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "payment_status_counters_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PaymentStatusCountersPbtConfig = {
+        sut_factory: -> { PaymentStatusCountersImpl.new(status: 0, authorized: 0, captured: 0) },
+        initial_state: { status: 0, authorized: 0, captured: 0 },
+        command_mappings: {
+          authorize_one: {
+            method: :authorize_one,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment counters after authorize_one to match model" unless observed_state == after_state
+            end
+          },
+          capture_one: {
+            method: :capture_one,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment counters after capture_one to match model" unless observed_state == after_state
+            end
+          },
+          reset: {
+            method: :reset,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment counters after reset to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { status: sut.status, authorized: sut.authorized, captured: sut.captured } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("payment_status_counters_pbt.rb")
+  end
+
+  it "runs a regenerated job status+counters workflow with method remapping" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("job_status_counters.als")
+
+    File.write(File.join(output_dir, "job_status_counters_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class JobStatusCountersImpl
+        attr_reader :status, :retry_count, :dead_letter_count
+
+        def initialize(status: 0, retry_count: 0, dead_letter_count: 0)
+          @status = status
+          @retry_count = retry_count
+          @dead_letter_count = dead_letter_count
+        end
+
+        def dispatch
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def requeue
+          raise "invalid transition" unless @status == 1
+
+          @status = 0
+          @retry_count += 1
+          nil
+        end
+
+        def move_to_dead_letter
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          @dead_letter_count += 1
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "job_status_counters_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      JobStatusCountersPbtConfig = {
+        sut_factory: -> { JobStatusCountersImpl.new(status: 0, retry_count: 0, dead_letter_count: 0) },
+        initial_state: { status: 0, retry_count: 0, dead_letter_count: 0 },
+        command_mappings: {
+          start: {
+            method: :dispatch,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job counters after start to match model" unless observed_state == after_state
+            end
+          },
+          retry: {
+            method: :requeue,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job counters after retry to match model" unless observed_state == after_state
+            end
+          },
+          dead_letter: {
+            method: :move_to_dead_letter,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job counters after dead_letter to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { status: sut.status, retry_count: sut.retry_count, dead_letter_count: sut.dead_letter_count } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("job_status_counters_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

@@ -309,6 +309,14 @@ Two repeated patterns crossed the threshold from "interesting example" to
 Those were promoted because they appeared in more than one domain and could be
 handled conservatively.
 
+Later, a third recurring family started to become visible:
+
+3. mixed status + counter transitions
+
+That family is not fully promoted in the same way yet, but it is now concrete
+enough to influence the roadmap because it appeared in both payment and job
+domains.
+
 ### What we learned
 
 The right bar for promotion is not "we can probably infer it".
@@ -356,6 +364,43 @@ It is:
 - real execution
 
 all continuing to work together.
+
+## Phase 8: Composite Domain Pressure
+
+### The problem
+
+By this point the generator handled:
+
+- pure status machines
+- pure paired counters
+- append-only projections
+
+But many practical systems combine those patterns in the same state.
+Examples:
+
+- payment status plus authorized/captured counters
+- job status plus retry/dead-letter counters
+
+### The change
+
+We added composite domains and used them to force a narrower, safer
+generalization:
+
+- first-class:
+  - mixed constant replacement
+  - mixed increment/decrement/preserve updates in one command
+- still config-owned:
+  - richer mixed guards
+  - business-rule-heavy invalid transitions
+
+### What we learned
+
+This is an important boundary lesson:
+
+- mixed *updates* are often structural
+- mixed *preconditions* are much more likely to be domain-owned
+
+That distinction is useful and should keep guiding future work.
 
 ## Current Summary
 

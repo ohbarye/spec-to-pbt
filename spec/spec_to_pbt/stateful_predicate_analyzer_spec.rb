@@ -621,5 +621,31 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(capture.state_update_shape).to eq(:replace_constant)
       end
     end
+
+    context "with lifecycle transitions plus counters" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/payment_status_counters.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks constant status changes together with counter increments/decrements" do
+        capture = analyzer.analyze(spec.predicates.find { |p| p.name == "CaptureOne" })
+        reset = analyzer.analyze(spec.predicates.find { |p| p.name == "Reset" })
+
+        expect(capture.guard_kind).to eq(:non_empty)
+        expect(capture.guard_field).to eq("authorized")
+        expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape]] }).to include(
+          ["status", :replace_constant],
+          ["authorized", :decrement],
+          ["captured", :increment]
+        )
+
+        expect(reset.guard_kind).to eq(:state_equals_constant)
+        expect(reset.guard_constant).to eq("2")
+        expect(reset.state_field_updates.map { |item| [item[:field], item[:update_shape], item[:rhs_constant]] }).to include(
+          ["status", :replace_constant, "0"],
+          ["authorized", :replace_constant, "0"],
+          ["captured", :replace_constant, "0"]
+        )
+      end
+    end
   end
 end

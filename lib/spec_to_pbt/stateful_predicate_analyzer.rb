@@ -423,6 +423,7 @@ module SpecToPbt
     # @rbs state_param_names: Array[String]
     # @rbs return: Hash[Symbol, untyped]
     def classify_state_field_update(rhs:, target_field:, predicate:, state_param_names:)
+      rhs = rhs.to_s.strip
       params_by_name = predicate.params.to_h { |param| [param.name, param] }
 
       if rhs.match?(/\A#\w+\.#{Regexp.escape(target_field)}\z/)

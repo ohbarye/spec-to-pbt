@@ -161,6 +161,37 @@ Remaining gaps:
 - domain-specific failure semantics
 - some lifecycle-specific rules still need overrides
 
+#### 3b. Mixed status + counter transitions
+
+Representative domains:
+
+- payment status counters
+- job status counters
+
+Current generator behavior:
+
+- structured scalar models support mixed updates such as:
+  - status replaced with a constant
+  - one counter incremented
+  - another counter decremented or preserved
+- mixed `next_state` generation now works for:
+  - constant replacement
+  - increment/decrement
+  - preserve-value
+  in the same command
+- mixed `verify!` generation now covers:
+  - replaced status values
+  - incremented/decremented counters
+  - preserved fields
+
+Remaining gaps:
+
+- mixed guards such as `status = 1 and count > 0` are still only partly
+  first-class
+- the safe rule is:
+  - generalize the structural updates
+  - leave richer mixed preconditions and invalid-path semantics config-owned
+
 #### 4. Guard-aware invalid-path handling
 
 Representative domains:

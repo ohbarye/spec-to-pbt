@@ -1488,6 +1488,11 @@ module SpecToPbt
           source_expr = scalar_field_update_expr("before_state", update)
           lines << "      expected_#{update[:field]} = #{source_expr}" if source_expr
           lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}" if source_expr
+        when :replace_constant
+          next unless update[:rhs_constant]
+
+          lines << "      expected_#{update[:field]} = #{update[:rhs_constant]}"
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
         when :replace_with_arg
           lines << "      expected_#{update[:field]} = #{support_module_name}.scalar_model_arg(name, args)"
           if replace_arg_bound_guard?(analysis)

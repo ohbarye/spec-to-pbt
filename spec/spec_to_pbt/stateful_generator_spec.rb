@@ -594,6 +594,31 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with lifecycle transitions plus counters" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/payment_status_counters.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates mixed constant-replacement and counter-update checks for structured scalar models" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { status: 0, authorized: 0, captured: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:status] == 0 # inferred scalar lifecycle/status precondition for authorize_one")
+        expect(code).to include("state[:authorized] > 0 # inferred scalar precondition for capture_one")
+        expect(code).to include("state.merge(status: 1, authorized: state[:authorized] + 1, captured: state[:captured])")
+        expect(code).to include("state.merge(status: 2, authorized: state[:authorized] - 1, captured: state[:captured] + 1)")
+        expect(code).to include("expected_status = 2")
+        expect(code).to include("expected_status = 1")
+        expect(code).to include('raise "Expected replaced value for Payment#status" unless after_status == expected_status')
+        expect(code).to include('raise "Expected decremented value for Payment#authorized" unless after_authorized == before_authorized - 1')
+        expect(code).to include('raise "Expected incremented value for Payment#authorized" unless after_authorized == before_authorized + 1')
+        expect(code).to include('raise "Expected incremented value for Payment#captured" unless after_captured == before_captured + 1')
+        expect(code).to include("state.merge(status: 0, authorized: 0, captured: 0)")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { status: sut.status, authorized: sut.authorized, captured: sut.captured } }")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

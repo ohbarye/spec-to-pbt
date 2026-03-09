@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `242 examples, 0 failures`
+- current result: `252 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -116,6 +116,7 @@ Major supported capabilities:
   - paired counters / conservation
   - append-only projection
   - lifecycle status machines
+  - mixed status + counter transitions
 
 ## Representative Domains Covered
 
@@ -138,6 +139,7 @@ Major supported capabilities:
 - partial refund / remaining capturable
 - ledger projection
 - payment status lifecycle
+- payment status counters
 
 ### Software-general domains
 
@@ -147,6 +149,7 @@ Major supported capabilities:
 - job queue retry / dead letter
 - inventory projection
 - job status lifecycle
+- job status counters
 
 ## Most Important Decisions
 
@@ -219,6 +222,8 @@ Why it matters:
 - the project now has at least two confirmed recurring families:
   - append-only projection
   - lifecycle status transitions
+- a third family has now started to emerge:
+  - status + counters / amounts
 - future generalization should follow the same bar: do not promote a pattern
   after only one domain example
 
@@ -226,6 +231,8 @@ Success looks like:
 
 - new first-class behavior only lands after recurring evidence exists
 - examples and regenerated workflows prove that the pattern is not domain-local
+- mixed status + amount/counter domains stay on the safe side of that boundary
+  unless a clearly reusable sub-pattern emerges
 
 ### 3. Keep the practical workflow regression net ahead of new heuristics
 
