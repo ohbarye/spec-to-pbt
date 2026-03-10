@@ -428,6 +428,8 @@ module SpecToPbt
         else
           lines << "      true # TODO: inferred capacity/fullness guard for #{method_name}; use applicable_override or enrich the model state"
         end
+      elsif collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
+        lines << "      #{guard_state_expr('state', analysis)} == #{analysis.guard_constant} # inferred structured collection/status precondition for #{method_name}"
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
         lines << "      #{guard_state_expr('state', analysis)} == #{analysis.guard_constant} # inferred scalar lifecycle/status precondition for #{method_name}"
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
@@ -469,14 +471,7 @@ module SpecToPbt
           "      #{collection_state_update_expr('state', analysis, "#{state_items}.drop(1)")}"
         ]
       when :size_no_change
-        [
-          "    def next_state(state, args)",
-          "      override = #{support_module_name}.next_state_override(name)",
-          "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
-          *guard_failed_next_state_lines(analysis),
-          "      # Inferred transition target: #{state_target_label(analysis)}",
-          "      #{collection_state_update_expr('state', analysis, state_items)} # TODO: preserve size while refining element/order changes"
-        ]
+        collection_size_no_change_next_state_lines(analysis, state_items)
       else
         generic_next_state_lines(analysis)
       end + ["    end"]
@@ -621,6 +616,32 @@ module SpecToPbt
         lines << "      state.merge(#{pairs.join(', ')})"
       else
         lines << "      #{collection_state_update_expr('state', analysis, "#{state_items} + [args]")}"
+      end
+
+      lines
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs state_items: String
+    # @rbs return: Array[String]
+    def collection_size_no_change_next_state_lines(analysis, state_items)
+      lines = [
+        "    def next_state(state, args)",
+        "      override = #{support_module_name}.next_state_override(name)",
+        "      return #{support_module_name}.call_next_state_override(override, state, args) if override",
+        *guard_failed_next_state_lines(analysis),
+        "      # Inferred transition target: #{state_target_label(analysis)}"
+      ]
+
+      updates = collection_projection_updates_for(analysis)
+      if updates.empty?
+        lines << "      #{collection_state_update_expr('state', analysis, state_items)} # TODO: preserve size while refining element/order changes"
+      else
+        pairs = ["#{analysis.state_field}: #{state_items}"]
+        updates.each do |update|
+          pairs << "#{update[:field]}: #{scalar_field_update_expr('state', update)}"
+        end
+        lines << "      state.merge(#{pairs.join(', ')})"
       end
 
       lines
@@ -807,6 +828,7 @@ module SpecToPbt
         lines << "      raise \"Expected empty-state semantics to stay aligned\" unless after_items.empty? == before_items.empty?"
       end
       lines << "      raise \"Expected size to stay the same\" unless after_items.length == before_items.length" if analysis.state_update_shape == :preserve_size
+      lines.concat(collection_projection_verify_lines(analysis)) if analysis.state_update_shape == :preserve_size
 
       case behavior
       when :append
@@ -1597,6 +1619,7 @@ module SpecToPbt
       return true if bounded_scalar_arg_generation?(analysis)
       return true if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
       return true if collection_like_state?(analysis) && analysis.guard_kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
+      return true if collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
       return true if !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
       return true if !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
 
@@ -1708,14 +1731,18 @@ module SpecToPbt
 
       scalar_field_updates_for(analysis).select do |update|
         update[:field] != analysis.state_field &&
-          [:increment, :decrement, :replace_with_arg, :replace_value, :preserve_value].include?(update[:update_shape])
+          [:increment, :decrement, :replace_with_arg, :replace_value, :replace_constant, :preserve_value].include?(update[:update_shape])
       end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def collection_append_item_expr(analysis)
-      update = collection_projection_updates_for(analysis).first
+      updates = collection_projection_updates_for(analysis)
+      update =
+        updates.find { |item| item[:rhs_source_kind] == :arg } ||
+        updates.find { |item| item[:update_shape] != :preserve_value } ||
+        updates.first
       return "args" unless update
 
       case update[:update_shape]
@@ -1754,6 +1781,11 @@ module SpecToPbt
           lines << "      raise \"Expected decremented value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == #{decrement_expr}"
         when :replace_with_arg
           lines << "      expected_#{update[:field]} = #{support_module_name}.scalar_model_arg(name, args)"
+          lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
+        when :replace_constant
+          next unless update[:rhs_constant]
+
+          lines << "      expected_#{update[:field]} = #{update[:rhs_constant]}"
           lines << "      raise \"Expected replaced value for #{analysis.state_type}##{update[:field]}\" unless after_#{update[:field]} == expected_#{update[:field]}"
         when :replace_value
           source_expr = scalar_field_update_expr('before_state', update)

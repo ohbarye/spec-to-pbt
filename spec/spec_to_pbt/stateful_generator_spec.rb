@@ -641,6 +641,27 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with lifecycle transitions plus projection" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/ledger_status_projection.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates structured collection models with status guards and projection updates" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { entries: [], status: 0, balance: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:status] == 0 # inferred structured collection/status precondition for open")
+        expect(code).to include("state[:status] == 1 # inferred structured collection/status precondition for post_amount")
+        expect(code).to include("state.merge(entries: state[:entries], status: 1, balance: state[:balance])")
+        expect(code).to include("state.merge(entries: state[:entries] + [delta], status: state[:status], balance: state[:balance] + delta)")
+        expect(code).to include("raise \"Expected appended projection entry to match the model delta\" unless after_items.last == delta")
+        expect(code).to include("raise \"Expected replaced value for Ledger#status\" unless after_status == expected_status")
+        expect(code).to include("raise \"Expected incremented value for Ledger#balance\" unless after_balance == before_balance + delta")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { entries: sut.entries.dup, status: sut.status, balance: sut.balance } }")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

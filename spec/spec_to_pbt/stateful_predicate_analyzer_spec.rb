@@ -673,5 +673,31 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         )
       end
     end
+
+    context "with lifecycle transitions plus append-only projection" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/ledger_status_projection.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "prefers the collection field while keeping structured status guards and projection updates" do
+        post = analyzer.analyze(spec.predicates.find { |p| p.name == "PostAmount" })
+        open = analyzer.analyze(spec.predicates.find { |p| p.name == "Open" })
+
+        expect(post.state_field).to eq("entries")
+        expect(post.state_field_multiplicity).to eq("seq")
+        expect(post.guard_kind).to eq(:state_equals_constant)
+        expect(post.guard_field).to eq("status")
+        expect(post.guard_constant).to eq("1")
+        expect(post.transition_kind).to eq(:append)
+        expect(post.state_update_shape).to eq(:append_like)
+        expect(post.state_field_updates).to include(include(field: "status", update_shape: :preserve_value))
+        expect(post.state_field_updates).to include(include(field: "balance", update_shape: :increment, rhs_source_kind: :arg))
+        expect(post.derived_verify_hints).to include(:check_projection_semantics)
+
+        expect(open.state_field).to eq("entries")
+        expect(open.guard_kind).to eq(:state_equals_constant)
+        expect(open.guard_constant).to eq("0")
+        expect(open.transition_kind).to eq(:size_no_change)
+      end
+    end
   end
 end

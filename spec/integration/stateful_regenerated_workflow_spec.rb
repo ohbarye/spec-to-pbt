@@ -1449,6 +1449,166 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("payout_status_amounts_pbt.rb")
   end
 
+  it "runs a regenerated ledger status+projection workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("ledger_status_projection.als")
+
+    File.write(File.join(output_dir, "ledger_status_projection_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class LedgerStatusProjectionImpl
+        attr_reader :status, :entries, :balance
+
+        def initialize(status: 0, entries: [], balance: 0)
+          @status = status
+          @entries = entries.dup
+          @balance = balance
+        end
+
+        def open
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def post_amount(amount)
+          raise "invalid transition" unless @status == 1 && amount.positive?
+
+          @entries << amount
+          @balance += amount
+          nil
+        end
+
+        def close
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "ledger_status_projection_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      LedgerStatusProjectionPbtConfig = {
+        sut_factory: -> { LedgerStatusProjectionImpl.new(status: 0, entries: [], balance: 0) },
+        initial_state: { entries: [], status: 0, balance: 0 },
+        command_mappings: {
+          open: {
+            method: :open,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed ledger projection state after open to match model" unless observed_state == after_state
+            end
+          },
+          post_amount: {
+            method: :post_amount,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed ledger projection state after post_amount to match model" unless observed_state == after_state
+            end
+          },
+          close: {
+            method: :close,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed ledger projection state after close to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { entries: sut.entries.dup, status: sut.status, balance: sut.balance } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("ledger_status_projection_pbt.rb")
+  end
+
+  it "runs a regenerated inventory status+projection workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("inventory_status_projection.als")
+
+    File.write(File.join(output_dir, "inventory_status_projection_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class InventoryStatusProjectionImpl
+        attr_reader :status, :movements, :stock
+
+        def initialize(status: 0, movements: [], stock: 0)
+          @status = status
+          @movements = movements.dup
+          @stock = stock
+        end
+
+        def activate
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def receive(amount)
+          raise "invalid transition" unless @status == 1 && amount.positive?
+
+          @movements << amount
+          @stock += amount
+          nil
+        end
+
+        def deactivate
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "inventory_status_projection_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      InventoryStatusProjectionPbtConfig = {
+        sut_factory: -> { InventoryStatusProjectionImpl.new(status: 0, movements: [], stock: 0) },
+        initial_state: { movements: [], status: 0, stock: 0 },
+        command_mappings: {
+          activate: {
+            method: :activate,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed inventory projection state after activate to match model" unless observed_state == after_state
+            end
+          },
+          receive: {
+            method: :receive,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed inventory projection state after receive to match model" unless observed_state == after_state
+            end
+          },
+          deactivate: {
+            method: :deactivate,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed inventory projection state after deactivate to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { movements: sut.movements.dup, status: sut.status, stock: sut.stock } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("inventory_status_projection_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

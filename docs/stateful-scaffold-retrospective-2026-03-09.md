@@ -322,6 +322,14 @@ because it appeared across:
 The remaining boundary is not the mixed update itself. The remaining boundary is
 the mixed guard.
 
+After that, a fourth recurring family became visible:
+
+4. status-gated append-only projection
+
+This showed up in both ledger and inventory domains once the analyzer started
+preferring the collection field over companion scalar/status fields when both
+were updated in the same command.
+
 ### What we learned
 
 The right bar for promotion is not "we can probably infer it".
@@ -387,6 +395,8 @@ Examples:
 - job status plus retry/dead-letter counters
 - payment status plus authorized/captured amounts
 - payout status plus pending/paid amounts
+- ledger status plus entries/balance projection
+- inventory status plus movements/stock projection
 
 ### The change
 
@@ -406,6 +416,8 @@ This is an important boundary lesson:
 
 - mixed *updates* are often structural
 - mixed *preconditions* are much more likely to be domain-owned
+- collection projection can remain first-class even when a status guard is
+  present, but only if the collection field stays the primary model target
 
 That distinction is useful and should keep guiding future work.
 

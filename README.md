@@ -203,6 +203,12 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_
 
 # Run a payout workflow with status and amount movement updated together
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payout_status_amounts_pbt.rb
+
+# Run a ledger workflow with status transitions and append-only projection
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_status_projection_pbt.rb
+
+# Run an inventory workflow with status transitions and append-only projection
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/inventory_status_projection_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
@@ -254,6 +260,10 @@ Useful stateful fixtures to try:
   - mixed payment status + amount movement used to confirm the same family across amount-based domains
 - `spec/fixtures/alloy/payout_status_amounts.als`
   - mixed payout status + amount movement used to confirm recurring status+amount transitions
+- `spec/fixtures/alloy/ledger_status_projection.als`
+  - status machine + append-only projection, used to confirm collection projection remains valid with lifecycle guards
+- `spec/fixtures/alloy/inventory_status_projection.als`
+  - inventory status machine + append-only projection, used to confirm the same family in a second domain
 
 Practical workflow coverage now includes regeneration-oriented integration specs for:
 
@@ -276,6 +286,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `job_status_counters.als` -> CLI-regenerated scaffold + method remapping and observed-state verification for mixed job status/counter transitions
 - `payment_status_amounts.als` -> CLI-regenerated scaffold + observed-state verification for mixed payment status/amount transitions
 - `payout_status_amounts.als` -> CLI-regenerated scaffold + observed-state verification for mixed payout status/amount transitions
+- `ledger_status_projection.als` -> CLI-regenerated scaffold + observed-state verification for status-gated append-only ledger projection
+- `inventory_status_projection.als` -> CLI-regenerated scaffold + observed-state verification for status-gated append-only inventory projection
 - `hold_capture_release.als` -> user-owned example with multi-field financial state and observed-state verification
 - `transfer_between_accounts.als` -> user-owned example with total-preservation style transfer checks
 - `refund_reversal.als` -> user-owned example with refund/reversal settlement invariants
@@ -293,6 +305,8 @@ Practical workflow coverage now includes regeneration-oriented integration specs
 - `job_status_counters.als` -> user-owned example with lifecycle status plus retry/dead-letter counters
 - `payment_status_amounts.als` -> user-owned example with status replacement plus amount movement in one command
 - `payout_status_amounts.als` -> user-owned example with payout status plus pending/paid amount movement
+- `ledger_status_projection.als` -> user-owned example with status-gated append-only entries and projected balance
+- `inventory_status_projection.als` -> user-owned example with status-gated append-only movements and projected stock
 
 For current stateful work and roadmap details, see:
 

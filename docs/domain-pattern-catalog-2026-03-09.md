@@ -241,18 +241,27 @@ Representative domains:
 
 - ledger projection
 - inventory projection
+- ledger status projection
+- inventory status projection
 
 Current generator behavior:
 
 - collection state is chosen as the primary model target
 - structured collection model is generated
 - companion scalar projection updates are emitted in `next_state`
+- status equality guards can now remain first-class even when the primary state
+  target is the collection field
+- size-preserving lifecycle commands on structured collection models now update
+  companion scalar fields directly
 - safe `verify!` checks cover:
   - appended projected entry shape
   - projected scalar balance update
+  - companion status replacement/preservation during no-op size transitions
 
 Remaining gaps:
 
+- richer mixed guards that combine status plus additional scalar constraints stay
+  config-owned
 - broader derived-state relationships are not yet generalized beyond this shape
 
 ### Tier 2: Practical But Still Config-Assisted

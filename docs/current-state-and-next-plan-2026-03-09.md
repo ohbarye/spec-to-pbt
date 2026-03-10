@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `262 examples, 0 failures`
+- current result: `272 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -117,6 +117,7 @@ Major supported capabilities:
   - append-only projection
   - lifecycle status machines
   - mixed status + counter transitions
+  - status-gated append-only projection
 
 ## Representative Domains Covered
 
@@ -142,6 +143,7 @@ Major supported capabilities:
 - payment status counters
 - payment status amounts
 - payout status amounts
+- ledger status projection
 
 ### Software-general domains
 
@@ -150,6 +152,7 @@ Major supported capabilities:
 - feature flag rollout
 - job queue retry / dead letter
 - inventory projection
+- inventory status projection
 - job status lifecycle
 - job status counters
 
@@ -226,6 +229,8 @@ Why it matters:
   - lifecycle status transitions
 - a third family is now supported across multiple domains:
   - status + counters / amounts
+- a fourth family is now supported across multiple domains:
+  - status-gated append-only projection
 - future generalization should follow the same bar: do not promote a pattern
   after only one domain example
 

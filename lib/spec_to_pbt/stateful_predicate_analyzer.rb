@@ -90,10 +90,27 @@ module SpecToPbt
       guard_candidates = state_field_candidates_for(state_type, field_updates.map { |item| item[:field] }, fallback_state_field)
       guard_kind, guard_field, guard_constant = infer_guard_details(body, predicate, guard_candidates, fallback_state_field)
       primary_update = primary_state_update_for(field_updates, guard_field)
+      collection_update = field_updates.find do |update|
+        ["seq", "set"].include?(infer_state_field_multiplicity(state_type, update[:field]))
+      end
       fallback_state_field_multiplicity = infer_state_field_multiplicity(state_type, fallback_state_field)
       prefer_collection_fallback = ["seq", "set"].include?(fallback_state_field_multiplicity) && !field_updates.empty?
-      state_field = prefer_collection_fallback ? fallback_state_field : (primary_update&.fetch(:field) || fallback_state_field)
-      state_field_multiplicity = prefer_collection_fallback ? fallback_state_field_multiplicity : infer_state_field_multiplicity(state_type, state_field)
+      state_field =
+        if collection_update
+          collection_update[:field]
+        elsif prefer_collection_fallback
+          fallback_state_field
+        else
+          primary_update&.fetch(:field) || fallback_state_field
+        end
+      state_field_multiplicity =
+        if collection_update
+          infer_state_field_multiplicity(state_type, collection_update[:field])
+        elsif prefer_collection_fallback
+          fallback_state_field_multiplicity
+        else
+          infer_state_field_multiplicity(state_type, state_field)
+        end
       size_delta = infer_size_delta(body)
       requires_non_empty_state = guard_kind == :non_empty
       transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
@@ -302,8 +319,6 @@ module SpecToPbt
 
       param_names.each do |param_name|
         type_entity.fields.each do |field|
-          next if ["seq", "set"].include?(field.multiplicity)
-
           pattern = /##{Regexp.escape(param_name)}\.#{Regexp.escape(field.name)}=(.+?)(?=(?:and|or)##{Regexp.escape(param_name)}\.|\z)/
           match = body.match(pattern)
           next unless match
