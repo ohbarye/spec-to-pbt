@@ -161,19 +161,21 @@ Remaining gaps:
 - domain-specific failure semantics
 - some lifecycle-specific rules still need overrides
 
-#### 3b. Mixed status + counter transitions
+#### 3b. Mixed status + counter / amount transitions
 
 Representative domains:
 
 - payment status counters
 - job status counters
+- payment status amounts
+- payout status amounts
 
 Current generator behavior:
 
 - structured scalar models support mixed updates such as:
   - status replaced with a constant
-  - one counter incremented
-  - another counter decremented or preserved
+  - one counter or amount incremented
+  - another counter or amount decremented or preserved
 - mixed `next_state` generation now works for:
   - constant replacement
   - increment/decrement
@@ -181,13 +183,13 @@ Current generator behavior:
   in the same command
 - mixed `verify!` generation now covers:
   - replaced status values
-  - incremented/decremented counters
+  - incremented/decremented counters or amounts
   - preserved fields
 
 Remaining gaps:
 
-- mixed guards such as `status = 1 and count > 0` are still only partly
-  first-class
+- mixed guards such as `status = 1 and count > 0` or
+  `status = 1 and amount <= pending_amount` are still only partly first-class
 - the safe rule is:
   - generalize the structural updates
   - leave richer mixed preconditions and invalid-path semantics config-owned

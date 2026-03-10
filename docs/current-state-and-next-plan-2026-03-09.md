@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `252 examples, 0 failures`
+- current result: `262 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -140,6 +140,8 @@ Major supported capabilities:
 - ledger projection
 - payment status lifecycle
 - payment status counters
+- payment status amounts
+- payout status amounts
 
 ### Software-general domains
 
@@ -222,7 +224,7 @@ Why it matters:
 - the project now has at least two confirmed recurring families:
   - append-only projection
   - lifecycle status transitions
-- a third family has now started to emerge:
+- a third family is now supported across multiple domains:
   - status + counters / amounts
 - future generalization should follow the same bar: do not promote a pattern
   after only one domain example

@@ -619,6 +619,28 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with lifecycle transitions plus amounts" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/payment_status_amounts.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates mixed constant-replacement and amount-update checks for structured scalar models" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { status: 0, authorized_amount: 0, captured_amount: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:status] == 0 # inferred scalar lifecycle/status precondition for authorize_amount")
+        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:authorized_amount])")
+        expect(code).to include("state.merge(status: 1, authorized_amount: state[:authorized_amount] + delta, captured_amount: state[:captured_amount])")
+        expect(code).to include("state.merge(status: 2, authorized_amount: state[:authorized_amount] - delta, captured_amount: state[:captured_amount] + delta)")
+        expect(code).to include("expected_status = 2")
+        expect(code).to include('raise "Expected decremented value for Payment#authorized_amount" unless after_authorized_amount == before_authorized_amount - delta')
+        expect(code).to include('raise "Expected incremented value for Payment#captured_amount" unless after_captured_amount == before_captured_amount + delta')
+        expect(code).to include("state.merge(status: 0, authorized_amount: 0, captured_amount: 0)")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { status: sut.status, authorized_amount: sut.authorized_amount, captured_amount: sut.captured_amount } }")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

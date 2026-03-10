@@ -309,13 +309,18 @@ Two repeated patterns crossed the threshold from "interesting example" to
 Those were promoted because they appeared in more than one domain and could be
 handled conservatively.
 
-Later, a third recurring family started to become visible:
+Later, a third recurring family became visible:
 
-3. mixed status + counter transitions
+3. mixed status + counter / amount transitions
 
-That family is not fully promoted in the same way yet, but it is now concrete
-enough to influence the roadmap because it appeared in both payment and job
-domains.
+That family is now concrete enough to treat as a recurring structural family,
+because it appeared across:
+
+- payment and job status + counters
+- payment and payout status + amounts
+
+The remaining boundary is not the mixed update itself. The remaining boundary is
+the mixed guard.
 
 ### What we learned
 
@@ -380,6 +385,8 @@ Examples:
 
 - payment status plus authorized/captured counters
 - job status plus retry/dead-letter counters
+- payment status plus authorized/captured amounts
+- payout status plus pending/paid amounts
 
 ### The change
 

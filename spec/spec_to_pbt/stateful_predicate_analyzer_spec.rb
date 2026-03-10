@@ -647,5 +647,31 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         )
       end
     end
+
+    context "with lifecycle transitions plus amounts" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/payment_status_amounts.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "tracks constant status changes together with amount increments/decrements" do
+        capture = analyzer.analyze(spec.predicates.find { |p| p.name == "CaptureAmount" })
+        reset = analyzer.analyze(spec.predicates.find { |p| p.name == "Reset" })
+
+        expect(capture.guard_kind).to eq(:arg_within_state)
+        expect(capture.guard_field).to eq("authorized_amount")
+        expect(capture.state_field_updates.map { |item| [item[:field], item[:update_shape], item[:rhs_source_kind]] }).to include(
+          ["status", :replace_constant, :constant],
+          ["authorized_amount", :decrement, :arg],
+          ["captured_amount", :increment, :arg]
+        )
+
+        expect(reset.guard_kind).to eq(:state_equals_constant)
+        expect(reset.guard_constant).to eq("2")
+        expect(reset.state_field_updates.map { |item| [item[:field], item[:update_shape], item[:rhs_constant]] }).to include(
+          ["status", :replace_constant, "0"],
+          ["authorized_amount", :replace_constant, "0"],
+          ["captured_amount", :replace_constant, "0"]
+        )
+      end
+    end
   end
 end

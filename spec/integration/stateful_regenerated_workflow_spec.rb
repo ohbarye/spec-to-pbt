@@ -1277,6 +1277,178 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("job_status_counters_pbt.rb")
   end
 
+  it "runs a regenerated payment status+amount workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("payment_status_amounts.als")
+
+    File.write(File.join(output_dir, "payment_status_amounts_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PaymentStatusAmountsImpl
+        attr_reader :status, :authorized_amount, :captured_amount
+
+        def initialize(status: 0, authorized_amount: 0, captured_amount: 0)
+          @status = status
+          @authorized_amount = authorized_amount
+          @captured_amount = captured_amount
+        end
+
+        def authorize_amount(amount)
+          raise "invalid transition" unless @status == 0 && amount.positive?
+
+          @status = 1
+          @authorized_amount += amount
+          nil
+        end
+
+        def capture_amount(amount)
+          raise "invalid transition" unless @status == 1 && amount.positive? && amount <= @authorized_amount
+
+          @status = 2
+          @authorized_amount -= amount
+          @captured_amount += amount
+          nil
+        end
+
+        def reset
+          raise "invalid transition" unless @status == 2
+
+          @status = 0
+          @authorized_amount = 0
+          @captured_amount = 0
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "payment_status_amounts_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PaymentStatusAmountsPbtConfig = {
+        sut_factory: -> { PaymentStatusAmountsImpl.new(status: 0, authorized_amount: 0, captured_amount: 0) },
+        initial_state: { status: 0, authorized_amount: 0, captured_amount: 0 },
+        command_mappings: {
+          authorize_amount: {
+            method: :authorize_amount,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment amounts after authorize_amount to match model" unless observed_state == after_state
+            end
+          },
+          capture_amount: {
+            method: :capture_amount,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            applicable_override: ->(state, args) { state[:status] == 1 && args.abs + 1 <= state[:authorized_amount] },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment amounts after capture_amount to match model" unless observed_state == after_state
+            end
+          },
+          reset: {
+            method: :reset,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment amounts after reset to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { status: sut.status, authorized_amount: sut.authorized_amount, captured_amount: sut.captured_amount } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("payment_status_amounts_pbt.rb")
+  end
+
+  it "runs a regenerated payout status+amount workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("payout_status_amounts.als")
+
+    File.write(File.join(output_dir, "payout_status_amounts_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PayoutStatusAmountsImpl
+        attr_reader :status, :pending_amount, :paid_amount
+
+        def initialize(status: 0, pending_amount: 0, paid_amount: 0)
+          @status = status
+          @pending_amount = pending_amount
+          @paid_amount = paid_amount
+        end
+
+        def queue_amount(amount)
+          raise "invalid transition" unless @status == 0 && amount.positive?
+
+          @status = 1
+          @pending_amount += amount
+          nil
+        end
+
+        def complete_amount(amount)
+          raise "invalid transition" unless @status == 1 && amount.positive? && amount <= @pending_amount
+
+          @status = 2
+          @pending_amount -= amount
+          @paid_amount += amount
+          nil
+        end
+
+        def reset
+          raise "invalid transition" unless @status == 2
+
+          @status = 0
+          @pending_amount = 0
+          @paid_amount = 0
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "payout_status_amounts_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PayoutStatusAmountsPbtConfig = {
+        sut_factory: -> { PayoutStatusAmountsImpl.new(status: 0, pending_amount: 0, paid_amount: 0) },
+        initial_state: { status: 0, pending_amount: 0, paid_amount: 0 },
+        command_mappings: {
+          queue_amount: {
+            method: :queue_amount,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payout amounts after queue_amount to match model" unless observed_state == after_state
+            end
+          },
+          complete_amount: {
+            method: :complete_amount,
+            model_arg_adapter: ->(args) { args.abs + 1 },
+            applicable_override: ->(state, args) { state[:status] == 1 && args.abs + 1 <= state[:pending_amount] },
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payout amounts after complete_amount to match model" unless observed_state == after_state
+            end
+          },
+          reset: {
+            method: :reset,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payout amounts after reset to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { status: sut.status, pending_amount: sut.pending_amount, paid_amount: sut.paid_amount } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("payout_status_amounts_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!
