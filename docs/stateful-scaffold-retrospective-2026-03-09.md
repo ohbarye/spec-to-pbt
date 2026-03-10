@@ -330,6 +330,18 @@ This showed up in both ledger and inventory domains once the analyzer started
 preferring the collection field over companion scalar/status fields when both
 were updated in the same command.
 
+Most recently, a fifth composite family was pressure-tested:
+
+5. mixed status + projection + amount/counter composites
+
+This showed up in:
+
+- payment status event amounts
+- job status event counters
+
+It is recurring at the update-shape level, but not yet first-class at the
+guard level.
+
 ### What we learned
 
 The right bar for promotion is not "we can probably infer it".
@@ -418,6 +430,8 @@ This is an important boundary lesson:
 - mixed *preconditions* are much more likely to be domain-owned
 - collection projection can remain first-class even when a status guard is
   present, but only if the collection field stays the primary model target
+- recurring projection updates do not automatically justify first-class
+  promotion when the precondition is still a mixed `status && scalar` guard
 
 That distinction is useful and should keep guiding future work.
 

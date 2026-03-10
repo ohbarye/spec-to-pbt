@@ -420,7 +420,11 @@ module SpecToPbt
         lines << "      current_value = #{guard_state_expr('state', analysis)}"
         lines << "      delta.is_a?(Numeric) && delta.positive? && delta <= current_value"
       elsif collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      !#{collection_state_expr('state', analysis)}.empty? # inferred precondition for #{method_name}"
+        if analysis.guard_field && analysis.guard_field != analysis.state_field
+          lines << "      #{guard_state_expr('state', analysis)} > 0 # inferred structured collection/scalar guard for #{method_name}"
+        else
+          lines << "      !#{collection_state_expr('state', analysis)}.empty? # inferred precondition for #{method_name}"
+        end
       elsif collection_like_state?(analysis) && analysis.guard_kind == :below_capacity
         capacity_expr = capacity_state_expr("state", analysis)
         if capacity_expr
@@ -1740,6 +1744,9 @@ module SpecToPbt
     def collection_append_item_expr(analysis)
       updates = collection_projection_updates_for(analysis)
       update =
+        updates.find { |item| item[:update_shape] == :increment && item[:rhs_source_kind] == :arg } ||
+        updates.find { |item| item[:update_shape] == :replace_with_arg } ||
+        updates.find { |item| item[:update_shape] == :increment } ||
         updates.find { |item| item[:rhs_source_kind] == :arg } ||
         updates.find { |item| item[:update_shape] != :preserve_value } ||
         updates.first
@@ -1747,11 +1754,13 @@ module SpecToPbt
 
       case update[:update_shape]
       when :increment
-        update[:rhs_source_kind] == :arg ? "delta" : "args"
+        update[:rhs_source_kind] == :arg ? "delta" : "1"
       when :decrement
-        update[:rhs_source_kind] == :arg ? "-delta" : "args"
+        update[:rhs_source_kind] == :arg ? "-delta" : "-1"
       when :replace_with_arg
         "#{support_module_name}.scalar_model_arg(name, args)"
+      when :replace_constant
+        update[:rhs_constant] || "args"
       else
         "args"
       end
@@ -1801,7 +1810,7 @@ module SpecToPbt
     # @rbs field_name: String
     # @rbs return: String
     def collection_observed_reader_expr(field_name)
-      if field_name.match?(/\Aentries|elements|items|values|jobs|adjustments|movements|events/i)
+      if field_name.match?(/\Aentries|elements|items|values|jobs|adjustments|movements|events|captures/i)
         "sut.#{field_name}.dup"
       else
         "sut.#{field_name}"

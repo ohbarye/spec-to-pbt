@@ -699,5 +699,29 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(open.transition_kind).to eq(:size_no_change)
       end
     end
+
+    context "with lifecycle transitions plus projection and companion scalar updates" do
+      let(:source) { File.read(File.expand_path("../fixtures/alloy/payment_status_event_amounts.als", __dir__)) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "keeps the collection field primary while tracking structured scalar guards and paired updates" do
+        settle = analyzer.analyze(spec.predicates.find { |p| p.name == "SettleUnit" })
+        open = analyzer.analyze(spec.predicates.find { |p| p.name == "Open" })
+
+        expect(settle.state_field).to eq("captures")
+        expect(settle.state_field_multiplicity).to eq("seq")
+        expect(settle.guard_kind).to eq(:non_empty)
+        expect(settle.guard_field).to eq("remaining_amount")
+        expect(settle.transition_kind).to eq(:append)
+        expect(settle.state_field_updates).to include(include(field: "remaining_amount", update_shape: :decrement))
+        expect(settle.state_field_updates).to include(include(field: "settled_amount", update_shape: :increment))
+        expect(settle.derived_verify_hints).to include(:check_guard_failure_semantics)
+
+        expect(open.state_field).to eq("captures")
+        expect(open.guard_kind).to eq(:state_equals_constant)
+        expect(open.guard_constant).to eq("0")
+        expect(open.transition_kind).to eq(:size_no_change)
+      end
+    end
   end
 end

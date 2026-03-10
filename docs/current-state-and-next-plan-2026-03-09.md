@@ -52,7 +52,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `272 examples, 0 failures`
+- current result: `282 examples, 0 failures`
 
 Representative current workflow baseline:
 
@@ -118,6 +118,7 @@ Major supported capabilities:
   - lifecycle status machines
   - mixed status + counter transitions
   - status-gated append-only projection
+  - config-assisted status + projection + amount/counter composites
 
 ## Representative Domains Covered
 
@@ -144,6 +145,7 @@ Major supported capabilities:
 - payment status amounts
 - payout status amounts
 - ledger status projection
+- payment status event amounts
 
 ### Software-general domains
 
@@ -155,6 +157,7 @@ Major supported capabilities:
 - inventory status projection
 - job status lifecycle
 - job status counters
+- job status event counters
 
 ## Most Important Decisions
 
@@ -195,6 +198,9 @@ That separation is intentional and should be preserved.
 - some derived state still needs `next_state_override`, but append-only ledger-style
   collection + projected scalar patterns are now scaffolded directly and validated
   across both ledger and inventory domains
+- mixed `status + projection + amount/counter` domains are now covered in practice,
+  but richer mixed guards such as `status == constant && scalar > 0` remain
+  config-owned via `applicable_override`
 - Alloy is still the only public input frontend
 - parsing is still regex-based, not full AST-based
 - some domain patterns are practical only because config provides the final mile
@@ -231,6 +237,9 @@ Why it matters:
   - status + counters / amounts
 - a fourth family is now supported across multiple domains:
   - status-gated append-only projection
+- a heavier composite family is now covered end-to-end but intentionally remains
+  config-assisted:
+  - status + projection + amount/counter
 - future generalization should follow the same bar: do not promote a pattern
   after only one domain example
 
@@ -239,6 +248,9 @@ Success looks like:
 - new first-class behavior only lands after recurring evidence exists
 - examples and regenerated workflows prove that the pattern is not domain-local
 - mixed status + amount/counter domains stay on the safe side of that boundary
+- mixed status + projection + amount/counter domains currently cross that
+  boundary only partially: the projection/update shape is reusable, but the
+  mixed guard is not yet safe enough to promote out of config
   unless a clearly reusable sub-pattern emerges
 
 ### 3. Keep the practical workflow regression net ahead of new heuristics

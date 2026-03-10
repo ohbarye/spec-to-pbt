@@ -27,6 +27,8 @@ RSpec.describe "SpecToPbt::StatefulGenerator config snapshots" do
     "job_status_counters" => "job_status_counters.als",
     "payment_status_amounts" => "payment_status_amounts.als",
     "payout_status_amounts" => "payout_status_amounts.als",
+    "payment_status_event_amounts" => "payment_status_event_amounts.als",
+    "job_status_event_counters" => "job_status_event_counters.als",
     "ledger_status_projection" => "ledger_status_projection.als",
     "inventory_status_projection" => "inventory_status_projection.als"
   }.each do |name, fixture_name|

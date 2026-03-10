@@ -1609,6 +1609,168 @@ RSpec.describe "Stateful regenerated workflows" do
     run_generated_spec!("inventory_status_projection_pbt.rb")
   end
 
+  it "runs a regenerated payment status+event+amount workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("payment_status_event_amounts.als")
+
+    File.write(File.join(output_dir, "payment_status_event_amounts_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class PaymentStatusEventAmountsImpl
+        attr_reader :status, :captures, :remaining_amount, :settled_amount
+
+        def initialize(status: 0, captures: [], remaining_amount: 3, settled_amount: 0)
+          @status = status
+          @captures = captures.dup
+          @remaining_amount = remaining_amount
+          @settled_amount = settled_amount
+        end
+
+        def open
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def settle_unit
+          raise "invalid transition" unless @status == 1 && @remaining_amount.positive?
+
+          @captures << 1
+          @remaining_amount -= 1
+          @settled_amount += 1
+          nil
+        end
+
+        def close
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "payment_status_event_amounts_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      PaymentStatusEventAmountsPbtConfig = {
+        sut_factory: -> { PaymentStatusEventAmountsImpl.new(status: 0, captures: [], remaining_amount: 3, settled_amount: 0) },
+        initial_state: { captures: [], status: 0, remaining_amount: 3, settled_amount: 0 },
+        command_mappings: {
+          open: {
+            method: :open,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment event state after open to match model" unless observed_state == after_state
+            end
+          },
+          settle_unit: {
+            method: :settle_unit,
+            applicable_override: ->(state, _args = nil) { state[:status] == 1 && state[:remaining_amount] > 0 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment event state after settle_unit to match model" unless observed_state == after_state
+            end
+          },
+          close: {
+            method: :close,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed payment event state after close to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("payment_status_event_amounts_pbt.rb")
+  end
+
+  it "runs a regenerated job status+event+counter workflow with observed-state verification" do
+    skip_unless_local_pbt!
+
+    generate_stateful_with_config!("job_status_event_counters.als")
+
+    File.write(File.join(output_dir, "job_status_event_counters_impl.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      class JobStatusEventCountersImpl
+        attr_reader :status, :events, :retry_budget, :retry_count
+
+        def initialize(status: 0, events: [], retry_budget: 3, retry_count: 0)
+          @status = status
+          @events = events.dup
+          @retry_budget = retry_budget
+          @retry_count = retry_count
+        end
+
+        def activate
+          raise "invalid transition" unless @status == 0
+
+          @status = 1
+          nil
+        end
+
+        def retry
+          raise "invalid transition" unless @status == 1 && @retry_budget.positive?
+
+          @events << 1
+          @retry_budget -= 1
+          @retry_count += 1
+          nil
+        end
+
+        def deactivate
+          raise "invalid transition" unless @status == 1
+
+          @status = 2
+          nil
+        end
+      end
+    RUBY
+
+    File.write(File.join(output_dir, "job_status_event_counters_pbt_config.rb"), <<~RUBY)
+      # frozen_string_literal: true
+
+      JobStatusEventCountersPbtConfig = {
+        sut_factory: -> { JobStatusEventCountersImpl.new(status: 0, events: [], retry_budget: 3, retry_count: 0) },
+        initial_state: { events: [], status: 0, retry_budget: 3, retry_count: 0 },
+        command_mappings: {
+          activate: {
+            method: :activate,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job event state after activate to match model" unless observed_state == after_state
+            end
+          },
+          retry: {
+            method: :retry,
+            applicable_override: ->(state, _args = nil) { state[:status] == 1 && state[:retry_budget] > 0 },
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job event state after retry to match model" unless observed_state == after_state
+            end
+          },
+          deactivate: {
+            method: :deactivate,
+            guard_failure_policy: :raise,
+            verify_override: ->(after_state:, observed_state:, **) do
+              raise "Expected observed job event state after deactivate to match model" unless observed_state == after_state
+            end
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { events: sut.events.dup, status: sut.status, retry_budget: sut.retry_budget, retry_count: sut.retry_count } }
+        }
+      }
+    RUBY
+
+    run_generated_spec!("job_status_event_counters_pbt.rb")
+  end
+
   private
 
   def skip_unless_local_pbt!

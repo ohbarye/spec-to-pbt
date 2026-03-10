@@ -662,6 +662,25 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with lifecycle transitions plus projection and companion scalar updates" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/payment_status_event_amounts.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+
+      it "generates structured collection models with scalar guard fields and paired amount updates" do
+        code = generator.generate
+        config = generator.generate_config
+
+        expect(code).to include("default_state = { captures: [], status: 0, remaining_amount: 0, settled_amount: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:remaining_amount] > 0 # inferred structured collection/scalar guard for settle_unit")
+        expect(code).to include("state.merge(captures: state[:captures] + [1], status: state[:status], remaining_amount: state[:remaining_amount] - 1, settled_amount: state[:settled_amount] + 1)")
+        expect(code).to include("raise \"Expected decremented value for Payment#remaining_amount\" unless after_remaining_amount == before_remaining_amount - 1")
+        expect(code).to include("raise \"Expected incremented value for Payment#settled_amount\" unless after_settled_amount == before_settled_amount + 1")
+        expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }")
+      end
+    end
+
     context "with transition-like predicates whose names are not strong verbs" do
       let(:source) do
         <<~ALLOY

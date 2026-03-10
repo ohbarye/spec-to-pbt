@@ -264,6 +264,35 @@ Remaining gaps:
   config-owned
 - broader derived-state relationships are not yet generalized beyond this shape
 
+#### 6. Status-gated projection plus companion amount/counter updates
+
+Representative domains:
+
+- payment status event amounts
+- job status event counters
+
+Current generator behavior:
+
+- collection-backed model state is still chosen as the primary target
+- no-arg append projections can now emit concrete `1` / `-1` append items
+- companion amount/counter updates are emitted in `next_state`
+- structured collection/scalar guards such as `remaining_amount > 0` can be
+  scaffolded as simple guard helpers
+
+Why this remains config-assisted:
+
+- the recurring update shape is real, but the meaningful guard is usually mixed:
+  `status == constant && scalar > 0`
+- today only the scalar portion is safely inferred for the append command
+- practical workflows therefore still need `applicable_override` to express the
+  full mixed precondition without misleading inference
+
+Promotion bar:
+
+- do not promote this family to fully first-class until the combined
+  `status == constant && scalar relation` guard can be inferred safely across at
+  least two domains without increasing false positives
+
 ### Tier 2: Practical But Still Config-Assisted
 
 These patterns work in practice, but the last mile still relies on
