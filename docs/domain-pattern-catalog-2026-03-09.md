@@ -20,6 +20,32 @@ Current recommendation:
   `guard_failure_policy: :custom` as the intentional escape hatches rather than
   as temporary hacks
 
+## Final Promotion Rule
+
+Promote a pattern to first-class generator behavior only if all of the
+following are true:
+
+1. it appears in at least two distinct domains
+2. the update shape is structurally inferable from the spec body
+3. the guard shape is also structurally inferable, or the command is still
+   useful without guessing unsupported invalid-path semantics
+4. promotion removes real config work rather than just moving logic around
+5. regenerated workflow coverage can hold the pattern green without brittle
+   domain-specific patching
+
+If any of those fail, do not promote the pattern.
+
+Use this boundary instead:
+
+- first-class:
+  - safe structural updates and safe structural guards
+- config-assisted:
+  - reusable update shape exists, but guard / observed-state / invalid-path
+    semantics still need config
+- config-owned:
+  - business-rule-heavy semantics, unsupported guards, external effects, or
+    domain-specific invalid-path behavior
+
 ## Current Classification
 
 ### Tier 1: First-Class Or Near First-Class In Generator

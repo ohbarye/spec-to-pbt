@@ -186,6 +186,15 @@ The stable workflow is:
 
 That separation is intentional and should be preserved.
 
+### 5. Promotion rule over heuristic sprawl
+
+The working rule is now:
+
+- promote only patterns that are recurring across at least two domains
+- promote only the part that is structurally safe to infer
+- if the update is recurring but the guard or invalid-path semantics are not,
+  keep the pattern config-assisted instead of forcing it into the generator
+
 ## Known Boundaries
 
 - failure / no-op semantics now have a basic taxonomy for inferred guarded commands:
