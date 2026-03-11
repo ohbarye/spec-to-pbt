@@ -1,0 +1,164 @@
+# frozen_string_literal: true
+
+# rbs_inline: enabled
+
+module SpecToPbt
+  class StatefulGenerator
+    # Renders the generated runtime helper module embedded in the scaffold.
+    class SupportModuleRenderer
+      # @rbs generator: StatefulGenerator
+      # @rbs return: void
+      def initialize(generator)
+        @generator = generator
+      end
+
+      # @rbs return: Array[String]
+      def render_lines
+        [
+          "  module #{support_module_name}",
+          "    module_function",
+          "",
+          "    def config",
+          "      defined?(::#{config_constant_name}) ? ::#{config_constant_name} : {}",
+          "    end",
+          "",
+          "    def sut_factory(default_factory)",
+          "      config.fetch(:sut_factory, default_factory)",
+          "    end",
+          "",
+          "    def initial_state(default_state)",
+          "      config.fetch(:initial_state, default_state)",
+          "    end",
+          "",
+          "    def command_config(command_name)",
+          "      config.fetch(:command_mappings, {}).fetch(command_name, {})",
+          "    end",
+          "",
+          "    def resolve_method_name(command_name, default_method_name)",
+          "      command_config(command_name).fetch(:method, default_method_name)",
+          "    end",
+          "",
+          "    def adapt_args(command_name, args)",
+          "      settings = command_config(command_name)",
+          "      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]",
+          "      adapter ? adapter.call(args) : args",
+          "    end",
+          "",
+          "    def model_args(command_name, args)",
+          "      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]",
+          "      adapter ? adapter.call(args) : args",
+          "    end",
+          "",
+          "    def scalar_model_arg(command_name, args)",
+          "      payload = model_args(command_name, args)",
+          "      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload",
+          "    end",
+          "",
+          "    def adapt_result(command_name, result)",
+          "      adapter = command_config(command_name)[:result_adapter]",
+          "      adapter ? adapter.call(result) : result",
+          "    end",
+          "",
+          "    def applicable_override(command_name)",
+          "      command_config(command_name)[:applicable_override]",
+          "    end",
+          "",
+          "    def next_state_override(command_name)",
+          "      command_config(command_name)[:next_state_override]",
+          "    end",
+          "",
+          "    def guard_failure_policy(command_name)",
+          "      command_config(command_name)[:guard_failure_policy]",
+          "    end",
+          "",
+          "    def call_applicable_override(override, state, args)",
+          "      parameters = override.parameters",
+          "      if parameters.any? { |kind, _name| kind == :rest }",
+          "        override.call(state, args)",
+          "      else",
+          "        required = parameters.count { |kind, _name| kind == :req }",
+          "        optional = parameters.count { |kind, _name| kind == :opt }",
+          "        if 2 >= required && 2 <= required + optional",
+          "          override.call(state, args)",
+          "        elsif 1 >= required && 1 <= required + optional",
+          "          override.call(state)",
+          "        else",
+          "          override.call",
+          "        end",
+          "      end",
+          "    end",
+          "",
+          "    def call_next_state_override(override, state, args)",
+          "      return nil unless override",
+          "",
+          "      parameters = override.parameters",
+          "      if parameters.any? { |kind, _name| kind == :rest }",
+          "        override.call(state, args)",
+          "      else",
+          "        required = parameters.count { |kind, _name| kind == :req }",
+          "        optional = parameters.count { |kind, _name| kind == :opt }",
+          "        if 2 >= required && 2 <= required + optional",
+          "          override.call(state, args)",
+          "        elsif 1 >= required && 1 <= required + optional",
+          "          override.call(state)",
+          "        else",
+          "          override.call",
+          "        end",
+          "      end",
+          "    end",
+          "",
+          "    def verify_override(command_name)",
+          "      command_config(command_name)[:verify_override]",
+          "    end",
+          "",
+          "    def state_reader",
+          "      config.fetch(:verify_context, {})[:state_reader] || config[:state_reader]",
+          "    end",
+          "",
+          "    def observed_state(sut)",
+          "      reader = state_reader",
+          "      reader ? reader.call(sut) : nil",
+          "    end",
+          "",
+          "    def call_verify_override(command_name, **kwargs)",
+          "      override = verify_override(command_name)",
+          "      return false unless override",
+          "",
+          "      payload = kwargs.merge(observed_state: observed_state(kwargs[:sut]))",
+          "      if override.parameters.any? { |kind, _name| kind == :keyrest }",
+          "        override.call(**payload)",
+          "      else",
+          "        accepted = override.parameters.filter_map do |kind, name|",
+          "          name if [:keyreq, :key].include?(kind)",
+          "        end",
+          "        accepted_payload = accepted.empty? ? {} : payload.select { |key, _value| accepted.include?(key) }",
+          "        override.call(**accepted_payload)",
+          "      end",
+          "      true",
+          "    end",
+          "",
+          "    def before_run_hook",
+          "      config[:before_run]",
+          "    end",
+          "",
+          "    def after_run_hook",
+          "      config[:after_run]",
+          "    end",
+          "  end"
+        ]
+      end
+
+      private
+
+      # @rbs return: String
+      def support_module_name
+        @generator.__send__(:support_module_name)
+      end
+
+      # @rbs return: String
+      def config_constant_name
+        @generator.__send__(:config_constant_name)
+      end
+    end
+  end
+end
