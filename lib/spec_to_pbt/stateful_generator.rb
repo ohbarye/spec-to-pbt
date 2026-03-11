@@ -846,7 +846,7 @@ def scalar_field_updates_for(analysis)
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def guard_state_expr(state_var, analysis)
-      field_name = analysis.guard_field || analysis.state_field
+      field_name = guard_for(analysis).field || analysis.state_field
       if structured_scalar_state?(analysis) || structured_collection_state?(analysis)
         "#{state_var}[:#{field_name}]"
       else
@@ -916,12 +916,13 @@ def predicate_analysis(predicate)
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def guard_supportable?(analysis)
+      guard = guard_for(analysis)
       return true if bounded_scalar_arg_generation?(analysis)
-      return true if collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-      return true if collection_like_state?(analysis) && analysis.guard_kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
-      return true if collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
-      return true if !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-      return true if !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
+      return true if collection_like_state?(analysis) && guard.kind == :non_empty
+      return true if collection_like_state?(analysis) && guard.kind == :below_capacity && !capacity_state_expr("state", analysis).nil?
+      return true if collection_like_state?(analysis) && guard.kind == :state_equals_constant && !guard.constant.nil?
+      return true if !collection_like_state?(analysis) && guard.kind == :non_empty
+      return true if !collection_like_state?(analysis) && guard.kind == :state_equals_constant && !guard.constant.nil?
 
       false
     end
@@ -1069,8 +1070,9 @@ def predicate_analysis(predicate)
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def decrement_arg_bound_guard?(analysis)
+      guard = guard_for(analysis)
       !collection_like_state?(analysis) &&
-        analysis.guard_kind == :arg_within_state &&
+        guard.kind == :arg_within_state &&
         analysis.rhs_source_kind == :arg &&
         analysis.state_update_shape == :decrement
     end
@@ -1078,11 +1080,23 @@ def predicate_analysis(predicate)
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
     def replace_arg_bound_guard?(analysis)
+      guard = guard_for(analysis)
       !collection_like_state?(analysis) &&
-        analysis.guard_kind == :arg_within_state &&
+        guard.kind == :arg_within_state &&
         analysis.rhs_source_kind == :arg &&
         analysis.state_update_shape == :replace_with_arg &&
-        !analysis.guard_field.nil?
+        !guard.field.nil?
+    end
+
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: GuardAnalysis
+    def guard_for(analysis)
+      analysis.guard || GuardAnalysis.new(
+        kind: analysis.guard_kind,
+        field: analysis.guard_field,
+        constant: analysis.guard_constant,
+        support_level: :structural
+      )
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

@@ -16,6 +16,7 @@ module SpecToPbt
     :result_position,
     :scalar_update_kind,
     :command_confidence,
+    :guard,
     :guard_kind,
     :guard_field,
     :guard_constant,
@@ -42,6 +43,7 @@ module SpecToPbt
     # @rbs result_position: Symbol?
     # @rbs scalar_update_kind: Symbol?
     # @rbs command_confidence: Symbol
+    # @rbs guard: GuardAnalysis
     # @rbs guard_kind: Symbol
     # @rbs guard_field: String?
     # @rbs guard_constant: String?
@@ -56,7 +58,7 @@ module SpecToPbt
     # @rbs related_pattern_hints: Array[Symbol]
     # @rbs derived_verify_hints: Array[Symbol]
     # @rbs return: void
-    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard_kind: :none, guard_field: nil, guard_constant: nil, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
+    def initialize(predicate_name:, state_param_names: [], state_type: nil, argument_params: [], state_field: nil, state_field_multiplicity: nil, size_delta: nil, requires_non_empty_state: false, transition_kind: nil, result_position: nil, scalar_update_kind: nil, command_confidence: :low, guard: GuardAnalysis.new, guard_kind: :none, guard_field: nil, guard_constant: nil, rhs_source_kind: :unknown, rhs_source_field: nil, rhs_constant: nil, state_field_updates: [], state_update_shape: :unknown, related_predicate_names: [], related_assertion_names: [], related_fact_names: [], related_pattern_hints: [], derived_verify_hints: []) = super
   end
 
   # Extracts minimal stateful command hints from a predicate body.
@@ -144,6 +146,7 @@ module SpecToPbt
         result_position: infer_result_position(predicate.name, transition_kind),
         scalar_update_kind: scalar_update_kind,
         command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
+        guard: guard_analysis_for(guard_kind, guard_field, guard_constant, argument_params),
         guard_kind: guard_kind,
         guard_field: guard_field,
         guard_constant: guard_constant,
@@ -218,6 +221,37 @@ module SpecToPbt
       return 0 if body.match?(/#\w+'?\.\w+=#\w+\.?\w*/)
 
       nil
+    end
+
+    # @rbs guard_kind: Symbol
+    # @rbs guard_field: String?
+    # @rbs guard_constant: String?
+    # @rbs argument_params: Array[Core::Parameter]
+    # @rbs return: GuardAnalysis
+    def guard_analysis_for(guard_kind, guard_field, guard_constant, argument_params)
+      comparator =
+        case guard_kind
+        when :state_equals_constant then :eq
+        when :arg_within_state then :lte
+        when :non_empty, :below_capacity then :positive
+        else nil
+        end
+
+      support_level =
+        case guard_kind
+        when :none then :none
+        when :non_empty, :below_capacity, :arg_within_state, :state_equals_constant then :structural
+        else :unsupported
+        end
+
+      GuardAnalysis.new(
+        kind: guard_kind,
+        field: guard_field,
+        constant: guard_constant,
+        comparator: comparator,
+        argument_name: (guard_kind == :arg_within_state ? argument_params.first&.name : nil),
+        support_level: support_level
+      )
     end
 
     # @rbs body: String
