@@ -8,6 +8,8 @@ Project status / handoff docs:
   - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
 - domain pattern catalog:
   - [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
+- stateful generator refactor plan:
+  - [docs/stateful-generator-refactor-plan-2026-03-11.md](docs/stateful-generator-refactor-plan-2026-03-11.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
@@ -124,6 +126,11 @@ The intended boundary is:
 - keep unsupported guards in `applicable_override`
 - keep domain-specific invalid-path semantics in `verify_override`
 - keep richer failure-state model changes in `next_state_override`
+
+For the up-to-date promotion rule and domain matrix, use:
+
+- `docs/current-state-and-next-plan-2026-03-09.md`
+- `docs/domain-pattern-catalog-2026-03-09.md`
 
 The scaffold now includes analyzer-driven hints such as:
 

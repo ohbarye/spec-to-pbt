@@ -12,7 +12,7 @@ Use it for:
 - what to do next
 - how to restart the work without re-discovering context
 
-Use the roadmap for future direction and the retrospective for design history.
+Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the next code-structure phase.
 
 ## Current Goal
 
@@ -217,6 +217,10 @@ The working rule is now:
   by config than by automatic inference
 
 ## Recommended Next Work
+
+For the next code-structure phase, use:
+
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-generator-refactor-plan-2026-03-11.md`
 
 ### 1. Keep the first-class boundary explicit and conservative
 
