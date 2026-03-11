@@ -278,32 +278,46 @@ module SpecToPbt
     # @rbs predicate: Core::Entity
     # @rbs return: Array[String]
     def command_class_lines(predicate)
-      class_name = "#{camelize(predicate.name)}Command"
-      method_name = method_name_for(predicate)
-      analysis = predicate_analysis(predicate)
-      behavior = command_behavior(predicate)
-      body_preview = predicate.normalized_text
+      plan = build_command_plan(predicate)
+      analysis = plan.analysis
 
       [
-        "  class #{class_name}",
+        "  class #{plan.class_name}",
         *command_confidence_hint_lines(analysis),
         "    def name",
-        "      :#{method_name}",
+        "      :#{plan.method_name}",
         "    end",
         "",
         *arguments_lines(predicate, analysis),
         "",
-        *applicable_lines(analysis, method_name),
-        *guard_helper_separator_lines(analysis),
-        *guard_helper_lines(analysis, method_name),
+        *applicable_lines(plan),
+        *guard_helper_separator_lines(plan),
+        *guard_helper_lines(plan),
         "",
-        *next_state_lines(analysis, behavior),
+        *next_state_lines(plan),
         "",
-        *run_lines(method_name),
+        *run_lines(plan.method_name),
         "",
-        *verify_lines(analysis, behavior, body_preview),
+        *verify_lines(plan),
         "  end"
       ]
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: CommandPlan
+    def build_command_plan(predicate)
+      analysis = predicate_analysis(predicate)
+      method_name = method_name_for(predicate)
+      CommandPlan.new(
+        predicate: predicate,
+        analysis: analysis,
+        behavior: command_behavior(predicate),
+        method_name: method_name,
+        class_name: "#{camelize(predicate.name)}Command",
+        body_preview: predicate.normalized_text,
+        arg_aware_applicability: arg_aware_applicability?(analysis),
+        guard_supportable: guard_supportable?(analysis)
+      )
     end
 
     # @rbs return: Array[String]
@@ -338,18 +352,19 @@ module SpecToPbt
       ]
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs method_name: String
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def applicable_lines(analysis, method_name)
+    def applicable_lines(plan)
+      analysis = plan.analysis
+      method_name = plan.method_name
       state_items = collection_state_expr("state", analysis)
-      if arg_aware_applicability?(analysis)
+      if plan.arg_aware_applicability
         lines = [
           "    def applicable?(state, args)",
           "      override = #{support_module_name}.applicable_override(name)",
           "      return #{support_module_name}.call_applicable_override(override, state, args) if override"
         ]
-        if guard_supportable?(analysis)
+        if plan.guard_supportable
           lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
           lines << "      guard_satisfied?(state, args)"
         else
@@ -364,7 +379,7 @@ module SpecToPbt
         "      override = #{support_module_name}.applicable_override(name)",
         "      return #{support_module_name}.call_applicable_override(override, state, nil) if override"
       ]
-      if guard_supportable?(analysis)
+      if plan.guard_supportable
         lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
         lines << "      guard_satisfied?(state)"
       elsif analysis.guard_kind != :none
@@ -376,19 +391,20 @@ module SpecToPbt
       lines
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def guard_helper_separator_lines(analysis)
-      guard_supportable?(analysis) ? [""] : []
+    def guard_helper_separator_lines(plan)
+      plan.guard_supportable ? [""] : []
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs method_name: String
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def guard_helper_lines(analysis, method_name)
-      return [] unless guard_supportable?(analysis)
+    def guard_helper_lines(plan)
+      analysis = plan.analysis
+      method_name = plan.method_name
+      return [] unless plan.guard_supportable
 
-      signature = arg_aware_applicability?(analysis) ? "state, args = nil" : "state, _args = nil"
+      signature = plan.arg_aware_applicability ? "state, args = nil" : "state, _args = nil"
       lines = [
         "    def guard_satisfied?(#{signature})"
       ]
@@ -424,10 +440,11 @@ module SpecToPbt
       lines
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs behavior: Symbol
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def next_state_lines(analysis, behavior)
+    def next_state_lines(plan)
+      analysis = plan.analysis
+      behavior = plan.behavior
       return scalar_next_state_lines(analysis) unless collection_like_state?(analysis)
       state_items = collection_state_expr("state", analysis)
 
@@ -455,7 +472,7 @@ module SpecToPbt
       when :size_no_change
         collection_size_no_change_next_state_lines(analysis, state_items)
       else
-        generic_next_state_lines(analysis)
+        generic_next_state_lines(plan)
       end + ["    end"]
     end
 
@@ -629,9 +646,10 @@ module SpecToPbt
       lines
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def generic_next_state_lines(analysis)
+    def generic_next_state_lines(plan)
+      analysis = plan.analysis
       if analysis && !collection_like_state?(analysis)
         scalar_next_state_lines(analysis)
       else
@@ -670,11 +688,12 @@ module SpecToPbt
       ]
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs behavior: Symbol
-    # @rbs body_preview: String
+    # @rbs plan: CommandPlan
     # @rbs return: Array[String]
-    def verify_lines(analysis, behavior, body_preview)
+    def verify_lines(plan)
+      analysis = plan.analysis
+      behavior = plan.behavior
+      body_preview = plan.body_preview
       lines = [
         "    def verify!(before_state:, after_state:, args:, result:, sut:)",
         "      # TODO: translate predicate semantics into postcondition checks",
