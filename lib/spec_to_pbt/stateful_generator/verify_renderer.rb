@@ -400,14 +400,14 @@ module SpecToPbt
       # @rbs analysis: StatefulPredicateAnalysis
       # @rbs return: Array[String]
       def collection_projection_verify_lines(analysis)
-        updates = collection_projection_updates_for(analysis)
+        projection_plan = projection_plan_for(analysis)
+        updates = projection_plan.updates
         return [] if updates.empty?
 
         lines = [] #: Array[String]
-        needs_delta = updates.any? { |update| update[:rhs_source_kind] == :arg } || collection_append_item_expr(analysis).include?('delta')
-        lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if needs_delta
+        lines << "      delta = #{support_module_name}.scalar_model_arg(name, args)" if projection_plan.needs_delta
         if analysis.derived_verify_hints.include?(:check_projection_semantics)
-          lines << "      raise \"Expected appended projection entry to match the model delta\" unless after_items.last == #{collection_append_item_expr(analysis)}"
+          lines << "      raise \"Expected appended projection entry to match the model delta\" unless after_items.last == #{projection_plan.append_item_expr}"
         end
         updates.each do |update|
           lines << "      before_#{update[:field]} = before_state[:#{update[:field]}]"
@@ -493,7 +493,7 @@ module SpecToPbt
       def guard_state_expr(state_var, analysis) = call(:guard_state_expr, state_var, analysis)
       def sibling_command_behaviors_for(analysis) = call(:sibling_command_behaviors_for, analysis)
       def collection_projection_updates_for(analysis) = call(:collection_projection_updates_for, analysis)
-      def collection_append_item_expr(analysis) = call(:collection_append_item_expr, analysis)
+      def projection_plan_for(analysis) = call(:projection_plan_for, analysis)
     end
   end
 end

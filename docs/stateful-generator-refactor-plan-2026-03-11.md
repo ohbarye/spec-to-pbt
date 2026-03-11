@@ -14,6 +14,19 @@ Read this after:
 
 This document is not a product roadmap. It is a refactor work plan.
 
+## Status
+
+Status as of 2026-03-11:
+
+- Steps 1 through 8 have been implemented
+- public behavior remained stable
+- current baseline is still:
+  - `mise exec -- bundle exec rspec`
+  - `282 examples, 0 failures`
+
+The document remains useful as the record of the chosen extraction order and
+commit boundaries, but it is no longer a pending work queue.
+
 ## Why This Refactor Exists
 
 The main structural risk is no longer missing pattern support. It is the size
@@ -345,6 +358,22 @@ This refactor phase is done when all of the following are true:
 3. config rendering is isolated from scaffold semantics
 4. repeated rendering decisions go through an explicit render plan
 5. current public behavior and current test baseline remain intact
+
+## Outcome
+
+This refactor phase ended with the following extracted components in place:
+
+- `ConfigRenderer`
+- `SupportModuleRenderer`
+- `CommandPlan`
+- `VerifyRenderer`
+- `InitialStateInferencer`
+- `SuggestionRenderer`
+- `GuardAnalysis`
+- `ProjectionPlan`
+
+The next work should start from current product needs and recurring-pattern
+evidence, not by reopening this structural split from the beginning.
 
 ## Resume Instructions
 

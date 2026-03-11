@@ -731,7 +731,7 @@ def scalar_field_updates_for(analysis)
       return false unless analysis
       return false unless collection_like_state?(analysis)
 
-      collection_projection_updates_for(analysis).any?
+      projection_plan_for(analysis).support_level == :structural
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
@@ -1008,40 +1008,21 @@ def predicate_analysis(predicate)
     # @rbs analysis: StatefulPredicateAnalysis?
     # @rbs return: Array[Hash[Symbol, untyped]]
     def collection_projection_updates_for(analysis)
-      return [] unless analysis
-      return [] unless collection_like_state?(analysis)
-
-      scalar_field_updates_for(analysis).select do |update|
-        update[:field] != analysis.state_field &&
-          [:increment, :decrement, :replace_with_arg, :replace_value, :replace_constant, :preserve_value].include?(update[:update_shape])
-      end
+      projection_plan_for(analysis).updates
     end
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
     def collection_append_item_expr(analysis)
-      updates = collection_projection_updates_for(analysis)
-      update =
-        updates.find { |item| item[:update_shape] == :increment && item[:rhs_source_kind] == :arg } ||
-        updates.find { |item| item[:update_shape] == :replace_with_arg } ||
-        updates.find { |item| item[:update_shape] == :increment } ||
-        updates.find { |item| item[:rhs_source_kind] == :arg } ||
-        updates.find { |item| item[:update_shape] != :preserve_value } ||
-        updates.first
-      return "args" unless update
+      projection_plan_for(analysis).append_item_expr
+    end
 
-      case update[:update_shape]
-      when :increment
-        update[:rhs_source_kind] == :arg ? "delta" : "1"
-      when :decrement
-        update[:rhs_source_kind] == :arg ? "-delta" : "-1"
-      when :replace_with_arg
-        "#{support_module_name}.scalar_model_arg(name, args)"
-      when :replace_constant
-        update[:rhs_constant] || "args"
-      else
-        "args"
-      end
+    # @rbs analysis: StatefulPredicateAnalysis?
+    # @rbs return: ProjectionPlan
+    def projection_plan_for(analysis)
+      @projection_plans ||= {} #: Hash[String, ProjectionPlan]
+      key = analysis&.predicate_name || "__nil__"
+      @projection_plans[key] ||= ProjectionPlan.new(self, analysis)
     end
 
     # @rbs field_name: String

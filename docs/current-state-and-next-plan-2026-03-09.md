@@ -12,7 +12,7 @@ Use it for:
 - what to do next
 - how to restart the work without re-discovering context
 
-Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the next code-structure phase.
+Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the completed code-structure phase.
 
 ## Current Goal
 
@@ -42,6 +42,15 @@ Done or stable:
 - frontend-neutral core + Alloy adapter are in place
 - `pbt` `main` integration is established
 - config-driven stateful workflow exists via `--with-config`
+- stateful generator refactor phase is completed:
+  - config rendering extracted
+  - support-module rendering extracted
+  - command render plan introduced
+  - verify rendering extracted
+  - initial-state inference extracted
+  - suggestion UX extracted
+  - structured guard analysis introduced
+  - projection planning introduced
 - full stateful regression stack exists:
   - unit specs
   - snapshot specs
@@ -74,6 +83,14 @@ The current structure is:
   - `StatefulPredicateAnalyzer` turns spec entities into scaffold facts
 - generator:
   - stateless and stateful generators consume the core/analyzer output
+  - stateful generation is now split into:
+    - `ConfigRenderer`
+    - `SupportModuleRenderer`
+    - `CommandPlan`
+    - `VerifyRenderer`
+    - `InitialStateInferencer`
+    - `SuggestionRenderer`
+    - `ProjectionPlan`
 - practical customization layer:
   - generated `*_pbt_config.rb`
 - backend:
