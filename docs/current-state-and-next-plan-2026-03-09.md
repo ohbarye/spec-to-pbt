@@ -13,6 +13,7 @@ Use it for:
 - how to restart the work without re-discovering context
 
 Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the completed code-structure phase.
+Use the product evaluation playbook for the next domain-trial loop.
 
 ## Current Goal
 
@@ -72,6 +73,8 @@ Representative current workflow baseline:
 - regenerated workflow coverage under:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
+- operational evaluation guide:
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-playbook-2026-03-12.md`
 
 ## Architecture Snapshot
 

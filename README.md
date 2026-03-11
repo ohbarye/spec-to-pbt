@@ -10,6 +10,8 @@ Project status / handoff docs:
   - [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
 - stateful generator refactor plan:
   - [docs/stateful-generator-refactor-plan-2026-03-11.md](docs/stateful-generator-refactor-plan-2026-03-11.md)
+- product evaluation playbook:
+  - [docs/product-evaluation-playbook-2026-03-12.md](docs/product-evaluation-playbook-2026-03-12.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
