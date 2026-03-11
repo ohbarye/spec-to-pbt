@@ -13,6 +13,7 @@ require_relative "spec_to_pbt/pattern_code_generator"
 require_relative "spec_to_pbt/generator"
 require_relative "spec_to_pbt/stateful_config_name"
 require_relative "spec_to_pbt/stateful_predicate_analyzer"
+require_relative "spec_to_pbt/stateful_generator/config_renderer"
 require_relative "spec_to_pbt/stateful_generator"
 
 module SpecToPbt
