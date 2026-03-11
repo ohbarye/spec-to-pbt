@@ -25,23 +25,30 @@ Auto-generate Property-Based Tests (PBT) from specifications to automate the "sp
 
 ## Usage
 
+### Fastest practical workflow
+
+For stateful work, prefer this path:
+
+1. generate with `--stateful --with-config`
+2. edit `*_pbt_config.rb`
+3. add `*_impl.rb`
+4. run the scaffold with `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
+
 ```bash
 bundle install
 
-# Generate PBT from Alloy spec
-bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
-
-# Generate a stateful PBT scaffold (experimental)
-bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful -o generated
-
-# Generate a stateful scaffold plus a durable SUT mapping config
+# Smallest practical stateful workflow
 bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
-
-# Run generated tests (requires *_impl.rb file in same directory)
-bundle exec rspec generated/sort_pbt.rb
-
-# Run a generated stateful scaffold after customization
+vi generated/stack_pbt_config.rb
+vi generated/stack_impl.rb
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+```
+
+Stateless generation remains available:
+
+```bash
+bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
+bundle exec rspec generated/sort_pbt.rb
 ```
 
 Generated tests require a corresponding `*_impl.rb` file. The **module name** becomes the operation name:
@@ -142,86 +149,28 @@ The scaffold now includes analyzer-driven hints such as:
 
 ## Examples
 
+Start with:
+
+- `example/stateful/stack_pbt.rb`
+- `example/stateful/bounded_queue_pbt.rb`
+- `example/stateful/bank_account_pbt.rb`
+
+Use the example guide for category-based paths:
+
+- [example/stateful/README.md](example/stateful/README.md)
+
 Working examples are provided in `example/`:
 
 ```bash
-# Run example tests
-bundle exec rspec example/generated/sort_pbt.rb
-bundle exec rspec example/generated/stack_pbt.rb
-
 # Run a practical stateful example with config-driven API mapping
-# The example prefers a local ../pbt checkout (override with PBT_REPO_DIR if needed)
+# The examples prefer a local ../pbt checkout (override with PBT_REPO_DIR if needed)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Run a bounded queue example with structured model state and inferred capacity guards
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
 # Run a financial-domain example with state-aware amount generation
-# The example maps DepositAmount/WithdrawAmount -> credit(amount)/debit(amount)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
-
-# Run a reservation/hold workflow with multi-field financial state
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/hold_capture_release_pbt.rb
-
-# Run an intra-account transfer workflow with total-preservation checks
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/transfer_between_accounts_pbt.rb
-
-# Run a settlement refund/reversal workflow with observed-state verification
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/refund_reversal_pbt.rb
-
-# Run a ledger projection workflow using generated projection state updates
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_projection_pbt.rb
-
-# Run an inventory projection workflow using the same append-only projection pattern
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/inventory_projection_pbt.rb
-
-# Run a rate limiter workflow with structured remaining-capacity state
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/rate_limiter_pbt.rb
-
-# Run a connection pool workflow with paired available/checked_out counters
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/connection_pool_pbt.rb
-
-# Run a feature flag rollout workflow with config-driven rollout mapping
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/feature_flag_rollout_pbt.rb
-
-# Run an authorization expiry/void workflow with observed-state verification
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/authorization_expiry_void_pbt.rb
-
-# Run a partial refund workflow with three-field payment state
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/partial_refund_remaining_capturable_pbt.rb
-
-# Run a job queue retry/dead-letter workflow with observed-state verification
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_queue_retry_dead_letter_pbt.rb
-
-# Run a payment lifecycle status-machine workflow with inferred status guards
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_status_lifecycle_pbt.rb
-
-# Run a job lifecycle status-machine workflow with inferred status guards
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_status_lifecycle_pbt.rb
-
-# Run a payment workflow with status and counters updated together
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_status_counters_pbt.rb
-
-# Run a job workflow with status and retry/dead-letter counters updated together
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_status_counters_pbt.rb
-
-# Run a payment workflow with status and amount movement updated together
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_status_amounts_pbt.rb
-
-# Run a payout workflow with status and amount movement updated together
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payout_status_amounts_pbt.rb
-
-# Run a ledger workflow with status transitions and append-only projection
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/ledger_status_projection_pbt.rb
-
-# Run an inventory workflow with status transitions and append-only projection
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/inventory_status_projection_pbt.rb
-
-# Run a payment workflow with status-gated event projection plus paired amount updates
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/payment_status_event_amounts_pbt.rb
-
-# Run a job workflow with status-gated event projection plus paired counter updates
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/job_status_event_counters_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
@@ -230,6 +179,11 @@ See `example/stateful/` for config-aware stateful examples using `method:` remap
 `model_arg_adapter`, and where useful
 `arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
 `../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
+
+For current product boundaries and restart context:
+
+- [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
+- [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
 
 Useful stateful fixtures to try:
 

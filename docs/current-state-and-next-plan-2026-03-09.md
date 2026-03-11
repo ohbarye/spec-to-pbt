@@ -67,6 +67,8 @@ Representative current workflow baseline:
 
 - generated scaffold examples under `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/`
   are exercised by auto-discovered example-workflow integration coverage
+- user-facing example selection now starts from:
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/README.md`
 - regenerated workflow coverage under:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`

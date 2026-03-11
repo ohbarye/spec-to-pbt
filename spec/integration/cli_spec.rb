@@ -87,9 +87,11 @@ RSpec.describe "CLI" do
     let(:input_file) { File.join(fixtures_dir, "stack.als") }
 
     it "generates stateful PBT scaffold code" do
-      _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
 
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Next: provide")
+      expect(stdout).to include("ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1")
 
       output_file = File.join(output_dir, "stack_pbt.rb")
       expect(File.exist?(output_file)).to be(true)
@@ -107,6 +109,7 @@ RSpec.describe "CLI" do
 
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Generated:")
+      expect(stdout).to include("Next: edit")
 
       config_file = File.join(output_dir, "stack_pbt_config.rb")
       expect(File.exist?(config_file)).to be(true)
@@ -124,7 +127,7 @@ RSpec.describe "CLI" do
       stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
 
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
-      expect(stdout).to include("Skipped existing config:")
+      expect(stdout).to include("Preserved user-owned config:")
       expect(File.read(config_file)).to eq("# user-owned config\n")
     end
   end

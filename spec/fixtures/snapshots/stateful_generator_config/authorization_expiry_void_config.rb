@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
 # Regeneration-safe customization file for authorization_expiry_void stateful scaffold.
-# Edit this file to map spec command names to your real Ruby API.
+# Edit this file to map spec command names to your real Ruby API and observed-state checks.
 # This file is user-owned and should not be overwritten automatically.
+# Suggested edit order:
+# 1. sut_factory
+# 2. command_mappings.*.method
+# 3. verify_context.state_reader
+# 4. verify_override
+# 5. initial_state / next_state_override only when the inferred model state is not enough
 
 AuthorizationExpiryVoidPbtConfig = {
   sut_factory: -> { AuthorizationExpiryVoidImpl.new },
@@ -10,9 +16,9 @@ AuthorizationExpiryVoidPbtConfig = {
   command_mappings: {
     authorize: {
       method: :authorize,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom
@@ -21,9 +27,9 @@ AuthorizationExpiryVoidPbtConfig = {
     },
     void: {
       method: :void,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom
@@ -32,9 +38,9 @@ AuthorizationExpiryVoidPbtConfig = {
     },
     expire: {
       method: :expire,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom

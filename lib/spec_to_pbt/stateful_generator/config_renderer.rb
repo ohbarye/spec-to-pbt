@@ -19,8 +19,14 @@ module SpecToPbt
         lines << "# frozen_string_literal: true"
         lines << ""
         lines << "# Regeneration-safe customization file for #{module_name} stateful scaffold."
-        lines << "# Edit this file to map spec command names to your real Ruby API."
+        lines << "# Edit this file to map spec command names to your real Ruby API and observed-state checks."
         lines << "# This file is user-owned and should not be overwritten automatically."
+        lines << "# Suggested edit order:"
+        lines << "# 1. sut_factory"
+        lines << "# 2. command_mappings.*.method"
+        lines << "# 3. verify_context.state_reader"
+        lines << "# 4. verify_override"
+        lines << "# 5. initial_state / next_state_override only when the inferred model state is not enough"
         lines << ""
         lines << "#{config_constant_name} = {"
         lines << "  sut_factory: -> { #{sut_factory_code} },"
@@ -57,9 +63,9 @@ module SpecToPbt
         if normalized_methods.any?
           lines << "      # Suggested real API methods: #{normalized_methods.map { |name| ":#{name}" }.join(', ')}"
         end
-        lines << "      # arg_adapter: ->(args) { args },"
+        lines << "      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape"
         lines << "      # model_arg_adapter: #{@suggestions.model_arg_adapter_example(analysis)}"
-        lines << "      # result_adapter: ->(result) { result },"
+        lines << "      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!"
         lines << "      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions"
         lines << "      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition"
         if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)

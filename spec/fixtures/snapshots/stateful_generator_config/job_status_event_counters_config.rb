@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
 # Regeneration-safe customization file for job_status_event_counters stateful scaffold.
-# Edit this file to map spec command names to your real Ruby API.
+# Edit this file to map spec command names to your real Ruby API and observed-state checks.
 # This file is user-owned and should not be overwritten automatically.
+# Suggested edit order:
+# 1. sut_factory
+# 2. command_mappings.*.method
+# 3. verify_context.state_reader
+# 4. verify_override
+# 5. initial_state / next_state_override only when the inferred model state is not enough
 
 JobStatusEventCountersPbtConfig = {
   sut_factory: -> { JobStatusEventCountersImpl.new },
@@ -10,9 +16,9 @@ JobStatusEventCountersPbtConfig = {
   command_mappings: {
     activate: {
       method: :activate,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom
@@ -21,9 +27,9 @@ JobStatusEventCountersPbtConfig = {
     },
     retry: {
       method: :retry,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom
@@ -32,9 +38,9 @@ JobStatusEventCountersPbtConfig = {
     },
     deactivate: {
       method: :deactivate,
-      # arg_adapter: ->(args) { args },
+      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
-      # result_adapter: ->(result) { result },
+      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
       # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # guard_failure_policy: :no_op, # or :raise / :custom
