@@ -16,6 +16,7 @@ require_relative "spec_to_pbt/stateful_predicate_analyzer"
 require_relative "spec_to_pbt/stateful_generator/command_plan"
 require_relative "spec_to_pbt/stateful_generator/config_renderer"
 require_relative "spec_to_pbt/stateful_generator/support_module_renderer"
+require_relative "spec_to_pbt/stateful_generator/verify_renderer"
 require_relative "spec_to_pbt/stateful_generator"
 
 module SpecToPbt
