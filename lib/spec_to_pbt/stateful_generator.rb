@@ -14,6 +14,7 @@ module SpecToPbt
       @spec = Core::Coercion.call(spec) #: Core::SpecDocument
       @type_inferrer = TypeInferrer.new(@spec) #: TypeInferrer
       @predicate_analyzer = StatefulPredicateAnalyzer.new(@spec) #: StatefulPredicateAnalyzer
+      @state_shape_inspector = StateShapeInspector.new(self)
     end
 
     # @rbs return: String
@@ -256,15 +257,30 @@ module SpecToPbt
     def build_command_plan(predicate)
       analysis = predicate_analysis(predicate)
       method_name = method_name_for(predicate)
+      behavior = command_behavior(predicate)
+      state_shape =
+        if projection_collection_state?(analysis)
+          :projection_collection
+        elsif structured_collection_state?(analysis)
+          :structured_collection
+        elsif collection_like_state?(analysis)
+          :collection
+        elsif structured_scalar_state?(analysis)
+          :structured_scalar
+        else
+          :scalar
+        end
       CommandPlan.new(
         predicate: predicate,
         analysis: analysis,
-        behavior: command_behavior(predicate),
+        behavior: behavior,
         method_name: method_name,
         class_name: "#{camelize(predicate.name)}Command",
         body_preview: predicate.normalized_text,
         arg_aware_applicability: arg_aware_applicability?(analysis),
-        guard_supportable: guard_supportable?(analysis)
+        guard_supportable: guard_supportable?(analysis),
+        state_shape: state_shape,
+        next_state_mode: (state_shape == :scalar || state_shape == :structured_scalar ? :scalar : behavior)
       )
     end
 
@@ -306,13 +322,13 @@ module SpecToPbt
       analysis = plan.analysis
       method_name = plan.method_name
       state_items = collection_state_expr("state", analysis)
-      if plan.arg_aware_applicability
+      if plan.arg_aware_applicability?
         lines = [
           "    def applicable?(state, args)",
           "      override = #{support_module_name}.applicable_override(name)",
           "      return #{support_module_name}.call_applicable_override(override, state, args) if override"
         ]
-        if plan.guard_supportable
+        if plan.guard_supportable?
           lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
           lines << "      guard_satisfied?(state, args)"
         else
@@ -327,7 +343,7 @@ module SpecToPbt
         "      override = #{support_module_name}.applicable_override(name)",
         "      return #{support_module_name}.call_applicable_override(override, state, nil) if override"
       ]
-      if plan.guard_supportable
+      if plan.guard_supportable?
         lines << "      return true if #{support_module_name}.guard_failure_policy(name)"
         lines << "      guard_satisfied?(state)"
       elsif analysis.guard_kind != :none
@@ -342,7 +358,7 @@ module SpecToPbt
     # @rbs plan: CommandPlan
     # @rbs return: Array[String]
     def guard_helper_separator_lines(plan)
-      plan.guard_supportable ? [""] : []
+      plan.guard_supportable? ? [""] : []
     end
 
     # @rbs plan: CommandPlan
@@ -350,11 +366,10 @@ module SpecToPbt
     def guard_helper_lines(plan)
       analysis = plan.analysis
       method_name = plan.method_name
-      return [] unless plan.guard_supportable
+      return [] unless plan.guard_supportable?
 
-      signature = plan.arg_aware_applicability ? "state, args = nil" : "state, _args = nil"
       lines = [
-        "    def guard_satisfied?(#{signature})"
+        "    def guard_satisfied?(#{plan.guard_signature})"
       ]
 
       if bounded_scalar_arg_generation?(analysis)
@@ -393,10 +408,10 @@ module SpecToPbt
     def next_state_lines(plan)
       analysis = plan.analysis
       behavior = plan.behavior
-      return scalar_next_state_lines(analysis) unless collection_like_state?(analysis)
+      return scalar_next_state_lines(analysis) if plan.scalar_state?
       state_items = collection_state_expr("state", analysis)
 
-      case behavior
+      case plan.next_state_mode
       when :append
         collection_append_next_state_lines(analysis, state_items)
       when :pop
@@ -598,7 +613,7 @@ module SpecToPbt
     # @rbs return: Array[String]
     def generic_next_state_lines(plan)
       analysis = plan.analysis
-      if analysis && !collection_like_state?(analysis)
+      if plan.scalar_state?
         scalar_next_state_lines(analysis)
       else
         [
@@ -707,183 +722,24 @@ def scalar_field_updates_for(analysis)
       SupportModuleRenderer.new(self).render_lines
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def structured_collection_state?(analysis)
-      return false unless analysis
-      return false unless collection_like_state?(analysis)
+    def spec_document = @spec
 
-      stable_companion_collection_state?(analysis) || projection_collection_state?(analysis)
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def stable_companion_collection_state?(analysis)
-      return false unless analysis
-      return false unless collection_like_state?(analysis)
-
-      companion_scalar_fields_for(analysis).any? { |field| stable_companion_scalar_field?(field) }
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def projection_collection_state?(analysis)
-      return false unless analysis
-      return false unless collection_like_state?(analysis)
-
-      projection_plan_for(analysis).support_level == :structural
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: Array[Core::Field]
-    def companion_scalar_fields_for(analysis)
-      return [] unless analysis.state_type
-
-      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
-      return [] unless type_entity
-
-      type_entity.fields.reject do |field|
-        field.name == analysis.state_field || ["seq", "set"].include?(field.multiplicity)
-      end
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis?
-    # @rbs return: bool
-    def structured_scalar_state?(analysis)
-      return false unless analysis
-      return false if collection_like_state?(analysis)
-
-      fields = state_type_fields_for(analysis)
-      return false if fields.empty?
-      return false if fields.any? { |field| ["seq", "set"].include?(field.multiplicity) }
-
-      return true if fields.length > 1
-
-      companions = companion_scalar_fields_for(analysis)
-      return false if companions.empty?
-
-      companions.all? { |field| stable_companion_scalar_field?(field) }
-    end
-
-    # @rbs analyses: Array[StatefulPredicateAnalysis]
-    # @rbs return: Core::Field?
-    def single_scalar_state_field_for(analyses)
-      state_types = analyses.map(&:state_type).compact.uniq
-      return nil unless state_types.length == 1
-
-      state_fields = analyses.map(&:state_field).compact.uniq
-      return nil unless state_fields.length == 1
-
-      type_entity = @spec.types.find { |item| item.name == state_types.first }
-      return nil unless type_entity
-      return nil unless type_entity.fields.length == 1
-
-      field = type_entity.fields.first
-      return nil if ["seq", "set"].include?(field.multiplicity)
-      return nil unless field.name == state_fields.first
-
-      field
-    end
-
-    # @rbs field: Core::Field
-    # @rbs return: String
-    def default_scalar_placeholder_for(field)
-      return "3" if field.name.match?(/capacity|limit|max(?:imum)?/i)
-      return "0" if field.type == "Int"
-      return "nil" if field.multiplicity == "lone"
-
-      "nil"
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: Array[Core::Field]
-    def state_type_fields_for(analysis)
-      return [] unless analysis.state_type
-
-      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
-      type_entity ? type_entity.fields : []
-    end
-
-    # @rbs field: Core::Field
-    # @rbs return: bool
-    def stable_companion_scalar_field?(field)
-      field.name.match?(/capacity|limit|max(?:imum)?|minimum|min(?:imum)?|threshold|floor|ceiling/i)
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: String
-    def collection_state_expr(state_var, analysis)
-      if structured_collection_state?(analysis)
-        "#{state_var}[:#{analysis.state_field}]"
-      else
-        state_var
-      end
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: String?
-    def capacity_state_expr(state_var, analysis)
-      field = companion_scalar_fields_for(analysis).find { |item| item.name.match?(/capacity|limit|max(?:imum)?/i) }
-      return nil unless field
-
-      "#{state_var}[:#{field.name}]"
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: String
-    def scalar_state_expr(state_var, analysis)
-      if structured_scalar_state?(analysis)
-        "#{state_var}[:#{analysis.state_field}]"
-      else
-        state_var
-      end
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: String
-    def guard_state_expr(state_var, analysis)
-      field_name = guard_for(analysis).field || analysis.state_field
-      if structured_scalar_state?(analysis) || structured_collection_state?(analysis)
-        "#{state_var}[:#{field_name}]"
-      else
-        state_var
-      end
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: String
-    def scalar_argument_domain_expr(state_var, analysis)
-      guard_state_expr(state_var, analysis)
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs updated_scalar_expr: String
-    # @rbs return: String
-    def scalar_state_update_expr(state_var, analysis, updated_scalar_expr)
-      if structured_scalar_state?(analysis)
-        "#{state_var}.merge(#{analysis.state_field}: #{updated_scalar_expr})"
-      else
-        updated_scalar_expr
-      end
-    end
-
-    # @rbs state_var: String
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs updated_collection_expr: String
-    # @rbs return: String
-    def collection_state_update_expr(state_var, analysis, updated_collection_expr)
-      if structured_collection_state?(analysis)
-        "#{state_var}.merge(#{analysis.state_field}: #{updated_collection_expr})"
-      else
-        updated_collection_expr
-      end
-    end
+    def structured_collection_state?(analysis) = @state_shape_inspector.structured_collection_state?(analysis)
+    def stable_companion_collection_state?(analysis) = @state_shape_inspector.stable_companion_collection_state?(analysis)
+    def projection_collection_state?(analysis) = @state_shape_inspector.projection_collection_state?(analysis)
+    def companion_scalar_fields_for(analysis) = @state_shape_inspector.companion_scalar_fields_for(analysis)
+    def structured_scalar_state?(analysis) = @state_shape_inspector.structured_scalar_state?(analysis)
+    def single_scalar_state_field_for(analyses) = @state_shape_inspector.single_scalar_state_field_for(analyses)
+    def default_scalar_placeholder_for(field) = @state_shape_inspector.default_scalar_placeholder_for(field)
+    def state_type_fields_for(analysis) = @state_shape_inspector.state_type_fields_for(analysis)
+    def stable_companion_scalar_field?(field) = @state_shape_inspector.stable_companion_scalar_field?(field)
+    def collection_state_expr(state_var, analysis) = @state_shape_inspector.collection_state_expr(state_var, analysis)
+    def capacity_state_expr(state_var, analysis) = @state_shape_inspector.capacity_state_expr(state_var, analysis)
+    def scalar_state_expr(state_var, analysis) = @state_shape_inspector.scalar_state_expr(state_var, analysis)
+    def guard_state_expr(state_var, analysis) = @state_shape_inspector.guard_state_expr(state_var, analysis)
+    def scalar_argument_domain_expr(state_var, analysis) = @state_shape_inspector.scalar_argument_domain_expr(state_var, analysis)
+    def scalar_state_update_expr(state_var, analysis, updated_scalar_expr) = @state_shape_inspector.scalar_state_update_expr(state_var, analysis, updated_scalar_expr)
+    def collection_state_update_expr(state_var, analysis, updated_collection_expr) = @state_shape_inspector.collection_state_update_expr(state_var, analysis, updated_collection_expr)
 
 # @rbs predicate: Core::Entity
 # @rbs return: StatefulPredicateAnalysis
@@ -1025,28 +881,8 @@ def predicate_analysis(predicate)
       @projection_plans[key] ||= ProjectionPlan.new(self, analysis)
     end
 
-    # @rbs field_name: String
-    # @rbs return: String
-    def collection_observed_reader_expr(field_name)
-      if field_name.match?(/\Aentries|elements|items|values|jobs|adjustments|movements|events|captures/i)
-        "sut.#{field_name}.dup"
-      else
-        "sut.#{field_name}"
-      end
-    end
-
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs field_name: String
-    # @rbs return: bool
-    def numeric_scalar_field_name?(analysis, field_name)
-      return false unless analysis.state_type
-
-      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
-      return false unless type_entity
-
-      field = type_entity.fields.find { |item| item.name == field_name }
-      field&.type == "Int"
-    end
+    def collection_observed_reader_expr(field_name) = @state_shape_inspector.collection_observed_reader_expr(field_name)
+    def numeric_scalar_field_name?(analysis, field_name) = @state_shape_inspector.numeric_scalar_field_name?(analysis, field_name)
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: bool
@@ -1127,17 +963,7 @@ def predicate_analysis(predicate)
       end
     end
 
-    # @rbs analysis: StatefulPredicateAnalysis
-    # @rbs return: bool
-    def numeric_scalar_state?(analysis)
-      return false unless analysis.state_type && analysis.state_field
-
-      type_entity = @spec.types.find { |item| item.name == analysis.state_type }
-      return false unless type_entity
-
-      field = type_entity.fields.find { |item| item.name == analysis.state_field }
-      field&.type == "Int"
-    end
+    def numeric_scalar_state?(analysis) = @state_shape_inspector.numeric_scalar_state?(analysis)
 
     # @rbs analysis: StatefulPredicateAnalysis
     # @rbs return: String
