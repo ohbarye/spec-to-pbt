@@ -12,6 +12,10 @@ Project status / handoff docs:
   - [docs/stateful-generator-refactor-plan-2026-03-11.md](docs/stateful-generator-refactor-plan-2026-03-11.md)
 - product evaluation playbook:
   - [docs/product-evaluation-playbook-2026-03-12.md](docs/product-evaluation-playbook-2026-03-12.md)
+- active evaluation TODO:
+  - [docs/product-evaluation-todo-2026-03-13.md](docs/product-evaluation-todo-2026-03-13.md)
+- active evaluation friction log:
+  - [docs/evaluation-friction-log-2026-03-13.md](docs/evaluation-friction-log-2026-03-13.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
@@ -43,6 +47,14 @@ bundle install
 bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
 vi generated/stack_pbt_config.rb
 vi generated/stack_impl.rb
+ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+```
+
+If your installed `pbt` does not yet provide `Pbt.stateful`, use a checkout that does.
+In this repo workspace, the local `../pbt` `main` checkout can be used with:
+
+```bash
+RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib \
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
@@ -186,6 +198,8 @@ For current product boundaries and restart context:
 
 - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
 - [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
+- [docs/product-evaluation-todo-2026-03-13.md](docs/product-evaluation-todo-2026-03-13.md)
+- [docs/evaluation-friction-log-2026-03-13.md](docs/evaluation-friction-log-2026-03-13.md)
 
 Useful stateful fixtures to try:
 

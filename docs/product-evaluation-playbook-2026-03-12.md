@@ -16,6 +16,21 @@ It answers three questions:
 2. how to record scaffold friction
 3. how to decide whether a pattern should be promoted to first-class generator behavior
 
+## Current Active Pass
+
+The active evaluation pass is tracked in:
+
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
+
+For the current product phase:
+
+- do not expand Alloy coverage first
+- do not add new domains first
+- run the selected in-repo domains
+- record friction
+- classify before promoting anything
+
 ## Candidate Domain Order
 
 Use this priority order when trying new domains.
@@ -67,6 +82,8 @@ For every new domain, use this sequence.
 4. avoid editing `generated/*_pbt.rb` unless blocked
 5. run:
    - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
+   - if this repo is using a local `pbt` checkout rather than a released gem with `Pbt.stateful`, add:
+     - `RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib`
 6. record all friction using the template below
 7. if the same friction appears in a second distinct domain, evaluate promotion
 

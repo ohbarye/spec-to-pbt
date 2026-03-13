@@ -92,4 +92,6 @@ if options[:stateful]
   puts "Next: edit #{File.join(options[:output_dir], "#{base}_pbt_config.rb")} for SUT wiring" if options[:with_config]
   puts "Next: provide #{File.join(options[:output_dir], "#{base}_impl.rb")} for implementation behavior"
   puts "Next: run ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec #{output_file}"
+  puts "Note: stateful scaffolds require a pbt version that provides Pbt.stateful"
+  puts "Note: in this repo workspace, local pbt main can be used with RUBYOPT=-I#{File.expand_path('../pbt/lib', __dir__)}"
 end

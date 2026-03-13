@@ -14,6 +14,7 @@ Use it for:
 
 Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the completed code-structure phase.
 Use the product evaluation playbook for the next domain-trial loop.
+Use the active evaluation TODO/log docs for the current product pass.
 
 ## Current Goal
 
@@ -75,6 +76,8 @@ Representative current workflow baseline:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
 - operational evaluation guide:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-playbook-2026-03-12.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
 
 ## Architecture Snapshot
 
@@ -244,22 +247,22 @@ For the next code-structure phase, use:
 
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-generator-refactor-plan-2026-03-11.md`
 
-### 1. Keep the first-class boundary explicit and conservative
+### 1. Finish the active evaluation pass before widening scope
 
 Why it matters:
 
-- the generator is now strong enough that the main risk is overreaching into
-  domain-specific semantics
-- future work should not blur the line between safe inference and config-owned
-  business rules
+- current priority is product usability, not parser breadth
+- the next useful evidence must come from real workflow friction, not more
+  theoretical pattern work
 
 Success looks like:
 
-- unsupported guards remain routed to `applicable_override`
-- invalid paths beyond inferred guards remain routed to
-  `guard_failure_policy: :custom`, `verify_override`, and
-  `next_state_override`
-- docs, generated comments, and examples stay aligned on that boundary
+- the active pass against:
+  - `partial_refund_remaining_capturable`
+  - `job_status_event_counters`
+  is recorded in the friction log
+- repeated friction is classified cleanly before any promotion work starts
+- docs, CLI next-step messaging, and examples stay aligned on stateful runtime requirements
 
 ### 2. Expand recurring structural patterns only when a second domain confirms them
 
