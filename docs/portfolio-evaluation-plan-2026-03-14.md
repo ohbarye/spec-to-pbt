@@ -1,8 +1,8 @@
-# Conference Evaluation Plan
+# Portfolio Evaluation Plan
 
 ## Goal
 
-Produce a conference-ready case-study package that supports this claim:
+Produce a repeatable case-study package that supports this claim:
 
 - `spec-to-pbt` is a practical scaffold generator for formal-spec-to-PBT workflows
 - generated stateful scaffolds can reach green through config/impl-only edits
@@ -113,7 +113,7 @@ Use exactly 3 deterministic mutants per domain.
 
 ## Acceptance Criteria
 
-This conference milestone is successful if:
+This evaluation milestone is successful if:
 
 1. all 4 domains reach green with config/impl-only edits
 2. no domain requires normal editing of generated `*_pbt.rb`

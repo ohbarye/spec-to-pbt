@@ -1,12 +1,13 @@
-# Conference Summary
+# Evaluation Summary
 
-This document is the slide-ready summary for the current conference package.
+This document summarizes the current 4-domain product evaluation package.
 
-Use it as the source for:
+Use it as a compact overview of:
 
-- one overview slide
-- one evidence slide
-- one limitations / next-step slide
+- the workflow under evaluation
+- the strongest evidence
+- the current boundary
+- the main limitation
 
 ## Core Claim
 
@@ -21,7 +22,7 @@ The current evidence supports three claims:
 3. **Usefulness**
    - the resulting tests detect realistic injected defects across recurring pattern families
 
-## Slide 1: Workflow
+## Workflow
 
 ```mermaid
 flowchart LR
@@ -33,13 +34,13 @@ flowchart LR
   F --> G["Pbt.stateful execution"]
 ```
 
-Presenter note:
+Key points:
 
-- emphasize that `*_pbt.rb` is regenerated
-- emphasize that durable customization lives in config
-- state clearly that this is a practical scaffold workflow, not a semantics-preserving translator
+- `*_pbt.rb` is regenerated
+- durable customization lives in config
+- this is a practical scaffold workflow, not a semantics-preserving translator
 
-## Slide 2: 4-Domain Evidence
+## 4-Domain Evidence
 
 | Domain | Family | `*_pbt.rb` edited? | Green via config/impl only? | Mutants detected |
 | --- | --- | --- | --- | --- |
@@ -48,12 +49,7 @@ Presenter note:
 | job status event counters | status-gated counters / lifecycle | no | yes | 3 / 3 |
 | connection pool | bounded paired counters | no | yes | 2 / 3 |
 
-Presenter note:
-
-- this is the main practicality + usefulness slide
-- the most important row is the `*_pbt.rb` column: no hand edits in generated scaffold
-
-## Slide 3: What The Generator Already Handles
+## Current Boundary
 
 | Pattern family | Status |
 | --- | --- |
@@ -65,47 +61,25 @@ Presenter note:
 | status + projection + amount/counter | config-assisted |
 | business-rule-heavy invalid paths | config-owned |
 
-Presenter note:
+The generator is intentionally conservative. Config is a design boundary, not an accident.
 
-- this is the boundary slide
-- frame the tool as intentionally conservative
-- highlight that config is a design choice, not an accident
-
-## Slide 4: What The Current Package Shows
-
-### Strong evidence
+## Strong Evidence
 
 - repeated recurring pattern support across unrelated domains
 - deterministic end-to-end workflow
-- strong mutant detection for:
+- strong defect detection for:
   - projection bugs
   - wrong update direction
   - wrong counter updates
   - lifecycle transition bugs
 
-### Weak evidence
+## Weak Evidence
 
 - invalid-path bugs that are never exercised because generated workflows stay on valid paths
 - business-rule-heavy mixed guards
 
-## Slide 5: Main Limitation
+## Takeaway
 
-The current system is strongest on:
-
-- structurally inferable updates
-- structurally inferable simple guards
-- observed-state verification with explicit config wiring
-
-It is weaker on:
-
-- mixed guards such as `status == constant && scalar > 0`
-- domain-specific invalid-path semantics
-- external side effects
-
-## Slide 6: Takeaway
-
-The takeaway should be:
-
-- we are not claiming full automatic completed test generation
-- we are claiming that **formal specs can be turned into practical, useful stateful PBT scaffolds**
-- the recurring structural core is already broad enough to support a real case-study argument
+- this is not full automatic completed test generation
+- it is practical, useful stateful PBT scaffold generation from formal-ish specs
+- the recurring structural core is already broad enough to support a credible product-level case study

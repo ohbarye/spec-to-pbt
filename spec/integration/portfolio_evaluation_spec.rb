@@ -4,11 +4,11 @@ require "spec_helper"
 require "fileutils"
 require "open3"
 
-RSpec.describe "Conference evaluation portfolio" do
+RSpec.describe "Portfolio evaluation" do
   let(:project_root) { File.expand_path("../..", __dir__) }
   let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
-  let(:output_dir) { File.join(project_root, "spec/tmp_conference_evaluation") }
+  let(:output_dir) { File.join(project_root, "spec/tmp_portfolio_evaluation") }
   let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
   let(:pbt_lib_dir) { File.join(pbt_repo_dir, "lib") }
 
@@ -20,10 +20,10 @@ RSpec.describe "Conference evaluation portfolio" do
     FileUtils.rm_rf(output_dir)
   end
 
-  it "validates the fixed conference portfolio across good implementations and deterministic mutants" do
+  it "validates the fixed portfolio across good implementations and deterministic mutants" do
     skip_unless_local_pbt!
 
-    conference_domains.each do |domain|
+    portfolio_domains.each do |domain|
       domain_dir = File.join(output_dir, domain[:name])
       FileUtils.mkdir_p(domain_dir)
 
@@ -47,7 +47,7 @@ RSpec.describe "Conference evaluation portfolio" do
 
   private
 
-  def conference_domains
+  def portfolio_domains
     [
       {
         name: "partial_refund_remaining_capturable",

@@ -1,12 +1,6 @@
-# Conference Narrative
+# Evaluation Narrative
 
-This document is the talk track for presenting the current `spec-to-pbt` result.
-
-It is written as a short narrative that can be expanded into:
-
-- a 3 minute lightning summary
-- a 10 minute talk segment
-- a written abstract or demo framing
+This document is a concise narrative for explaining the current `spec-to-pbt` result.
 
 ## One-Sentence Positioning
 
@@ -54,7 +48,7 @@ The architectural decision is important:
 
 ## Evaluation Setup
 
-We evaluated the current system as a 4-domain case-study package:
+We evaluated the current system as a 4-domain portfolio:
 
 - financial:
   - partial refund / remaining capturable
@@ -129,6 +123,6 @@ We are showing:
 
 ## Short Closing
 
-The conference claim should be:
+The project claim should be:
 
 We can already get from formal specs to useful stateful PBT scaffolds in a practical, repeatable way, as long as we treat specification-to-test generation as structured scaffold generation rather than as a fully automatic semantic compiler.

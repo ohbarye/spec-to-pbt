@@ -22,8 +22,8 @@ The active evaluation pass is tracked in:
 
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/conference-evaluation-plan-2026-03-14.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/conference-evaluation-results-2026-03-14.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
 
 For the current product phase:
 
@@ -32,7 +32,7 @@ For the current product phase:
 - run the selected in-repo domains
 - record friction
 - classify before promoting anything
-- for the current one-month milestone, use the fixed 4-domain conference portfolio and mutant protocol
+- for the current one-month milestone, use the fixed 4-domain portfolio and mutant protocol as the default product evaluation baseline
 
 ## Candidate Domain Order
 

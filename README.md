@@ -16,14 +16,14 @@ Project status / handoff docs:
   - [docs/product-evaluation-todo-2026-03-13.md](docs/product-evaluation-todo-2026-03-13.md)
 - active evaluation friction log:
   - [docs/evaluation-friction-log-2026-03-13.md](docs/evaluation-friction-log-2026-03-13.md)
-- conference evaluation plan:
-  - [docs/conference-evaluation-plan-2026-03-14.md](docs/conference-evaluation-plan-2026-03-14.md)
-- conference evaluation results:
-  - [docs/conference-evaluation-results-2026-03-14.md](docs/conference-evaluation-results-2026-03-14.md)
-- conference summary:
-  - [docs/conference-summary-2026-03-14.md](docs/conference-summary-2026-03-14.md)
-- conference narrative:
-  - [docs/conference-narrative-2026-03-14.md](docs/conference-narrative-2026-03-14.md)
+- portfolio evaluation plan:
+  - [docs/portfolio-evaluation-plan-2026-03-14.md](docs/portfolio-evaluation-plan-2026-03-14.md)
+- portfolio evaluation results:
+  - [docs/portfolio-evaluation-results-2026-03-14.md](docs/portfolio-evaluation-results-2026-03-14.md)
+- evaluation summary:
+  - [docs/evaluation-summary-2026-03-14.md](docs/evaluation-summary-2026-03-14.md)
+- evaluation narrative:
+  - [docs/evaluation-narrative-2026-03-14.md](docs/evaluation-narrative-2026-03-14.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
@@ -39,7 +39,7 @@ Auto-generate Property-Based Tests (PBT) from specifications to automate the "sp
 
 ## Current Milestone
 
-The current one-month milestone is a **4-domain conference evaluation package**.
+The current one-month milestone is a **fixed 4-domain portfolio evaluation**.
 
 In this phase:
 

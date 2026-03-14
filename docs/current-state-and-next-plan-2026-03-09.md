@@ -15,7 +15,7 @@ Use it for:
 Use the roadmap for future direction, the retrospective for design history, and the refactor plan for the completed code-structure phase.
 Use the product evaluation playbook for the next domain-trial loop.
 Use the active evaluation TODO/log docs for the current product pass.
-Use the conference evaluation docs for the current one-month milestone.
+Use the portfolio evaluation docs for the fixed 4-domain evaluation baseline.
 
 ## Current Goal
 
@@ -79,9 +79,9 @@ Representative current workflow baseline:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-playbook-2026-03-12.md`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/conference-evaluation-plan-2026-03-14.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/conference-evaluation-results-2026-03-14.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/conference_evaluation_spec.rb`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/portfolio_evaluation_spec.rb`
 
 ## Architecture Snapshot
 
@@ -251,7 +251,7 @@ The working rule is now:
 
 The current one-month milestone is:
 
-- a 4-domain conference evaluation package
+- a fixed 4-domain portfolio evaluation
 - no parser expansion in this phase
 - success judged by config/impl-only workflow plus mutant detection evidence
 
