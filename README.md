@@ -16,6 +16,10 @@ Project status / handoff docs:
   - [docs/product-evaluation-todo-2026-03-13.md](docs/product-evaluation-todo-2026-03-13.md)
 - active evaluation friction log:
   - [docs/evaluation-friction-log-2026-03-13.md](docs/evaluation-friction-log-2026-03-13.md)
+- conference evaluation plan:
+  - [docs/conference-evaluation-plan-2026-03-14.md](docs/conference-evaluation-plan-2026-03-14.md)
+- conference evaluation results:
+  - [docs/conference-evaluation-results-2026-03-14.md](docs/conference-evaluation-results-2026-03-14.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
@@ -28,6 +32,17 @@ Auto-generate Property-Based Tests (PBT) from specifications to automate the "sp
 - Input (current): Alloy specification (`.als`)
 - Output: Ruby test code compatible with [pbt gem](https://github.com/ohbarye/pbt) (`.rb`)
 - Direction: evolve from `Alloy -> PBT` into a broader `spec -> pbt` experiment space
+
+## Current Milestone
+
+The current one-month milestone is a **4-domain conference evaluation package**.
+
+In this phase:
+
+- do not expand parser coverage first
+- do not add new frontend work
+- evaluate practicality via config/impl-only workflow
+- evaluate usefulness via deterministic defect injection
 
 ## Usage
 
