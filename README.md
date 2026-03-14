@@ -20,6 +20,10 @@ Project status / handoff docs:
   - [docs/conference-evaluation-plan-2026-03-14.md](docs/conference-evaluation-plan-2026-03-14.md)
 - conference evaluation results:
   - [docs/conference-evaluation-results-2026-03-14.md](docs/conference-evaluation-results-2026-03-14.md)
+- conference summary:
+  - [docs/conference-summary-2026-03-14.md](docs/conference-summary-2026-03-14.md)
+- conference narrative:
+  - [docs/conference-narrative-2026-03-14.md](docs/conference-narrative-2026-03-14.md)
 - retrospective / engineering history:
   - [docs/stateful-scaffold-retrospective-2026-03-09.md](docs/stateful-scaffold-retrospective-2026-03-09.md)
 - roadmap:
