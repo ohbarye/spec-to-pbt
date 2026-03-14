@@ -89,6 +89,10 @@ For every new domain, use this sequence.
      - `RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib`
 6. record all friction using the template below
 7. if the same friction appears in a second distinct domain, evaluate promotion
+8. classify any undetected mutant as one of:
+   - `invalid-path valid-only workflow`
+   - `mixed-guard gap`
+   - `other`
 
 The key rule is:
 
@@ -199,6 +203,17 @@ A pattern is not ready for first-class support unless it stays green through:
 
 If the promotion rule cannot be explained in one or two sentences, it is
 probably still too domain-specific.
+
+### 6. Did the weakness come from a valid-path miss or from never exercising the path?
+
+If an injected defect survives, separate these cases:
+
+- the generated workflow reached the buggy path and still missed the defect
+- the generated workflow never reached the buggy path because it stayed on valid inputs
+
+Only the first case is evidence for missing valid-path generator behavior.
+The second case is usually evidence for invalid-path or mixed-guard limits and
+should stay config-assisted or config-owned unless a safe recurring strategy appears.
 
 ## Boundary Decision Table
 

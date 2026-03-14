@@ -9,17 +9,18 @@
 # 3. verify_context.state_reader
 # 4. verify_override
 # 5. initial_state / next_state_override only when the inferred model state is not enough
+# 6. applicable_override / guard_failure_policy when guard handling or invalid-path behavior matters
 
 InventoryProjectionPbtConfig = {
   sut_factory: -> { InventoryProjectionImpl.new },
-  # initial_state: { adjustments: [], stock: 0 },
+  # initial_state: { adjustments: [], stock: 0 }, # set this when the inferred model baseline does not match your SUT defaults
   command_mappings: {
     receive: {
       method: :receive,
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
-      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
     },
@@ -28,13 +29,13 @@ InventoryProjectionPbtConfig = {
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
-      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed collection state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
     }
   },
   verify_context: {
-    state_reader: nil, # suggested: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }
+    state_reader: nil, # suggested: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }; configure this when verify_override needs observed-state checks against the SUT
   }
   # before_run: ->(sut) { },
   # after_run: ->(sut, result) { }

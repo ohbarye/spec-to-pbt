@@ -27,10 +27,11 @@ module SpecToPbt
         lines << "# 3. verify_context.state_reader"
         lines << "# 4. verify_override"
         lines << "# 5. initial_state / next_state_override only when the inferred model state is not enough"
+        lines << "# 6. applicable_override / guard_failure_policy when guard handling or invalid-path behavior matters"
         lines << ""
         lines << "#{config_constant_name} = {"
         lines << "  sut_factory: -> { #{sut_factory_code} },"
-        lines << "  # initial_state: #{initial_state_config_example},"
+        lines << "  # initial_state: #{initial_state_config_example}, # set this when the inferred model baseline does not match your SUT defaults"
         lines << "  command_mappings: {"
         selected_command_predicates.each_with_index do |predicate, index|
           suffix = index == selected_command_predicates.length - 1 ? "" : ","
@@ -38,7 +39,7 @@ module SpecToPbt
         end
         lines << "  },"
         lines << "  verify_context: {"
-        lines << "    state_reader: nil, # #{@suggestions.state_reader_comment}"
+        lines << "    state_reader: nil, # #{@suggestions.state_reader_comment}; configure this when verify_override needs observed-state checks against the SUT"
         lines << "  }"
         lines << "  # before_run: ->(sut) { },"
         lines << "  # after_run: ->(sut, result) { }"
@@ -66,11 +67,12 @@ module SpecToPbt
         lines << "      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape"
         lines << "      # model_arg_adapter: #{@suggestions.model_arg_adapter_example(analysis)}"
         lines << "      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!"
-        lines << "      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions"
+        lines << "      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage"
         lines << "      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition"
         if analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
           lines << "      # guard_failure_policy: :no_op, # or :raise / :custom"
           lines << "      # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific"
+          lines << "      # Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards."
         end
         lines << "      # verify_override: #{@suggestions.verify_override_example(analysis)} # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics"
         lines << "    }#{suffix}"

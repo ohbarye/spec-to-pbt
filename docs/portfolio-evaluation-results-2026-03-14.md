@@ -53,6 +53,30 @@
 | status-gated counters / lifecycle | config-assisted | yes | strong |
 | invalid-path guard semantics | config-owned | yes | weak when invalid paths are not exercised by the generated valid workflow |
 
+## Undetected Mutant Review
+
+| domain | mutant_id | uncovered family | classification | current handling |
+| --- | --- | --- | --- | --- |
+| `partial_refund_remaining_capturable` | `refund_allows_over_refund` | invalid refund path | `invalid-path valid-only workflow` | keep config-owned; use config comments and `guard_failure_policy` / `verify_override` guidance rather than generator promotion |
+| `connection_pool` | `checkin_without_guard` | invalid checkin path | `invalid-path valid-only workflow` | keep config-owned; use config comments and `applicable_override` / `guard_failure_policy` guidance rather than generator promotion |
+
+Interpretation:
+
+- both undetected mutants are in the same family
+- neither is a mixed-guard miss; both are valid-only workflow gaps
+- this pass does not justify generator promotion because the missing behavior depends on intentionally driving invalid paths, not on a structurally missing valid-path update
+
+## Product Actions From This Pass
+
+- improve config comments for:
+  - `initial_state`
+  - `verify_context.state_reader`
+  - `applicable_override`
+  - `guard_failure_policy`
+- keep invalid-path and mixed-guard semantics on the config-assisted / config-owned side
+- do not promote new generator behavior from this pass
+- treat future invalid-path mutants as a separate evidence track from valid-path structural bugs
+
 ## Interpretation
 
 - **Viability:** all 4 domains reached green without editing generated `*_pbt.rb`

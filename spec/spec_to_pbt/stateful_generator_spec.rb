@@ -676,8 +676,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state.merge(captures: state[:captures] + [1], status: state[:status], remaining_amount: state[:remaining_amount] - 1, settled_amount: state[:settled_amount] + 1)")
         expect(code).to include("raise \"Expected decremented value for Payment#remaining_amount\" unless after_remaining_amount == before_remaining_amount - 1")
         expect(code).to include("raise \"Expected incremented value for Payment#settled_amount\" unless after_settled_amount == before_settled_amount + 1")
-        expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards or richer domain preconditions")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }")
+        expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage")
+        expect(config).to include("# Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards.")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }; configure this when verify_override needs observed-state checks against the SUT")
       end
     end
 

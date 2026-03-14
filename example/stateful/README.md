@@ -64,6 +64,14 @@ Edit in this order:
 2. `*_impl.rb`
 3. `*_pbt.rb` only if config cannot express the workflow
 
+Two practical rules from the current evaluation baseline:
+
+1. treat `verify_context.state_reader` as the default place to connect model state to observed SUT state
+2. treat invalid-path and mixed-guard behavior as config work first:
+   - `applicable_override` for unsupported or richer preconditions
+   - `guard_failure_policy` for simple inferred invalid-path behavior
+   - `verify_override` for observed-state checks and domain-specific invalid-path contracts
+
 Typical `*_pbt_config.rb` edits:
 
 - `sut_factory`
@@ -74,7 +82,19 @@ Typical `*_pbt_config.rb` edits:
 - `next_state_override` only for richer model transitions
 - `applicable_override` only for unsupported guards or richer preconditions
 
+If you want a representative complex path, start from:
+
+- `partial_refund_remaining_capturable`
+  - guarded multi-field financial state
+- `job_status_event_counters`
+  - status-gated counters plus invalid-path boundary
+- `ledger_projection`
+  - append-only projection with strong valid-path coverage
+- `connection_pool`
+  - bounded paired counters with an invalid checkin boundary
+
 For current promotion boundaries and restart context:
 
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`

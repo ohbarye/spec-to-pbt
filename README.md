@@ -48,6 +48,14 @@ In this phase:
 - evaluate practicality via config/impl-only workflow
 - evaluate usefulness via deterministic defect injection
 
+Use these docs as the current evidence set:
+
+- [docs/portfolio-evaluation-plan-2026-03-14.md](docs/portfolio-evaluation-plan-2026-03-14.md)
+- [docs/portfolio-evaluation-results-2026-03-14.md](docs/portfolio-evaluation-results-2026-03-14.md)
+
+The current weak spot is invalid-path coverage: generated workflows are strongest
+on valid-path structural behavior and conservative about richer invalid-path semantics.
+
 ## Usage
 
 ### Fastest practical workflow
@@ -218,6 +226,7 @@ For current product boundaries and restart context:
 - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
 - [docs/domain-pattern-catalog-2026-03-09.md](docs/domain-pattern-catalog-2026-03-09.md)
 - [docs/product-evaluation-todo-2026-03-13.md](docs/product-evaluation-todo-2026-03-13.md)
+- [docs/portfolio-evaluation-results-2026-03-14.md](docs/portfolio-evaluation-results-2026-03-14.md)
 - [docs/evaluation-friction-log-2026-03-13.md](docs/evaluation-friction-log-2026-03-13.md)
 
 Useful stateful fixtures to try:
