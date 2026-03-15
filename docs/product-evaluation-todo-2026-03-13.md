@@ -44,7 +44,7 @@ Apply this sequence to each domain.
    - `generated/*_pbt.rb`
 4. run:
    - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
-5. ensure `pbt >= 0.5.1` is installed so the generated scaffold can call `Pbt.stateful`
+5. ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record every friction item immediately in:
    - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
 

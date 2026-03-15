@@ -50,7 +50,7 @@ examples for `spec-to-pbt`.
 
 ## Running An Example
 
-Examples assume `pbt >= 0.5.1` with `Pbt.stateful`.
+Examples assume `pbt >= 0.6.0` with `Pbt.stateful`.
 For repo development only, you can point them at a local checkout with `PBT_REPO_DIR=/path/to/pbt`.
 
 ```bash

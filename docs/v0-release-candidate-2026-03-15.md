@@ -46,7 +46,7 @@
 
 v0 is ready only when all of the following hold:
 
-1. user-facing standard workflow runs with `pbt >= 0.5.1`
+1. user-facing standard workflow runs with `pbt >= 0.6.0`
 2. generated `*_pbt.rb` stays unedited across the fixed 4-domain portfolio and blind 4-domain expansion
 3. the two known invalid-path survivor families are recoverable via config-only workflows
 4. `state_reader`-only observed-state verification works for representative domains

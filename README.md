@@ -82,7 +82,7 @@ vi generated/stack_impl.rb
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
-Stateful scaffolds require `pbt >= 0.5.1` with `Pbt.stateful`.
+Stateful scaffolds require `pbt >= 0.6.0` with `Pbt.stateful`.
 If the generated scaffold raises a runtime preflight error, install or update `pbt`
 before rerunning the generated spec.
 
@@ -394,9 +394,9 @@ bundle exec steep check
 
 ### Stateful Development Notes
 
-- User-facing stateful workflows assume `pbt >= 0.5.1`
+- User-facing stateful workflows assume `pbt >= 0.6.0`
 - For repo development only, example specs can still be pointed at a local `pbt` checkout with `PBT_REPO_DIR=/path/to/pbt`
-- `pbt >= 0.5.1` now supports:
+- `pbt >= 0.6.0` now supports:
   - `arguments(state)`
   - `applicable?(state, args)`
   - empty arg-domain handling via `Pbt::Arbitrary::EmptyDomainError`

@@ -9,8 +9,6 @@ RSpec.describe "Stateful regenerated workflows" do
   let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp_stateful_regenerated") }
-  let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
-  let(:pbt_lib_dir) { File.join(pbt_repo_dir, "lib") }
 
   before do
     FileUtils.mkdir_p(output_dir)
@@ -21,7 +19,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated bounded queue workflow with only config and implementation edits" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("bounded_queue.als")
 
@@ -82,7 +79,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated bank account workflow with config-driven API remapping" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("bank_account.als")
 
@@ -165,7 +161,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated hold/capture/release workflow with config-driven initial state and observed-state checks" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("hold_capture_release.als")
 
@@ -241,7 +236,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated transfer-between-accounts workflow with config-driven initial state" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("transfer_between_accounts.als")
 
@@ -290,7 +284,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated refund/reversal workflow with config-driven observed-state checks" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("refund_reversal.als")
 
@@ -369,7 +362,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated ledger projection workflow without custom next-state overrides" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("ledger_projection.als")
 
@@ -434,7 +426,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated inventory projection workflow without custom next-state overrides" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("inventory_projection.als")
 
@@ -499,7 +490,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated rate limiter workflow with config-driven initial state" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("rate_limiter.als")
 
@@ -558,7 +548,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated connection pool workflow with paired-counter verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("connection_pool.als")
 
@@ -622,7 +611,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated feature flag rollout workflow with config-driven rollout mapping" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("feature_flag_rollout.als")
 
@@ -692,7 +680,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated authorization expiry/void workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("authorization_expiry_void.als")
 
@@ -769,7 +756,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated partial refund workflow with three-field payment state" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("partial_refund_remaining_capturable.als")
 
@@ -833,7 +819,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated job queue retry/dead-letter workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("job_queue_retry_dead_letter.als")
 
@@ -935,7 +920,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated payment status lifecycle workflow with invalid-transition raise semantics" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("payment_status_lifecycle.als")
 
@@ -1025,7 +1009,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated job status lifecycle workflow with method remapping and invalid-transition raise semantics" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("job_status_lifecycle.als")
 
@@ -1115,7 +1098,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated payment status+counters workflow with mixed constant and counter updates" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("payment_status_counters.als")
 
@@ -1198,7 +1180,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated job status+counters workflow with method remapping" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("job_status_counters.als")
 
@@ -1278,7 +1259,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated payment status+amount workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("payment_status_amounts.als")
 
@@ -1364,7 +1344,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated payout status+amount workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("payout_status_amounts.als")
 
@@ -1450,7 +1429,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated ledger status+projection workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("ledger_status_projection.als")
 
@@ -1530,7 +1508,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated inventory status+projection workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("inventory_status_projection.als")
 
@@ -1610,7 +1587,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated payment status+event+amount workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("payment_status_event_amounts.als")
 
@@ -1691,7 +1667,6 @@ RSpec.describe "Stateful regenerated workflows" do
   end
 
   it "runs a regenerated job status+event+counter workflow with observed-state verification" do
-    skip_unless_local_pbt!
 
     generate_stateful_with_config!("job_status_event_counters.als")
 
@@ -1773,10 +1748,6 @@ RSpec.describe "Stateful regenerated workflows" do
 
   private
 
-  def skip_unless_local_pbt!
-    skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)" unless Dir.exist?(pbt_repo_dir)
-  end
-
   def generate_stateful_with_config!(fixture_name)
     input_file = File.join(fixtures_dir, fixture_name)
     stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
@@ -1792,8 +1763,7 @@ RSpec.describe "Stateful regenerated workflows" do
 
   def run_generated_spec!(generated_filename)
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{pbt_lib_dir}"].compact.join(" ")
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
     }
 
     generated_spec = File.join(output_dir, generated_filename)

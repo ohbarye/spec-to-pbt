@@ -12,7 +12,7 @@ end
 unless Pbt.respond_to?(:stateful)
   loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
   detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
-  raise "Expected pbt >= 0.5.1 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
+  raise "Expected pbt >= 0.6.0 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
 end
 
 RSpec.describe "transfer_between_accounts (stateful scaffold)" do

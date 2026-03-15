@@ -8,7 +8,6 @@ EXAMPLE_SPECS = Dir.glob(File.join(PROJECT_ROOT, "example/stateful/*_pbt.rb")).s
 
 RSpec.describe "Stateful example workflows" do
   let(:project_root) { PROJECT_ROOT }
-  let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
 
   it "keeps the example workflow inventory current" do
     basenames = EXAMPLE_SPECS.map { |path| File.basename(path) }
@@ -24,14 +23,9 @@ RSpec.describe "Stateful example workflows" do
   EXAMPLE_SPECS.each do |spec_path|
     basename = File.basename(spec_path)
 
-    it "runs #{basename} against local pbt main" do
-      unless Dir.exist?(pbt_repo_dir)
-        skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-      end
-
+    it "runs #{basename} against the released pbt gem" do
       env = {
-        "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-        "PBT_REPO_DIR" => pbt_repo_dir
+        "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
       }
 
       stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", spec_path, chdir: project_root)

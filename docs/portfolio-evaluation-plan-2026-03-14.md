@@ -43,7 +43,7 @@ For every domain:
 5. run 3 deterministic mutants
 6. record practicality, friction, and mutant outcomes
 
-Use a `pbt` release that provides `Pbt.stateful` (`pbt >= 0.5.1`) before running generated scaffolds.
+Use a `pbt` release that provides `Pbt.stateful` (`pbt >= 0.6.0`) before running generated scaffolds.
 
 ## Metrics
 

@@ -9,8 +9,6 @@ RSpec.describe "Stateful generated scaffold E2E" do
   let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp_stateful_e2e") }
-  let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
-  let(:pbt_lib_dir) { File.join(pbt_repo_dir, "lib") }
 
   before do
     FileUtils.mkdir_p(output_dir)
@@ -20,11 +18,7 @@ RSpec.describe "Stateful generated scaffold E2E" do
     FileUtils.rm_rf(output_dir)
   end
 
-  it "runs a generated stateful scaffold through Pbt.assert using the local ../pbt main checkout by default" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
+  it "runs a generated stateful scaffold through Pbt.assert using the released pbt gem" do
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"
@@ -52,8 +46,7 @@ RSpec.describe "Stateful generated scaffold E2E" do
     RUBY
 
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{pbt_lib_dir}"].compact.join(" ")
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
     }
 
     stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
@@ -70,10 +63,6 @@ RSpec.describe "Stateful generated scaffold E2E" do
   end
 
   it "runs a config-aware stateful scaffold against a remapped Ruby API" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"
@@ -117,8 +106,7 @@ RSpec.describe "Stateful generated scaffold E2E" do
     RUBY
 
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{pbt_lib_dir}"].compact.join(" ")
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
     }
 
     stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
@@ -135,10 +123,6 @@ RSpec.describe "Stateful generated scaffold E2E" do
   end
 
   it "supports verify_override checks backed by state_reader" do
-    unless Dir.exist?(pbt_repo_dir)
-      skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)"
-    end
-
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"
@@ -196,8 +180,7 @@ RSpec.describe "Stateful generated scaffold E2E" do
     RUBY
 
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{pbt_lib_dir}"].compact.join(" ")
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
     }
 
     stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
