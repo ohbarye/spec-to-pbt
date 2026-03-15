@@ -31,6 +31,12 @@ module SpecToPbt
       lines << %(  raise "Expected #{config_constant_name} to be defined in #{config_file_basename}.rb")
       lines << "end"
       lines << ""
+      lines << "unless Pbt.respond_to?(:stateful)"
+      lines << "  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs[\"pbt\"]&.version&.to_s : nil"
+      lines << "  detail = loaded_pbt_version ? \"loaded pbt \#{loaded_pbt_version}\" : \"loaded pbt version unknown\""
+      lines << %(  raise "Expected pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful (\#{detail}). Install a compatible pbt release before running this scaffold.")
+      lines << "end"
+      lines << ""
       lines << %(RSpec.describe "#{module_name} (stateful scaffold)" do)
       lines << "  # Regeneration-safe customization:"
       lines << "  # - edit #{config_file_basename}.rb for SUT wiring and durable API mapping"
@@ -185,12 +191,16 @@ module SpecToPbt
       if state_aware_scalar_arg_generation?(analysis)
         [
           "    def arguments(state)",
+          "      overridden = #{support_module_name}.call_arguments_override(name, state)",
+          "      return overridden unless overridden.equal?(#{support_module_name}::ARGUMENTS_OVERRIDE_UNSET)",
           "      Pbt.integer(min: 1, max: #{scalar_argument_domain_expr('state', analysis)})",
           "    end"
         ]
       else
         [
           "    def arguments",
+          "      overridden = #{support_module_name}.call_arguments_override(name)",
+          "      return overridden unless overridden.equal?(#{support_module_name}::ARGUMENTS_OVERRIDE_UNSET)",
           "      #{arguments_code(predicate)}",
           "    end"
         ]
@@ -790,6 +800,19 @@ def predicate_analysis(predicate)
       return analysis.state_type.to_s if analysis.state_field.nil?
 
       "#{analysis.state_type}##{analysis.state_field}"
+    end
+
+    # @rbs state_expr: String
+    # @rbs analysis: StatefulPredicateAnalysis
+    # @rbs return: String
+    def observed_state_expected_expr(state_expr, analysis)
+      if projection_collection_state?(analysis)
+        state_expr
+      elsif structured_collection_state?(analysis)
+        "#{state_expr}[:#{analysis.state_field}]"
+      else
+        state_expr
+      end
     end
 
     # @rbs analysis: StatefulPredicateAnalysis

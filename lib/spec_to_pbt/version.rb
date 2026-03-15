@@ -4,4 +4,5 @@
 
 module SpecToPbt
   VERSION = "0.1.0" #: String
+  PBT_STATEFUL_MIN_VERSION = "0.5.1" #: String
 end

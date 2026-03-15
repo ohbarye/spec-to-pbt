@@ -50,7 +50,8 @@ examples for `spec-to-pbt`.
 
 ## Running An Example
 
-Examples prefer a local `../pbt` checkout. Override with `PBT_REPO_DIR` if needed.
+Examples assume `pbt >= 0.5.1` with `Pbt.stateful`.
+For repo development only, you can point them at a local checkout with `PBT_REPO_DIR=/path/to/pbt`.
 
 ```bash
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
@@ -77,7 +78,9 @@ Typical `*_pbt_config.rb` edits:
 - `sut_factory`
 - `command_mappings.*.method`
 - `verify_context.state_reader`
-- `verify_override`
+- leave `verify_override` unset first when `state_reader` already returns the model-shaped observed state
+- `arguments_override` when you need invalid-path coverage or a custom generator distribution
+- `verify_override` for domain-specific postconditions or invalid-path semantics
 - `initial_state`
 - `next_state_override` only for richer model transitions
 - `applicable_override` only for unsupported guards or richer preconditions

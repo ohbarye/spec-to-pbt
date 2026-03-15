@@ -9,6 +9,12 @@ if File.exist?(File.expand_path("payment_status_amounts_pbt_config.rb", __dir__)
   raise "Expected PaymentStatusAmountsPbtConfig to be defined in payment_status_amounts_pbt_config.rb"
 end
 
+unless Pbt.respond_to?(:stateful)
+  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
+  detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
+  raise "Expected pbt >= 0.5.1 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
+end
+
 RSpec.describe "payment_status_amounts (stateful scaffold)" do
   # Regeneration-safe customization:
   # - edit payment_status_amounts_pbt_config.rb for SUT wiring and durable API mapping
@@ -17,6 +23,7 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
 
   module PaymentStatusAmountsPbtSupport
     module_function
+    ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
 
     def config
       defined?(::PaymentStatusAmountsPbtConfig) ? ::PaymentStatusAmountsPbtConfig : {}
@@ -32,6 +39,34 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
 
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def arguments_override(command_name)
+      command_config(command_name)[:arguments_override]
+    end
+
+    def call_arguments_override(command_name, state = ARGUMENTS_OVERRIDE_UNSET)
+      override = arguments_override(command_name)
+      return ARGUMENTS_OVERRIDE_UNSET unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        return state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? override.call : override.call(state)
+      end
+
+      required = parameters.count { |kind, _name| kind == :req }
+      optional = parameters.count { |kind, _name| kind == :opt }
+      provided = state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? 0 : 1
+
+      if provided >= required && provided <= required + optional
+        return provided.zero? ? override.call : override.call(state)
+      end
+
+      if 0 >= required && 0 <= required + optional
+        return override.call
+      end
+
+      raise ArgumentError, "arguments_override for command #{command_name.inspect} must accept 0 or 1 positional arguments"
     end
 
     def resolve_method_name(command_name, default_method_name)
@@ -187,6 +222,8 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusAmountsPbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusAmountsPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.integer
     end
 
@@ -271,6 +308,11 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
         end
         return nil
       end
+      observed = PaymentStatusAmountsPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -298,6 +340,8 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
     end
 
     def arguments(state)
+      overridden = PaymentStatusAmountsPbtSupport.call_arguments_override(name, state)
+      return overridden unless overridden.equal?(PaymentStatusAmountsPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.integer(min: 1, max: state[:authorized_amount])
     end
 
@@ -384,6 +428,11 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
         end
         return nil
       end
+      observed = PaymentStatusAmountsPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#authorized_amount
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -416,6 +465,8 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusAmountsPbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusAmountsPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -498,6 +549,11 @@ RSpec.describe "payment_status_amounts (stateful scaffold)" do
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = PaymentStatusAmountsPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status

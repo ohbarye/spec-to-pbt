@@ -92,14 +92,16 @@ RSpec.describe "CLI" do
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Next: provide")
       expect(stdout).to include("ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1")
-      expect(stdout).to include("require a pbt version that provides Pbt.stateful")
-      expect(stdout).to include("local pbt main can be used with RUBYOPT=")
+      expect(stdout).to include("require pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
+      expect(stdout).to include("install or update pbt")
+      expect(stdout).not_to include("RUBYOPT=")
 
       output_file = File.join(output_dir, "stack_pbt.rb")
       expect(File.exist?(output_file)).to be(true)
 
       content = File.read(output_file)
       expect(content).to include("Pbt.stateful(")
+      expect(content).to include("unless Pbt.respond_to?(:stateful)")
       expect(content).to include("class StackModel")
       expect(content).to include("worker: :none")
       expect(content).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')

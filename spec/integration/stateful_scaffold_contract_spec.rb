@@ -661,4 +661,297 @@ RSpec.describe "Stateful scaffold contract" do
     expect(stdout).to include("1 example")
     expect(stdout).to include("0 failures")
   end
+
+  it "fails with an actionable preflight error when Pbt.stateful is unavailable" do
+    input_file = File.join(fixtures_dir, "stack.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "stack_pbt.rb")
+    impl_file = File.join(output_dir, "stack_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class StackImpl
+      end
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(false)
+    expect(stdout + stderr).to include("Expected pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
+  end
+
+  it "uses 0-arity arguments_override before inferred generators" do
+    input_file = File.join(fixtures_dir, "stack.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "stack_pbt.rb")
+    config_file = File.join(output_dir, "stack_pbt_config.rb")
+    impl_file = File.join(output_dir, "stack_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class StackImpl
+        def initialize
+          @values = []
+        end
+
+        def push(value)
+          @values << value
+          nil
+        end
+
+        def snapshot
+          @values.dup
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      StackPbtConfig = {
+        sut_factory: -> { StackImpl.new },
+        command_mappings: {
+          push_adds_element: {
+            method: :push,
+            arguments_override: -> { 7 }
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.snapshot }
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        def self.integer = 1
+        def self.nil = nil
+        def self.assert(**)
+          yield
+        end
+
+        def self.stateful(model:, sut:, **)
+          state = model.initial_state
+          command = model.commands(state).find { |candidate| candidate.name == :push_adds_element }
+          raise "push_adds_element command missing" unless command
+
+          args = command.arguments
+          raise "Expected arguments_override to supply 7" unless args == 7
+
+          instance = sut.call
+          after_state = command.next_state(state, args)
+          result = command.run!(instance, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: instance)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Generated scaffold with 0-arity arguments_override failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+  end
+
+  it "uses 1-arity arguments_override for state-aware generators" do
+    input_file = File.join(fixtures_dir, "partial_refund_remaining_capturable.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "partial_refund_remaining_capturable_pbt.rb")
+    config_file = File.join(output_dir, "partial_refund_remaining_capturable_pbt_config.rb")
+    impl_file = File.join(output_dir, "partial_refund_remaining_capturable_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class PartialRefundRemainingCapturableImpl
+        attr_reader :authorized, :captured, :refunded
+
+        def initialize(authorized: 20, captured: 0, refunded: 0)
+          @authorized = authorized
+          @captured = captured
+          @refunded = refunded
+        end
+
+        def capture(amount)
+          raise "insufficient authorized balance" if amount > @authorized
+
+          @authorized -= amount
+          @captured += amount
+          nil
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      PartialRefundRemainingCapturablePbtConfig = {
+        sut_factory: -> { PartialRefundRemainingCapturableImpl.new(authorized: 20, captured: 0, refunded: 0) },
+        initial_state: { authorized: 20, captured: 0, refunded: 0 },
+        command_mappings: {
+          capture: {
+            method: :capture,
+            arguments_override: ->(state) { state[:authorized] - 1 }
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { { authorized: sut.authorized, captured: sut.captured, refunded: sut.refunded } }
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        def self.integer(**_kwargs) = 1
+        def self.assert(**)
+          yield
+        end
+
+        def self.stateful(model:, sut:, **)
+          state = model.initial_state
+          command = model.commands(state).find { |candidate| candidate.name == :capture }
+          raise "capture command missing" unless command
+
+          args = command.arguments(state)
+          raise "Expected state-aware arguments_override to use current state" unless args == 19
+
+          instance = sut.call
+          after_state = command.next_state(state, args)
+          result = command.run!(instance, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: instance)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(true), <<~MSG
+      Generated scaffold with 1-arity arguments_override failed.
+      STDOUT:
+      #{stdout}
+      STDERR:
+      #{stderr}
+    MSG
+  end
+
+  it "compares observed state to the model by default when state_reader is configured" do
+    input_file = File.join(fixtures_dir, "stack.als")
+    _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", output_dir)
+    expect(status.success?).to be(true), "CLI failed: #{stderr}"
+
+    generated_spec = File.join(output_dir, "stack_pbt.rb")
+    config_file = File.join(output_dir, "stack_pbt_config.rb")
+    impl_file = File.join(output_dir, "stack_impl.rb")
+    stub_pbt_file = File.join(stub_lib_dir, "pbt.rb")
+
+    File.write(impl_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      class StackImpl
+        def initialize
+          @values = []
+        end
+
+        def push(value)
+          @values << value
+          nil
+        end
+
+        def snapshot
+          []
+        end
+      end
+    RUBY
+
+    File.write(config_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      StackPbtConfig = {
+        sut_factory: -> { StackImpl.new },
+        command_mappings: {
+          push_adds_element: {
+            method: :push
+          }
+        },
+        verify_context: {
+          state_reader: ->(sut) { sut.snapshot }
+        }
+      }
+    RUBY
+
+    File.write(stub_pbt_file, <<~RUBY)
+      # frozen_string_literal: true
+
+      module Pbt
+        def self.integer = 1
+        def self.nil = nil
+        def self.assert(**)
+          yield
+        end
+
+        def self.stateful(model:, sut:, **)
+          state = model.initial_state
+          command = model.commands(state).find { |candidate| candidate.name == :push_adds_element }
+          raise "push_adds_element command missing" unless command
+
+          args = command.arguments
+          instance = sut.call
+          after_state = command.next_state(state, args)
+          result = command.run!(instance, args)
+          command.verify!(before_state: state, after_state: after_state, args: args, result: result, sut: instance)
+        end
+      end
+    RUBY
+
+    env = {
+      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
+      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
+    }
+
+    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+
+    expect(status.success?).to be(false)
+    expect(stdout + stderr).to include("Expected observed state to match model")
+  end
 end

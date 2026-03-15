@@ -90,6 +90,17 @@ module SpecToPbt
         end
       end
 
+      # @rbs predicate: Core::Entity
+      # @rbs analysis: StatefulPredicateAnalysis
+      # @rbs return: String
+      def arguments_override_example(predicate, analysis)
+        if state_aware_scalar_arg_generation?(analysis)
+          "->(state) { Pbt.integer(min: 1, max: #{scalar_argument_domain_expr('state', analysis)} + 1) }"
+        else
+          "-> { #{sanitized_arguments_code(predicate)} }"
+        end
+      end
+
       # @rbs analysis: StatefulPredicateAnalysis
       # @rbs return: String
       def model_arg_adapter_example(_analysis)
@@ -109,6 +120,12 @@ module SpecToPbt
         "Expected observed state to match model"
       end
 
+      # @rbs predicate: Core::Entity
+      # @rbs return: String
+      def sanitized_arguments_code(predicate)
+        arguments_code(predicate).gsub(/\s+# placeholder for [^,)\n]+/, "")
+      end
+
       def selected_command_predicates = call(:selected_command_predicates)
       def predicate_analysis(predicate) = call(:predicate_analysis, predicate)
       def projection_collection_state?(analysis) = call(:projection_collection_state?, analysis)
@@ -119,6 +136,9 @@ module SpecToPbt
       def structured_scalar_state?(analysis) = call(:structured_scalar_state?, analysis)
       def state_type_fields_for(analysis) = call(:state_type_fields_for, analysis)
       def single_scalar_state_field_for(analyses) = call(:single_scalar_state_field_for, analyses)
+      def arguments_code(predicate) = call(:arguments_code, predicate)
+      def scalar_argument_domain_expr(state_var, analysis) = call(:scalar_argument_domain_expr, state_var, analysis)
+      def state_aware_scalar_arg_generation?(analysis) = call(:state_aware_scalar_arg_generation?, analysis)
 
       # @rbs method_name: Symbol
       # @rbs args: *untyped

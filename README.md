@@ -1,8 +1,13 @@
 # spec-to-pbt (Ruby package name: `spec_to_pbt`)
 
-A PoC / spike workspace for generating Ruby Property-Based Tests from specifications, with a current focus on practical `pbt` stateful PBT scaffolding.
+A practical scaffold generator for turning formal-ish specifications into Ruby Property-Based Tests, with a current focus on `pbt`-compatible stateful PBT workflows.
 
 Project status / handoff docs:
+
+- v0 positioning / support matrix:
+  - [docs/v0-release-candidate-2026-03-15.md](docs/v0-release-candidate-2026-03-15.md)
+- manual trial template:
+  - [docs/manual-trial-template-2026-03-15.md](docs/manual-trial-template-2026-03-15.md)
 
 - current state and restart guide:
   - [docs/current-state-and-next-plan-2026-03-09.md](docs/current-state-and-next-plan-2026-03-09.md)
@@ -37,23 +42,23 @@ Auto-generate Property-Based Tests (PBT) from specifications to automate the "sp
 - Output: Ruby test code compatible with [pbt gem](https://github.com/ohbarye/pbt) (`.rb`)
 - Direction: evolve from `Alloy -> PBT` into a broader `spec -> pbt` experiment space
 
-## Current Milestone
+## Current Phase
 
-The current one-month milestone is a **fixed 4-domain portfolio evaluation**.
+The current phase is a **v0 release-candidate hardening pass**.
 
-In this phase:
+The product claim is deliberately narrow:
 
-- do not expand parser coverage first
-- do not add new frontend work
-- evaluate practicality via config/impl-only workflow
-- evaluate usefulness via deterministic defect injection
+- input: Alloy specs
+- output: runnable Ruby PBT scaffolds
+- first-class: recurring, structurally safe valid-path updates
+- config-assisted / config-owned: observed-state wiring, richer initial state, mixed guards, and invalid-path semantics
 
-Use these docs as the current evidence set:
+Use these docs as the current contract:
 
-- [docs/portfolio-evaluation-plan-2026-03-14.md](docs/portfolio-evaluation-plan-2026-03-14.md)
+- [docs/v0-release-candidate-2026-03-15.md](docs/v0-release-candidate-2026-03-15.md)
 - [docs/portfolio-evaluation-results-2026-03-14.md](docs/portfolio-evaluation-results-2026-03-14.md)
 
-The current weak spot is invalid-path coverage: generated workflows are strongest
+The current weak spot remains invalid-path coverage: generated workflows are strongest
 on valid-path structural behavior and conservative about richer invalid-path semantics.
 
 ## Usage
@@ -77,13 +82,9 @@ vi generated/stack_impl.rb
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
-If your installed `pbt` does not yet provide `Pbt.stateful`, use a checkout that does.
-In this repo workspace, the local `../pbt` `main` checkout can be used with:
-
-```bash
-RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib \
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
-```
+Stateful scaffolds require `pbt >= 0.5.1` with `Pbt.stateful`.
+If the generated scaffold raises a runtime preflight error, install or update `pbt`
+before rerunning the generated spec.
 
 Stateless generation remains available:
 
@@ -128,6 +129,7 @@ that is intended to survive regeneration:
 The generated config now includes field-aware suggestions for:
 
 - likely Ruby API method names
+- `arguments_override` for invalid-path coverage or custom argument distributions
 - `verify_override` shapes
 - `verify_context[:state_reader]`
 - `initial_state`
@@ -158,6 +160,8 @@ StackPbtConfig = {
 `verify_context[:state_reader]` is configured. For inferred guarded commands it also
 receives `guard_failed:` and `guard_failure_policy:` so custom invalid-path behavior
 can stay in config instead of requiring direct scaffold edits.
+When `verify_context[:state_reader]` is configured and `verify_override` is left unset,
+the generated scaffold compares observed state to the model by default.
 When only `model_arg_adapter` is configured, the scaffold reuses it for `run!` as the
 default `arg_adapter` so model/SUT arguments stay aligned unless you explicitly split them.
 For inferred guarded commands:
@@ -171,6 +175,7 @@ For inferred guarded commands:
 The intended boundary is:
 
 - keep recurring, structurally safe transitions in the generator
+- keep invalid-path argument selection in `arguments_override`
 - keep unsupported guards in `applicable_override`
 - keep domain-specific invalid-path semantics in `verify_override`
 - keep richer failure-state model changes in `next_state_override`
@@ -204,7 +209,6 @@ Working examples are provided in `example/`:
 
 ```bash
 # Run a practical stateful example with config-driven API mapping
-# The examples prefer a local ../pbt checkout (override with PBT_REPO_DIR if needed)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Run a bounded queue example with structured model state and inferred capacity guards
@@ -217,9 +221,8 @@ ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_acc
 See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
 `verify_override`, `verify_context[:state_reader]`, `initial_state`, `next_state_override`,
-`model_arg_adapter`, and where useful
-`arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
-`../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
+`model_arg_adapter`, `arguments_override`, and where useful
+`arguments(state)` / `applicable?(state, args)`.
 
 For current product boundaries and restart context:
 
@@ -391,10 +394,9 @@ bundle exec steep check
 
 ### Stateful Development Notes
 
-- The main stateful integration path uses the local `pbt` checkout at `../pbt` by default
-- `../pbt` is expected to track the user's local `main` branch unless `PBT_REPO_DIR` is overridden
-- Override with `PBT_REPO_DIR=/path/to/pbt` if needed
-- `pbt` `main` now supports:
+- User-facing stateful workflows assume `pbt >= 0.5.1`
+- For repo development only, example specs can still be pointed at a local `pbt` checkout with `PBT_REPO_DIR=/path/to/pbt`
+- `pbt >= 0.5.1` now supports:
   - `arguments(state)`
   - `applicable?(state, args)`
   - empty arg-domain handling via `Pbt::Arbitrary::EmptyDomainError`
@@ -407,7 +409,7 @@ bundle exec steep check
   - snapshot specs
   - API contract specs
   - generated scaffold E2E
-  - `pbt main` call-shape drift detection via contract/E2E coverage
+  - `pbt` call-shape drift detection via contract/E2E coverage
 
 ### Type Annotations
 
