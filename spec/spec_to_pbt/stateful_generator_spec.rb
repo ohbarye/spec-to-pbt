@@ -80,6 +80,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include("Pbt.stateful(")
+        expect(code).to include("Expected pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
         expect(code).to include("worker: :none")
         expect(code).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
         expect(code).to include('require_relative "stack_pbt_config" if File.exist?')
@@ -109,7 +110,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include("Pbt.integer # placeholder for Element")
-        expect(code).to include("def arguments\n      Pbt.nil\n    end")
+        expect(code).to include("def arguments")
+        expect(code).to include("overridden = StackPbtSupport.call_arguments_override(name)")
+        expect(code).to include("Pbt.nil")
         expect(code).to include("resolve_method_name(name, :push_adds_element)")
       end
 
@@ -126,8 +129,11 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("adapt_args(name, args)")
         expect(code).to include("adapter = settings[:arg_adapter] || settings[:model_arg_adapter]")
         expect(code).to include("scalar_model_arg(command_name, args)")
+        expect(code).to include("call_arguments_override(command_name")
+        expect(code).to include("ARGUMENTS_OVERRIDE_UNSET")
         expect(code).to include("call_verify_override(")
         expect(code).to include("observed_state(sut)")
+        expect(code).to include('raise "Expected observed state to match model" unless observed == expected_observed_state')
       end
 
       it "adds assertion/fact hints to verify! comments" do
@@ -229,7 +235,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate
 
         expect(code).to include("class StepCommand")
-        expect(code).to include("def arguments\n      Pbt.integer # placeholder for Token\n    end")
+        expect(code).to include("def arguments")
+        expect(code).to include("overridden = WorkflowPbtSupport.call_arguments_override(name)")
+        expect(code).to include("Pbt.integer # placeholder for Token")
         expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).not_to include("Pbt.tuple(")
         expect(code).to include("def next_state(state, args)\n      override = WorkflowPbtSupport.next_state_override(name)\n      return WorkflowPbtSupport.call_next_state_override(override, state, args) if override\n      state + 1")
@@ -511,9 +519,11 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("default_state = { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("default_state = { available: 0, held: 0 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("HoldCaptureReleasePbtSupport.initial_state(default_state)")
-        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:available])\n    end")
+        expect(code).to include("def arguments(state)")
+        expect(code).to include("overridden = HoldCaptureReleasePbtSupport.call_arguments_override(name, state)")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:available])")
         expect(code).to include("class ReleaseCommand")
-        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:held])\n    end")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:held])")
         expect(code).to include("current_value = state[:held]")
         expect(code).to include("state.merge(available: state[:available] - delta, held: state[:held] + delta)")
         expect(code).to include("state.merge(available: state[:available] + delta, held: state[:held] - delta)")
@@ -535,7 +545,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("default_state = { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("default_state = { source_balance: 0, target_balance: 0 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("TransferBetweenAccountsPbtSupport.initial_state(default_state)")
-        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:source_balance])\n    end")
+        expect(code).to include("def arguments(state)")
+        expect(code).to include("overridden = TransferBetweenAccountsPbtSupport.call_arguments_override(name, state)")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:source_balance])")
         expect(code).to include("current_value = state[:source_balance]")
         expect(code).to include("state.merge(source_balance: state[:source_balance] - delta, target_balance: state[:target_balance] + delta)")
         expect(code).to include("Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged")
@@ -618,7 +630,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state.merge(rollout: 0)")
         expect(code).to include('raise "Expected replaced value for Flag#rollout" unless after_state[:rollout] == expected')
         expect(code).to include("expected = 0")
-        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:max_rollout])")
+        expect(code).to include("def arguments(state)")
+        expect(code).to include("overridden = FeatureFlagRolloutPbtSupport.call_arguments_override(name, state)")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:max_rollout])")
         expect(code).to include("def applicable?(state, args)")
         expect(code).to include("guard_field=\"max_rollout\"")
         expect(code).to include("delta = FeatureFlagRolloutPbtSupport.scalar_model_arg(name, args)")
@@ -690,7 +704,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
 
         expect(code).to include("default_state = { status: 0, authorized_amount: 0, captured_amount: 0 } # TODO: replace with a domain-specific structured model state")
         expect(code).to include("state[:status] == 0 # inferred scalar lifecycle/status precondition for authorize_amount")
-        expect(code).to include("def arguments(state)\n      Pbt.integer(min: 1, max: state[:authorized_amount])")
+        expect(code).to include("def arguments(state)")
+        expect(code).to include("overridden = PaymentStatusAmountsPbtSupport.call_arguments_override(name, state)")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:authorized_amount])")
         expect(code).to include("state.merge(status: 1, authorized_amount: state[:authorized_amount] + delta, captured_amount: state[:captured_amount])")
         expect(code).to include("state.merge(status: 2, authorized_amount: state[:authorized_amount] - delta, captured_amount: state[:captured_amount] + delta)")
         expect(code).to include("expected_status = 2")
@@ -736,9 +752,10 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state.merge(captures: state[:captures] + [1], status: state[:status], remaining_amount: state[:remaining_amount] - 1, settled_amount: state[:settled_amount] + 1)")
         expect(code).to include("raise \"Expected decremented value for Payment#remaining_amount\" unless after_remaining_amount == before_remaining_amount - 1")
         expect(code).to include("raise \"Expected incremented value for Payment#settled_amount\" unless after_settled_amount == before_settled_amount + 1")
-        expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage")
-        expect(config).to include("# Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards.")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }; configure this when verify_override needs observed-state checks against the SUT")
+        expect(config).to include("# arguments_override:")
+        expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or to deliberately drive invalid calls")
+        expect(config).to include("# Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.")
+        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }; configure this when observed-state checks should be compared against the model")
       end
     end
 

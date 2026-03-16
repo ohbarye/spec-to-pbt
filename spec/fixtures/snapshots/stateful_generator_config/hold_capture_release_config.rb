@@ -5,11 +5,12 @@
 # This file is user-owned and should not be overwritten automatically.
 # Suggested edit order:
 # 1. sut_factory
-# 2. command_mappings.*.method
-# 3. verify_context.state_reader
-# 4. verify_override
-# 5. initial_state / next_state_override only when the inferred model state is not enough
-# 6. applicable_override / guard_failure_policy when guard handling or invalid-path behavior matters
+# 2. initial_state only when the inferred model baseline does not match your SUT defaults
+# 3. command_mappings.*.method
+# 4. verify_context.state_reader
+# 5. leave verify_override unset when observed state should directly match the model
+# 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators
+# 7. next_state_override only when the inferred model transition is not enough
 
 HoldCaptureReleasePbtConfig = {
   sut_factory: -> { HoldCaptureReleaseImpl.new },
@@ -21,12 +22,13 @@ HoldCaptureReleasePbtConfig = {
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
-      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage
-      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # arguments_override: ->(state) { Pbt.integer(min: 1, max: state[:available] + 1) }, # optional 0-arity/1-arity generator override for invalid-path coverage or custom distributions
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or to deliberately drive invalid calls
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
-      # Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards.
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
+      # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
     capture: {
       method: :capture,
@@ -34,12 +36,13 @@ HoldCaptureReleasePbtConfig = {
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
-      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage
-      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # arguments_override: ->(state) { Pbt.integer(min: 1, max: state[:held] + 1) }, # optional 0-arity/1-arity generator override for invalid-path coverage or custom distributions
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or to deliberately drive invalid calls
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
-      # Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards.
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
+      # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
     release: {
       method: :release,
@@ -47,16 +50,17 @@ HoldCaptureReleasePbtConfig = {
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
-      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or no-arg invalid-path coverage
-      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # arguments_override: ->(state) { Pbt.integer(min: 1, max: state[:held] + 1) }, # optional 0-arity/1-arity generator override for invalid-path coverage or custom distributions
+      # applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or to deliberately drive invalid calls
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
-      # Note: inferred arguments(state) usually stay on valid paths. Keep richer invalid-path checks in config when they depend on out-of-range args or mixed guards.
-      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # use this for observed-state checks and lifecycle/business-rule-heavy invalid-path semantics
+      # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
+      # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed reservation state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     }
   },
   verify_context: {
-    state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }; configure this when verify_override needs observed-state checks against the SUT
+    state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }; configure this when observed-state checks should be compared against the model
   }
   # before_run: ->(sut) { },
   # after_run: ->(sut, result) { }

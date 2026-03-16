@@ -9,6 +9,12 @@ if File.exist?(File.expand_path("job_status_event_counters_pbt_config.rb", __dir
   raise "Expected JobStatusEventCountersPbtConfig to be defined in job_status_event_counters_pbt_config.rb"
 end
 
+unless Pbt.respond_to?(:stateful)
+  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
+  detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
+  raise "Expected pbt >= 0.6.0 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
+end
+
 RSpec.describe "job_status_event_counters (stateful scaffold)" do
   # Regeneration-safe customization:
   # - edit job_status_event_counters_pbt_config.rb for SUT wiring and durable API mapping
@@ -17,6 +23,7 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
 
   module JobStatusEventCountersPbtSupport
     module_function
+    ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
 
     def config
       defined?(::JobStatusEventCountersPbtConfig) ? ::JobStatusEventCountersPbtConfig : {}
@@ -32,6 +39,34 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
 
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def arguments_override(command_name)
+      command_config(command_name)[:arguments_override]
+    end
+
+    def call_arguments_override(command_name, state = ARGUMENTS_OVERRIDE_UNSET)
+      override = arguments_override(command_name)
+      return ARGUMENTS_OVERRIDE_UNSET unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        return state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? override.call : override.call(state)
+      end
+
+      required = parameters.count { |kind, _name| kind == :req }
+      optional = parameters.count { |kind, _name| kind == :opt }
+      provided = state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? 0 : 1
+
+      if provided >= required && provided <= required + optional
+        return provided.zero? ? override.call : override.call(state)
+      end
+
+      if 0 >= required && 0 <= required + optional
+        return override.call
+      end
+
+      raise ArgumentError, "arguments_override for command #{command_name.inspect} must accept 0 or 1 positional arguments"
     end
 
     def resolve_method_name(command_name, default_method_name)
@@ -187,6 +222,8 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
     end
 
     def arguments
+      overridden = JobStatusEventCountersPbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(JobStatusEventCountersPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -257,17 +294,22 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
         case policy
         when :no_op
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :raise
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :custom
           raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = JobStatusEventCountersPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # Inferred collection target: Job#events
       before_items = before_state[:events]
@@ -295,6 +337,8 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
     end
 
     def arguments
+      overridden = JobStatusEventCountersPbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(JobStatusEventCountersPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -366,17 +410,22 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
         case policy
         when :no_op
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :raise
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :custom
           raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = JobStatusEventCountersPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # Inferred collection target: Job#events
       before_items = before_state[:events]
@@ -406,6 +455,8 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
     end
 
     def arguments
+      overridden = JobStatusEventCountersPbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(JobStatusEventCountersPbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -476,17 +527,22 @@ RSpec.describe "job_status_event_counters (stateful scaffold)" do
         case policy
         when :no_op
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :raise
           raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
           raise "Expected unchanged model state on guard failure" unless after_state == before_state
-          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:events]
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state
         when :custom
           raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
         else
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = JobStatusEventCountersPbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # Inferred collection target: Job#events
       before_items = before_state[:events]

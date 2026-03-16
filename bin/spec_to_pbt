@@ -129,7 +129,7 @@ if options[:stateful]
   puts "Next: edit #{File.join(options[:output_dir], "#{base}_pbt_config.rb")} for SUT wiring" if options[:with_config]
   puts "Next: provide #{File.join(options[:output_dir], "#{base}_impl.rb")} for implementation behavior"
   puts "Next: run ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec #{output_file}"
-  puts "Note: stateful scaffolds require a pbt version that provides Pbt.stateful"
-  puts "Note: if your bundled pbt is too old, run bundle update pbt"
+  puts "Note: stateful scaffolds require pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful"
+  puts "Note: install or update pbt, then rerun bundle exec rspec if the generated scaffold reports a runtime preflight error"
   puts "Note: to override with a checkout, set PBT_REPO_DIR=/path/to/pbt before running rspec"
 end

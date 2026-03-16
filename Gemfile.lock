@@ -98,7 +98,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  pbt
+  pbt (>= 0.6.0)
   rbs-inline
   rspec
   steep

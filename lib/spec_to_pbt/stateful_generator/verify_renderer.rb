@@ -56,6 +56,7 @@ module SpecToPbt
         lines << "        guard_failure_policy: policy"
         lines << "      )"
         lines.concat(guard_failure_verify_lines(analysis))
+        lines.concat(default_observed_state_verify_lines(analysis))
 
         unless collection_like_state?(analysis)
           lines << "      # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks"
@@ -103,13 +104,6 @@ module SpecToPbt
       def guard_failure_verify_lines(analysis)
         return [] unless guard_supportable?(analysis) && analysis.derived_verify_hints.include?(:check_guard_failure_semantics)
 
-        expected_observed_expr =
-          if collection_like_state?(analysis) && structured_collection_state?(analysis)
-            "after_state[:#{analysis.state_field}]"
-          else
-            "after_state"
-          end
-
         [
           "      raise result if result.is_a?(StandardError) && !guard_failed",
           "      if guard_failed",
@@ -117,17 +111,29 @@ module SpecToPbt
           "        case policy",
           "        when :no_op",
           "          raise \"Expected unchanged model state on guard failure\" unless after_state == before_state",
-          "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{expected_observed_expr}",
+          "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{observed_state_expected_expr('after_state', analysis)}",
           "        when :raise",
           "          raise \"Expected guard failure to surface as an exception\" unless result.is_a?(StandardError)",
           "          raise \"Expected unchanged model state on guard failure\" unless after_state == before_state",
-          "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{expected_observed_expr}",
+          "          raise \"Expected unchanged observed state on guard failure\" if !observed.nil? && observed != #{observed_state_expected_expr('after_state', analysis)}",
           "        when :custom",
           "          raise \"guard_failure_policy :custom requires verify_override to assert invalid-path semantics\"",
           "        else",
           "          raise \"Unsupported guard_failure_policy: \#{policy.inspect}\"",
           "        end",
           "        return nil",
+          "      end"
+        ]
+      end
+
+      # @rbs analysis: StatefulPredicateAnalysis
+      # @rbs return: Array[String]
+      def default_observed_state_verify_lines(analysis)
+        [
+          "      observed = #{support_module_name}.observed_state(sut)",
+          "      if !observed.nil?",
+          "        expected_observed_state = #{observed_state_expected_expr('after_state', analysis)}",
+          "        raise \"Expected observed state to match model\" unless observed == expected_observed_state",
           "      end"
         ]
       end
@@ -491,6 +497,7 @@ module SpecToPbt
       def decrement_arg_bound_guard?(analysis) = call(:decrement_arg_bound_guard?, analysis)
       def replace_arg_bound_guard?(analysis) = call(:replace_arg_bound_guard?, analysis)
       def guard_state_expr(state_var, analysis) = call(:guard_state_expr, state_var, analysis)
+      def observed_state_expected_expr(state_var, analysis) = call(:observed_state_expected_expr, state_var, analysis)
       def sibling_command_behaviors_for(analysis) = call(:sibling_command_behaviors_for, analysis)
       def collection_projection_updates_for(analysis) = call(:collection_projection_updates_for, analysis)
       def projection_plan_for(analysis) = call(:projection_plan_for, analysis)

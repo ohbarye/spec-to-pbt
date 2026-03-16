@@ -85,8 +85,7 @@ For every new domain, use this sequence.
 4. avoid editing `generated/*_pbt.rb` unless blocked
 5. run:
    - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
-   - if this repo is using a local `pbt` checkout rather than a released gem with `Pbt.stateful`, add:
-     - `RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib`
+   - ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record all friction using the template below
 7. if the same friction appears in a second distinct domain, evaluate promotion
 8. classify any undetected mutant as one of:
