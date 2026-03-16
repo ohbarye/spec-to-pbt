@@ -8,6 +8,53 @@ RSpec.describe SpecToPbt::Frontends::Quint::Adapter do
     JSON.parse(File.read(path))
   end
 
+  def scalar_guard_document(opcode:, threshold:)
+    {
+      "modules" => [
+        {
+          "name" => "guarded_counter",
+          "declarations" => [
+            { "kind" => "var", "id" => 1, "name" => "x", "typeAnnotation" => { "kind" => "int" } },
+            {
+              "kind" => "def",
+              "name" => "Dec",
+              "qualifier" => "action",
+              "expr" => {
+                "kind" => "app",
+                "opcode" => "actionAll",
+                "args" => [
+                  {
+                    "kind" => "app",
+                    "opcode" => opcode,
+                    "args" => [
+                      { "kind" => "name", "name" => "x" },
+                      { "kind" => "int", "value" => threshold }
+                    ]
+                  },
+                  {
+                    "kind" => "app",
+                    "opcode" => "assign",
+                    "args" => [
+                      { "kind" => "name", "name" => "x" },
+                      {
+                        "kind" => "app",
+                        "opcode" => "isub",
+                        "args" => [
+                          { "kind" => "name", "name" => "x" },
+                          { "kind" => "int", "value" => 1 }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  end
+
   describe "#adapt" do
     it "maps stateful Quint modules into a synthetic core state type and semantic hints" do
       document = described_class.new.adapt(
@@ -56,6 +103,21 @@ RSpec.describe SpecToPbt::Frontends::Quint::Adapter do
       )
       expect(dequeue.metadata.dig(:semantic_hints, :state_updates)).to include(
         hash_including(field: "items", rhs_kind: :remove_first)
+      )
+    end
+
+    it "maps scalar positivity guards into semantic hints" do
+      greater_than_zero = scalar_guard_document(opcode: "igt", threshold: 0)
+      greater_or_equal_one = scalar_guard_document(opcode: "igte", threshold: 1)
+
+      strict_document = described_class.new.adapt(parse_json: greater_than_zero, typecheck_json: greater_than_zero)
+      inclusive_document = described_class.new.adapt(parse_json: greater_or_equal_one, typecheck_json: greater_or_equal_one)
+
+      expect(strict_document.properties.find { |entity| entity.name == "Dec" }.metadata.dig(:semantic_hints, :guards)).to include(
+        hash_including(kind: :non_empty, field: "x")
+      )
+      expect(inclusive_document.properties.find { |entity| entity.name == "Dec" }.metadata.dig(:semantic_hints, :guards)).to include(
+        hash_including(kind: :non_empty, field: "x")
       )
     end
 

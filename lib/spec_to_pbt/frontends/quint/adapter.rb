@@ -280,8 +280,11 @@ module SpecToPbt
 
           opcode = expr["opcode"]
           args = Array(expr["args"])
-          if ["igt", "igte"].include?(opcode) && length_of_name?(args[0]) && int_literal?(args[1], 0)
+          if non_empty_collection_guard?(opcode, args[0], args[1])
             return { kind: :non_empty, field: args[0]["args"][0]["name"], constant: nil }
+          end
+          if positive_scalar_guard?(opcode, args[0], args[1])
+            return { kind: :non_empty, field: args[0]["name"], constant: nil }
           end
           if opcode == "eq" && name_node?(args[0]) && int_node?(args[1])
             return { kind: :state_equals_constant, field: args[0]["name"], constant: args[1]["value"].to_s }
@@ -548,6 +551,29 @@ module SpecToPbt
         # @rbs return: bool
         def int_literal?(expr, value)
           int_node?(expr) && expr["value"] == value
+        end
+
+        # @rbs opcode: String
+        # @rbs lhs: Hash[String, untyped]?
+        # @rbs return: bool
+        def non_empty_collection_guard?(opcode, lhs, rhs)
+          return false unless length_of_name?(lhs)
+          return true if opcode == "igt" && int_literal?(rhs, 0)
+          return true if opcode == "igte" && int_literal?(rhs, 1)
+
+          false
+        end
+
+        # @rbs opcode: String
+        # @rbs lhs: Hash[String, untyped]?
+        # @rbs rhs: Hash[String, untyped]?
+        # @rbs return: bool
+        def positive_scalar_guard?(opcode, lhs, rhs)
+          return false unless name_node?(lhs)
+          return true if opcode == "igt" && int_literal?(rhs, 0)
+          return true if opcode == "igte" && int_literal?(rhs, 1)
+
+          false
         end
 
         # @rbs expr: Hash[String, untyped]?
