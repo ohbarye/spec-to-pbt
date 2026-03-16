@@ -93,7 +93,8 @@ RSpec.describe "CLI" do
       expect(stdout).to include("Next: provide")
       expect(stdout).to include("ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1")
       expect(stdout).to include("require a pbt version that provides Pbt.stateful")
-      expect(stdout).to include("local pbt main can be used with RUBYOPT=")
+      expect(stdout).to include("bundle update pbt")
+      expect(stdout).to include("PBT_REPO_DIR")
 
       output_file = File.join(output_dir, "stack_pbt.rb")
       expect(File.exist?(output_file)).to be(true)
@@ -131,6 +132,54 @@ RSpec.describe "CLI" do
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Preserved user-owned config:")
       expect(File.read(config_file)).to eq("# user-owned config\n")
+    end
+  end
+
+  describe "Quint conversion" do
+    let(:fixtures_dir) { File.join(project_root, "spec/fixtures/quint") }
+    let(:input_file) { File.join(fixtures_dir, "counter.qnt") }
+    let(:quint_fixture_dir) { File.join(project_root, "spec/fixtures/quint_json") }
+    let(:fake_quint_path) { File.join(output_dir, "fake_quint") }
+
+    before do
+      script = <<~SH
+        #!/bin/sh
+        set -eu
+        command="$1"
+        input="$2"
+        shift 2
+        out=""
+        while [ "$#" -gt 0 ]; do
+          if [ "$1" = "--out" ]; then
+            out="$2"
+            shift 2
+          else
+            shift
+          fi
+        done
+        base="$(basename "$input" .qnt)"
+        cp "#{quint_fixture_dir}/${base}_${command}.json" "$out"
+      SH
+      File.write(fake_quint_path, script)
+      FileUtils.chmod("+x", fake_quint_path)
+    end
+
+    it "auto-detects .qnt input and generates a stateful scaffold via the configured Quint CLI" do
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--quint-cli", fake_quint_path, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Generated:")
+      expect(File.exist?(File.join(output_dir, "counter_pbt.rb"))).to be(true)
+      expect(File.read(File.join(output_dir, "counter_pbt.rb"))).to include("class IncCommand")
+    end
+
+    it "supports explicit --frontend quint for stateless generation" do
+      input_file = File.join(fixtures_dir, "normalize.qnt")
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--frontend", "quint", "--quint-cli", fake_quint_path, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Generated:")
+      expect(File.read(File.join(output_dir, "normalize_pbt.rb"))).to include("result = normalize(input)")
     end
   end
 

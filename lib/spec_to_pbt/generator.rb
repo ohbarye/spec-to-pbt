@@ -91,6 +91,9 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: String
     def infer_generator(predicate)
+      operation_parameter = @spec.metadata[:operation_parameter]
+      return @type_inferrer.generator_for(operation_parameter[:type], operation_parameter[:multiplicity]) if operation_parameter
+
       # Always use array for consistency with patterns
       # Patterns like size, roundtrip work on collections
       "Pbt.array(Pbt.integer)"
@@ -138,8 +141,7 @@ module SpecToPbt
     # @rbs predicate: Predicate
     # @rbs return: Hash[Symbol, untyped]
     def build_context(predicate)
-      # Use module_name as the operation name (generic approach)
-      operation = @spec.name || "operation"
+      operation = @spec.metadata[:operation_name] || @spec.name || "operation"
 
       { operation: operation } #: Hash[Symbol, untyped]
     end

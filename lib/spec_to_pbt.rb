@@ -7,6 +7,8 @@ require_relative "spec_to_pbt/core"
 require_relative "spec_to_pbt/parser"
 require_relative "spec_to_pbt/frontends/alloy/parser"
 require_relative "spec_to_pbt/frontends/alloy/adapter"
+require_relative "spec_to_pbt/frontends/quint/cli"
+require_relative "spec_to_pbt/frontends/quint/adapter"
 require_relative "spec_to_pbt/guard_analysis"
 require_relative "spec_to_pbt/guard_inferencer"
 require_relative "spec_to_pbt/property_pattern"
@@ -30,6 +32,9 @@ require_relative "spec_to_pbt/stateful_generator"
 module SpecToPbt
   # Base error class for SpecToPbt
   class Error < StandardError; end
+
+  # Raised when frontend integration fails
+  class FrontendError < Error; end
 
   # Raised when parsing Alloy specification fails
   class ParseError < Error; end

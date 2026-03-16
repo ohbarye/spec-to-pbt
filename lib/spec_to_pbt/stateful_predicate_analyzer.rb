@@ -85,6 +85,7 @@ module SpecToPbt
     def analyze(predicate)
       predicate = coerce_property_entity(predicate)
       return @analyses[predicate.name] if @analyses.key?(predicate.name)
+      semantic_hints = predicate.metadata[:semantic_hints] || {} #: Hash[Symbol, untyped]
 
       state_param_names, state_type = infer_state_params(predicate)
       argument_params = predicate.params.reject do |param|
@@ -101,7 +102,7 @@ module SpecToPbt
         state_param_names: state_param_names,
         state_type: state_type
       )
-      fallback_state_field = infer_state_field(body, state_param_names)
+      fallback_state_field = semantic_hints[:state_field] || infer_state_field(body, state_param_names)
       guard_kind, guard_field, guard_constant = @guard_inferencer.infer_guard_details(
         body: body,
         predicate: predicate,
@@ -121,7 +122,7 @@ module SpecToPbt
         elsif prefer_collection_fallback
           fallback_state_field
         else
-          primary_update&.fetch(:field) || fallback_state_field
+          semantic_hints[:state_field] || primary_update&.fetch(:field) || fallback_state_field
         end
       state_field_multiplicity =
         if collection_update
@@ -131,10 +132,20 @@ module SpecToPbt
         else
           infer_state_field_multiplicity(state_type, state_field)
         end
-      size_delta = infer_size_delta(body)
+      size_delta = semantic_hints.key?(:size_delta) ? semantic_hints[:size_delta] : infer_size_delta(body)
       requires_non_empty_state = guard_kind == :non_empty
-      transition_kind = infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
-      scalar_update_kind = infer_scalar_update_kind(body, state_field, state_field_multiplicity)
+      transition_kind =
+        if semantic_hints.key?(:transition_kind)
+          semantic_hints[:transition_kind]
+        else
+          infer_transition_kind(predicate.name, body, size_delta, requires_non_empty_state, state_field_multiplicity)
+        end
+      scalar_update_kind =
+        if semantic_hints.key?(:scalar_update_kind)
+          semantic_hints[:scalar_update_kind]
+        else
+          infer_scalar_update_kind(body, state_field, state_field_multiplicity)
+        end
       rhs_source_kind = primary_update&.fetch(:rhs_source_kind) || :unknown
       rhs_source_field = primary_update&.fetch(:rhs_source_field)
       rhs_constant = primary_update&.fetch(:rhs_constant)
@@ -146,15 +157,20 @@ module SpecToPbt
           state_param_names: state_param_names
         )
       end
-      state_update_shape = @state_update_inferencer.infer_state_update_shape(
-        state_field_multiplicity: state_field_multiplicity,
-        size_delta: size_delta,
-        transition_kind: transition_kind,
-        scalar_update_kind: scalar_update_kind,
-        rhs_source_kind: rhs_source_kind,
-        body: body,
-        state_field: state_field
-      )
+      state_update_shape =
+        if semantic_hints.key?(:state_update_shape)
+          semantic_hints[:state_update_shape]
+        else
+          @state_update_inferencer.infer_state_update_shape(
+            state_field_multiplicity: state_field_multiplicity,
+            size_delta: size_delta,
+            transition_kind: transition_kind,
+            scalar_update_kind: scalar_update_kind,
+            rhs_source_kind: rhs_source_kind,
+            body: body,
+            state_field: state_field
+          )
+        end
 
       analysis = StatefulPredicateAnalysis.new(
         predicate_name: predicate.name,
@@ -166,9 +182,9 @@ module SpecToPbt
         size_delta: size_delta,
         requires_non_empty_state: requires_non_empty_state,
         transition_kind: transition_kind,
-        result_position: infer_result_position(predicate.name, transition_kind),
+        result_position: semantic_hints[:result_position] || infer_result_position(predicate.name, transition_kind),
         scalar_update_kind: scalar_update_kind,
-        command_confidence: infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
+        command_confidence: semantic_hints[:command_confidence] || infer_command_confidence(predicate.name, transition_kind, size_delta, requires_non_empty_state, scalar_update_kind, state_update_shape),
         guard: @guard_inferencer.build_guard_analysis(
           guard_kind: guard_kind,
           guard_field: guard_field,
@@ -194,6 +210,11 @@ module SpecToPbt
     # @rbs predicate: Core::Entity
     # @rbs return: Array[Array[String] | String?]
     def infer_state_params(predicate)
+      hints = predicate.metadata[:semantic_hints]
+      if hints && hints[:state_type]
+        return [Array(hints[:state_param_names]), hints[:state_type]]
+      end
+
       params_by_name = predicate.params.to_h { |param| [param.name, param] }
 
       predicate.params.each do |param|

@@ -16,6 +16,9 @@ module SpecToPbt
     # @rbs state_type: String?
     # @rbs return: Array[Hash[Symbol, untyped]]
     def infer_state_field_updates(body:, predicate:, state_param_names:, state_type:)
+      semantic_updates = semantic_state_updates_for(predicate)
+      return semantic_updates unless semantic_updates.empty?
+
       return [] unless state_type
 
       type_entity = @spec.types.find { |item| item.name == state_type }
@@ -65,6 +68,15 @@ module SpecToPbt
     # @rbs state_param_names: Array[String]
     # @rbs return: [Symbol, String?, String?]
     def infer_rhs_source_details(body:, predicate:, state_field:, state_param_names:)
+      semantic_update = primary_semantic_update(predicate, state_field)
+      if semantic_update
+        return [
+          semantic_update[:rhs_source_kind] || :unknown,
+          semantic_update[:rhs_source_field],
+          semantic_update[:rhs_constant]&.to_s
+        ]
+      end
+
       return [:unknown, nil, nil] if state_field.nil?
 
       predicate.params.each do |param|
@@ -211,6 +223,39 @@ module SpecToPbt
         rhs_source_field: nil,
         rhs_constant: nil
       }
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Array[Hash[Symbol, untyped]]
+    def semantic_state_updates_for(predicate)
+      hints = predicate.metadata[:semantic_hints]
+      updates = hints && hints[:state_updates]
+      return [] unless updates
+
+      updates.map do |update|
+        {
+          field: update[:field],
+          update_shape: update[:update_shape],
+          rhs_source_kind: update[:rhs_source_kind] || :unknown,
+          rhs_source_field: update[:rhs_source_field],
+          rhs_constant: update[:rhs_constant]&.to_s
+        }
+      end
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs state_field: String?
+    # @rbs return: Hash[Symbol, untyped]?
+    def primary_semantic_update(predicate, state_field)
+      updates = predicate.metadata[:semantic_hints] && predicate.metadata[:semantic_hints][:state_updates]
+      return nil unless updates && !updates.empty?
+
+      if state_field
+        matching = updates.find { |update| update[:field] == state_field }
+        return matching if matching
+      end
+
+      updates.first
     end
   end
 end

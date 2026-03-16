@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../lib/spec_to_pbt"
+Dir[File.expand_path("support/**/*.rb", __dir__)].sort.each { |path| require path }
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|

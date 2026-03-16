@@ -3,6 +3,17 @@
 require "spec_helper"
 
 RSpec.describe SpecToPbt::StatefulGenerator do
+  def load_quint_document(name)
+    adapter = SpecToPbt::Frontends::Quint::Adapter.new
+    parse_path = File.expand_path("../fixtures/quint_json/#{name}_parse.json", __dir__)
+    typecheck_path = File.expand_path("../fixtures/quint_json/#{name}_typecheck.json", __dir__)
+
+    adapter.adapt(
+      parse_json: JSON.parse(File.read(parse_path)),
+      typecheck_json: JSON.parse(File.read(typecheck_path))
+    )
+  end
+
   describe "#generate" do
     let(:generator) { described_class.new(spec) }
 
@@ -861,6 +872,20 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
         expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed account balances to match model')
+      end
+    end
+
+    context "with a Quint stateful module" do
+      let(:spec) { load_quint_document("counter") }
+      let(:generator) { described_class.new(spec) }
+
+      it "generates stateful scaffold code from Quint actions" do
+        code = generator.generate
+
+        expect(code).to include('require_relative "counter_impl"')
+        expect(code).to include("class IncCommand")
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
+        expect(code).to include("state + 1")
       end
     end
   end
