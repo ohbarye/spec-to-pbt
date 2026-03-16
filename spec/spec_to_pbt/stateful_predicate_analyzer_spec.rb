@@ -3,6 +3,17 @@
 require "spec_helper"
 
 RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
+  def load_quint_document(name)
+    adapter = SpecToPbt::Frontends::Quint::Adapter.new
+    parse_path = File.expand_path("../fixtures/quint_json/#{name}_parse.json", __dir__)
+    typecheck_path = File.expand_path("../fixtures/quint_json/#{name}_typecheck.json", __dir__)
+
+    adapter.adapt(
+      parse_json: JSON.parse(File.read(parse_path)),
+      typecheck_json: JSON.parse(File.read(typecheck_path))
+    )
+  end
+
   describe "#analyze" do
     let(:analyzer) { described_class.new(spec) }
 
@@ -724,6 +735,27 @@ RSpec.describe SpecToPbt::StatefulPredicateAnalyzer do
         expect(open.guard_kind).to eq(:state_equals_constant)
         expect(open.guard_constant).to eq("0")
         expect(open.transition_kind).to eq(:size_no_change)
+      end
+    end
+
+    context "with Quint semantic hints" do
+      let(:spec) { load_quint_document("list_counter") }
+
+      it "uses structured semantic hints instead of Alloy-style primed params" do
+        enqueue = analyzer.analyze(spec.properties.find { |entity| entity.name == "Enqueue" })
+        dequeue = analyzer.analyze(spec.properties.find { |entity| entity.name == "Dequeue" })
+
+        expect(enqueue.state_param_names).to eq([])
+        expect(enqueue.state_type).to eq("ListCounterState")
+        expect(enqueue.argument_params.map { |param| { name: param.name, type: param.type } }).to eq([{ name: "x", type: "Int" }])
+        expect(enqueue.state_field).to eq("items")
+        expect(enqueue.transition_kind).to eq(:append)
+        expect(enqueue.state_update_shape).to eq(:append_like)
+
+        expect(dequeue.guard_kind).to eq(:non_empty)
+        expect(dequeue.transition_kind).to eq(:dequeue)
+        expect(dequeue.result_position).to eq(:first)
+        expect(dequeue.state_update_shape).to eq(:remove_first)
       end
     end
   end

@@ -5,13 +5,21 @@ require "optparse"
 require "fileutils"
 require_relative "../lib/spec_to_pbt"
 
-options = { output_dir: "generated" }
+options = { output_dir: "generated", frontend: "auto" }
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: spec_to_pbt INPUT.als [options]"
+  opts.banner = "Usage: spec_to_pbt INPUT.[als|qnt] [options]"
 
   opts.on("-o", "--output DIR", "Output directory (default: generated)") do |v|
     options[:output_dir] = v
+  end
+
+  opts.on("--frontend NAME", "Frontend to use: auto, alloy, quint (default: auto)") do |v|
+    options[:frontend] = v
+  end
+
+  opts.on("--quint-cli PATH", "Explicit Quint CLI executable path") do |v|
+    options[:quint_cli] = v
   end
 
   opts.on("--stateful", "Generate a Pbt.stateful scaffold instead of the unified stateless generator") do
@@ -46,11 +54,40 @@ unless File.exist?(input_file)
   exit 1
 end
 
-# Parse the Alloy specification
-source = File.read(input_file)
-parser = SpecToPbt::Parser.new
-raw_spec = parser.parse(source)
-spec = SpecToPbt::Frontends::Alloy::Adapter.new.adapt(raw_spec)
+begin
+  source = File.read(input_file)
+  frontend =
+    case options[:frontend]
+    when "auto"
+      case File.extname(input_file)
+      when ".als" then "alloy"
+      when ".qnt" then "quint"
+      else
+        warn "Error: Could not detect frontend for #{input_file}"
+        exit 1
+      end
+    when "alloy", "quint"
+      options[:frontend]
+    else
+      warn "Error: Unsupported frontend: #{options[:frontend]}"
+      exit 1
+    end
+
+  spec =
+    case frontend
+    when "alloy"
+      parser = SpecToPbt::Parser.new
+      raw_spec = parser.parse(source)
+      SpecToPbt::Frontends::Alloy::Adapter.new.adapt(raw_spec)
+    when "quint"
+      cli = SpecToPbt::Frontends::Quint::CLI.new(quint_cli: options[:quint_cli])
+      payload = cli.load!(input_file)
+      SpecToPbt::Frontends::Quint::Adapter.new.adapt(parse_json: payload[:parse], typecheck_json: payload[:typecheck])
+    end
+rescue SpecToPbt::Error => e
+  warn "Error: #{e.message}"
+  exit 1
+end
 
 if options[:with_config] && !options[:stateful]
   warn "Error: --with-config is only supported with --stateful"
@@ -69,7 +106,7 @@ pbt_code = generator.generate
 FileUtils.mkdir_p(options[:output_dir])
 
 # Output filename
-base = File.basename(input_file, ".als")
+base = File.basename(input_file, File.extname(input_file))
 output_file = File.join(options[:output_dir], "#{base}_pbt.rb")
 
 # Write the generated code
@@ -78,7 +115,7 @@ File.write(output_file, pbt_code)
 puts "Generated: #{output_file}"
 
 if options[:stateful] && options[:with_config]
-  config_output_file = File.join(options[:output_dir], "#{File.basename(input_file, '.als')}_pbt_config.rb")
+  config_output_file = File.join(options[:output_dir], "#{base}_pbt_config.rb")
 
   if File.exist?(config_output_file)
     puts "Preserved user-owned config: #{config_output_file}"
@@ -93,5 +130,6 @@ if options[:stateful]
   puts "Next: provide #{File.join(options[:output_dir], "#{base}_impl.rb")} for implementation behavior"
   puts "Next: run ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec #{output_file}"
   puts "Note: stateful scaffolds require a pbt version that provides Pbt.stateful"
-  puts "Note: in this repo workspace, local pbt main can be used with RUBYOPT=-I#{File.expand_path('../pbt/lib', __dir__)}"
+  puts "Note: if your bundled pbt is too old, run bundle update pbt"
+  puts "Note: to override with a checkout, set PBT_REPO_DIR=/path/to/pbt before running rspec"
 end

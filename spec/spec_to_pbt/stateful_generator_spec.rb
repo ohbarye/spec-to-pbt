@@ -3,6 +3,66 @@
 require "spec_helper"
 
 RSpec.describe SpecToPbt::StatefulGenerator do
+  def load_quint_document(name)
+    adapter = SpecToPbt::Frontends::Quint::Adapter.new
+    parse_path = File.expand_path("../fixtures/quint_json/#{name}_parse.json", __dir__)
+    typecheck_path = File.expand_path("../fixtures/quint_json/#{name}_typecheck.json", __dir__)
+
+    adapter.adapt(
+      parse_json: JSON.parse(File.read(parse_path)),
+      typecheck_json: JSON.parse(File.read(typecheck_path))
+    )
+  end
+
+  def build_scalar_guard_quint_document(opcode:, threshold:)
+    payload = {
+      "modules" => [
+        {
+          "name" => "guarded_counter",
+          "declarations" => [
+            { "kind" => "var", "id" => 1, "name" => "x", "typeAnnotation" => { "kind" => "int" } },
+            {
+              "kind" => "def",
+              "name" => "Dec",
+              "qualifier" => "action",
+              "expr" => {
+                "kind" => "app",
+                "opcode" => "actionAll",
+                "args" => [
+                  {
+                    "kind" => "app",
+                    "opcode" => opcode,
+                    "args" => [
+                      { "kind" => "name", "name" => "x" },
+                      { "kind" => "int", "value" => threshold }
+                    ]
+                  },
+                  {
+                    "kind" => "app",
+                    "opcode" => "assign",
+                    "args" => [
+                      { "kind" => "name", "name" => "x" },
+                      {
+                        "kind" => "app",
+                        "opcode" => "isub",
+                        "args" => [
+                          { "kind" => "name", "name" => "x" },
+                          { "kind" => "int", "value" => 1 }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+
+    SpecToPbt::Frontends::Quint::Adapter.new.adapt(parse_json: payload, typecheck_json: payload)
+  end
+
   describe "#generate" do
     let(:generator) { described_class.new(spec) }
 
@@ -861,6 +921,47 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
         expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed account balances to match model')
+      end
+    end
+
+    context "with a Quint stateful module" do
+      let(:spec) { load_quint_document("counter") }
+      let(:generator) { described_class.new(spec) }
+
+      it "generates stateful scaffold code from Quint actions" do
+        code = generator.generate
+
+        expect(code).to include('require_relative "counter_impl"')
+        expect(code).to include("class IncCommand")
+        expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
+        expect(code).to include("state + 1")
+      end
+    end
+
+    context "with a Quint dequeue action" do
+      let(:spec) { load_quint_document("list_counter") }
+      let(:generator) { described_class.new(spec) }
+
+      it "keeps dequeue-like actions as commands instead of filtering them as properties" do
+        code = generator.generate
+
+        expect(code).to include("class EnqueueCommand")
+        expect(code).to include("class DequeueCommand")
+        expect(code).to include("!state.empty? # inferred precondition for dequeue")
+        expect(code).not_to include("class GeneratedCommand")
+      end
+    end
+
+    context "with a guarded Quint scalar action" do
+      let(:spec) { build_scalar_guard_quint_document(opcode: "igte", threshold: 1) }
+      let(:generator) { described_class.new(spec) }
+
+      it "threads scalar positivity guards into applicable? generation" do
+        code = generator.generate
+
+        expect(code).to include("class DecCommand")
+        expect(code).to include("state > 0 # inferred scalar precondition for dec")
+        expect(code).to include("state - 1")
       end
     end
   end

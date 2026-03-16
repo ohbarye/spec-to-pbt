@@ -50,7 +50,7 @@ examples for `spec-to-pbt`.
 
 ## Running An Example
 
-Examples prefer a local `../pbt` checkout. Override with `PBT_REPO_DIR` if needed.
+Examples use the bundled `pbt` gem by default. Override with `PBT_REPO_DIR` if needed.
 
 ```bash
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb

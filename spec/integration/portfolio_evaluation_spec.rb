@@ -9,8 +9,6 @@ RSpec.describe "Portfolio evaluation" do
   let(:cli_path) { File.join(project_root, "bin/spec_to_pbt") }
   let(:fixtures_dir) { File.join(project_root, "spec/fixtures/alloy") }
   let(:output_dir) { File.join(project_root, "spec/tmp_portfolio_evaluation") }
-  let(:pbt_repo_dir) { ENV.fetch("PBT_REPO_DIR", File.expand_path("../pbt", project_root)) }
-  let(:pbt_lib_dir) { File.join(pbt_repo_dir, "lib") }
 
   before do
     FileUtils.mkdir_p(output_dir)
@@ -21,8 +19,6 @@ RSpec.describe "Portfolio evaluation" do
   end
 
   it "validates the fixed portfolio across good implementations and deterministic mutants" do
-    skip_unless_local_pbt!
-
     portfolio_domains.each do |domain|
       domain_dir = File.join(output_dir, domain[:name])
       FileUtils.mkdir_p(domain_dir)
@@ -718,10 +714,6 @@ RSpec.describe "Portfolio evaluation" do
     ]
   end
 
-  def skip_unless_local_pbt!
-    skip "pbt repo not found at #{pbt_repo_dir} (set PBT_REPO_DIR to override)" unless Dir.exist?(pbt_repo_dir)
-  end
-
   def generate_stateful_with_config!(fixture_name, domain_dir)
     input_file = File.join(fixtures_dir, fixture_name)
     stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--with-config", "-o", domain_dir)
@@ -736,13 +728,8 @@ RSpec.describe "Portfolio evaluation" do
   end
 
   def run_generated_spec(generated_filename, domain_dir, expect_success: true)
-    env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
-      "RUBYOPT" => [ENV["RUBYOPT"], "-I#{pbt_lib_dir}"].compact.join(" ")
-    }
-
     generated_spec = File.join(domain_dir, generated_filename)
-    stdout, stderr, status = Open3.capture3(env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
+    stdout, stderr, status = Open3.capture3(stateful_pbt_env, "bundle", "exec", "rspec", generated_spec, chdir: project_root)
 
     if expect_success
       expect(status.success?).to be(true), <<~MSG

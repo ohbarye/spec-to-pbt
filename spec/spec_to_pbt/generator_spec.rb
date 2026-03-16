@@ -177,4 +177,29 @@ RSpec.describe SpecToPbt::Generator do
       expect(result["LIFO"][:patterns]).to include(:ordering)
     end
   end
+
+  describe "Quint operation selection" do
+    let(:spec) do
+      SpecToPbt::Core::SpecDocument.new(
+        name: "normalizer",
+        properties: [
+          SpecToPbt::Core::Entity.new(
+            name: "Idempotent",
+            kind: :property,
+            raw_text: "normalize(normalize(xs)) == normalize(xs)",
+            normalized_text: "normalize(normalize(xs))==normalize(xs)"
+          )
+        ],
+        source_format: :quint,
+        metadata: { operation_name: "normalize" }
+      )
+    end
+
+    it "uses the chosen stateless operation name instead of the module name" do
+      code = described_class.new(spec).generate
+
+      expect(code).to include("result = normalize(input)")
+      expect(code).not_to include("result = normalizer(input)")
+    end
+  end
 end

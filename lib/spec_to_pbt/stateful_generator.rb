@@ -150,9 +150,11 @@ module SpecToPbt
     # @rbs return: bool
     def command_like_predicate?(predicate)
       analysis = predicate_analysis(predicate)
-      patterns = PropertyPattern.detect(predicate.name, predicate.normalized_text)
-      return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
-      return false if property_like_name?(predicate.name)
+      unless frontend_action?(predicate)
+        patterns = PropertyPattern.detect(predicate.name, predicate.normalized_text)
+        return false if (patterns & EXCLUDED_COMMAND_PATTERNS).any?
+        return false if property_like_name?(predicate.name)
+      end
       return false if analysis.command_confidence == :low
 
       [:append, :pop, :dequeue, :size_no_change].include?(analysis.transition_kind) ||
@@ -976,6 +978,12 @@ def predicate_analysis(predicate)
     # @rbs return: bool
     def property_like_name?(name)
       name.match?(/(?:Identity|Roundtrip|Invariant|Sorted|LIFO|FIFO|IsEmpty|Empty|IsFull|Full)\z/i)
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: bool
+    def frontend_action?(predicate)
+      predicate.metadata.dig(:semantic_hints, :qualifier) == :action
     end
 
     # @rbs value: String

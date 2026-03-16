@@ -33,7 +33,9 @@ Project status / handoff docs:
 
 Auto-generate Property-Based Tests (PBT) from specifications to automate the "spec -> implementation -> test" loop.
 
-- Input (current): Alloy specification (`.als`)
+- Input:
+  - Alloy specification (`.als`)
+  - experimental Quint specification (`.qnt`)
 - Output: Ruby test code compatible with [pbt gem](https://github.com/ohbarye/pbt) (`.rb`)
 - Direction: evolve from `Alloy -> PBT` into a broader `spec -> pbt` experiment space
 
@@ -77,11 +79,16 @@ vi generated/stack_impl.rb
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
-If your installed `pbt` does not yet provide `Pbt.stateful`, use a checkout that does.
-In this repo workspace, the local `../pbt` `main` checkout can be used with:
+If your bundled `pbt` does not yet provide `Pbt.stateful`, update it first:
 
 ```bash
-RUBYOPT=-I/Users/ohbarye/ghq/github.com/ohbarye/pbt/lib \
+bundle update pbt
+```
+
+You can still override with a local checkout when needed:
+
+```bash
+PBT_REPO_DIR=/path/to/pbt \
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
@@ -91,6 +98,22 @@ Stateless generation remains available:
 bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
 bundle exec rspec generated/sort_pbt.rb
 ```
+
+Experimental Quint generation is available via auto-detection or `--frontend quint`:
+
+```bash
+# Stateful Quint scaffold
+bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
+
+# Stateless Quint scaffold
+bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
+```
+
+Quint CLI resolution order is:
+
+1. `--quint-cli PATH`
+2. `quint` on `PATH`
+3. `npx --yes @informalsystems/quint`
 
 Generated tests require a corresponding `*_impl.rb` file. The **module name** becomes the operation name:
 
@@ -204,7 +227,7 @@ Working examples are provided in `example/`:
 
 ```bash
 # Run a practical stateful example with config-driven API mapping
-# The examples prefer a local ../pbt checkout (override with PBT_REPO_DIR if needed)
+# The examples use the bundled pbt gem by default (override with PBT_REPO_DIR if needed)
 ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Run a bounded queue example with structured model state and inferred capacity guards
@@ -218,8 +241,8 @@ See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
 `verify_override`, `verify_context[:state_reader]`, `initial_state`, `next_state_override`,
 `model_arg_adapter`, and where useful
-`arguments(state)` / `applicable?(state, args)`. The stateful examples load a local
-`../pbt` checkout by default and can be redirected with `PBT_REPO_DIR`.
+`arguments(state)` / `applicable?(state, args)`. The stateful examples use the bundled
+`pbt` gem by default and can be redirected with `PBT_REPO_DIR`.
 
 For current product boundaries and restart context:
 
@@ -332,9 +355,30 @@ For current stateful work and roadmap details, see:
 - [docs/stateful-scaffold-roadmap-2026-03-04.md](docs/stateful-scaffold-roadmap-2026-03-04.md)
 - [docs/pbt-stateful-api-feedback-2026-03-07.md](docs/pbt-stateful-api-feedback-2026-03-07.md) (historical note; now implemented in `pbt` `main`)
 
-## Supported Alloy Syntax
+## Supported Frontends
+
+### Alloy
+
+Supported syntax:
 
 - `module`, `sig`, `pred`, `assert`, `fact`
+
+### Quint (experimental)
+
+Supported v1 subset:
+
+- top-level `var`
+- top-level `action`
+- top-level `val`
+- stateless modules with exactly one unary top-level `pure def`
+- simple action guards and updates that map onto the current scaffold shapes
+
+Explicitly out of scope in v1:
+
+- `temporal` / liveness properties
+- multiple pure top-level defs in stateless mode
+- unsupported data types beyond the current generator mappings
+- richer nondeterministic or branching action semantics that do not map safely to the scaffold
 
 ## Supported Patterns (Auto-generated)
 
@@ -391,9 +435,9 @@ bundle exec steep check
 
 ### Stateful Development Notes
 
-- The main stateful integration path uses the local `pbt` checkout at `../pbt` by default
-- `../pbt` is expected to track the user's local `main` branch unless `PBT_REPO_DIR` is overridden
-- Override with `PBT_REPO_DIR=/path/to/pbt` if needed
+- The main stateful integration path uses the bundled `pbt` gem by default
+- Upgrade with `bundle update pbt` if your lockfile still points at an older release
+- Override with `PBT_REPO_DIR=/path/to/pbt` when you need a local checkout
 - `pbt` `main` now supports:
   - `arguments(state)`
   - `applicable?(state, args)`
@@ -424,11 +468,12 @@ end
 ## Architecture
 
 ```
-Alloy Spec (.als)
+Alloy Spec (.als) / Quint Spec (.qnt)
        ↓
     Frontends::Alloy::Parser (regex-based)
+    or Frontends::Quint::CLI (`quint parse` + `quint typecheck`)
        ↓
-    Frontends::Alloy::Adapter
+    Frontends::Alloy::Adapter / Frontends::Quint::Adapter
        ↓
     ┌───────────────────────────────┬────────────────────────────────┐
     │ stateless path                │ stateful path                  │
@@ -444,8 +489,8 @@ Alloy Spec (.als)
     Ruby PBT code (.rb)
 ```
 
-The CLI still accepts Alloy input today, but the internal generator path now consumes
-a frontend-neutral core document via `SpecToPbt::Core` and
-`SpecToPbt::Frontends::Alloy::Adapter`.
+The internal generator path consumes a frontend-neutral core document via
+`SpecToPbt::Core`. Alloy and Quint are both adapted into that document model
+before reaching the stateless or stateful generators.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.

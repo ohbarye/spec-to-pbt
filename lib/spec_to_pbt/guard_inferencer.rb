@@ -17,6 +17,11 @@ module SpecToPbt
     # @rbs fallback_state_field: String?
     # @rbs return: [Symbol, String?, String?]
     def infer_guard_details(body:, predicate:, state_type:, candidate_fields:, fallback_state_field:)
+      hint_guard = semantic_guard_for(predicate)
+      if hint_guard
+        return [hint_guard[:kind], hint_guard[:field], hint_guard[:constant]]
+      end
+
       guard_text = body.include?("implies") ? body.split("implies", 2).first.to_s : body
 
       non_empty_match = guard_text.match(/#\w+\.(\w+)\s*(?:>\s*0|>=\s*1)/)
@@ -39,6 +44,20 @@ module SpecToPbt
       end
 
       [:none, fallback_state_field, nil]
+    end
+
+    # @rbs predicate: Core::Entity
+    # @rbs return: Hash[Symbol, untyped]?
+    def semantic_guard_for(predicate)
+      guards = predicate.metadata[:semantic_hints] && predicate.metadata[:semantic_hints][:guards]
+      guard = guards && guards.first
+      return nil unless guard
+
+      {
+        kind: guard[:kind],
+        field: guard[:field],
+        constant: guard[:constant]
+      }
     end
 
     # @rbs guard_kind: Symbol
