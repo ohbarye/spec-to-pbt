@@ -1,0 +1,7 @@
+interface:
+  display_name: "Implementation Retrospective"
+  short_description: "Capture learnings after coding work."
+  default_prompt: "Use $implementation-retrospective to extract the key learnings from the implementation work and save the retrospective under docs/implementation-retrospectives/."
+
+policy:
+  allow_implicit_invocation: true
