@@ -19,7 +19,6 @@ RSpec.describe "Stateful generated scaffold E2E" do
   end
 
   it "runs a generated stateful scaffold through Pbt.assert using the bundled pbt gem by default" do
-  it "runs a generated stateful scaffold through Pbt.assert using the bundled pbt gem by default" do
     input_file = File.join(fixtures_dir, "stack.als")
     _stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
     expect(status.success?).to be(true), "CLI failed: #{stderr}"

@@ -183,6 +183,28 @@ RSpec.describe "CLI" do
       expect(stdout).to include("Generated:")
       expect(File.read(File.join(output_dir, "normalize_pbt.rb"))).to include("result = normalize(input)")
     end
+
+    it "auto-detects feature_flag_rollout.qnt and generates stateful Quint scaffold parity fixtures" do
+      input_file = File.join(fixtures_dir, "feature_flag_rollout.qnt")
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "--quint-cli", fake_quint_path, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Generated:")
+      generated = File.read(File.join(output_dir, "feature_flag_rollout_pbt.rb"))
+      expect(generated).to include("class EnableCommand")
+      expect(generated).to include("class RolloutCommand")
+    end
+
+    it "supports explicit --frontend quint for job_queue_retry_dead_letter stateful generation" do
+      input_file = File.join(fixtures_dir, "job_queue_retry_dead_letter.qnt")
+      stdout, stderr, status = Open3.capture3(cli_path, input_file, "--frontend", "quint", "--stateful", "--quint-cli", fake_quint_path, "-o", output_dir)
+
+      expect(status.success?).to be(true), "CLI failed: #{stderr}"
+      expect(stdout).to include("Generated:")
+      generated = File.read(File.join(output_dir, "job_queue_retry_dead_letter_pbt.rb"))
+      expect(generated).to include("class DispatchCommand")
+      expect(generated).to include("class DeadLetterCommand")
+    end
   end
 
   describe "error handling" do

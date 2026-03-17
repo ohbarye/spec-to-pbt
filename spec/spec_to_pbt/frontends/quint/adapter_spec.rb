@@ -121,6 +121,81 @@ RSpec.describe SpecToPbt::Frontends::Quint::Adapter do
       )
     end
 
+    it "maps bounded scalar replacement and sibling-field assignment for feature flag rollout" do
+      document = described_class.new.adapt(
+        parse_json: load_quint_json("feature_flag_rollout", "parse"),
+        typecheck_json: load_quint_json("feature_flag_rollout", "typecheck")
+      )
+
+      expect(document.metadata[:state_variables]).to eq(
+        [
+          { name: "rollout", type: "Int", multiplicity: "one" },
+          { name: "max_rollout", type: "Int", multiplicity: "one" }
+        ]
+      )
+
+      enable = document.properties.find { |entity| entity.name == "Enable" }
+      disable = document.properties.find { |entity| entity.name == "Disable" }
+      rollout = document.properties.find { |entity| entity.name == "Rollout" }
+      bounded = document.properties.find { |entity| entity.name == "RolloutBounded" }
+
+      expect(enable.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "rollout", rhs_kind: :replace_value, rhs_source_field: "max_rollout")
+      )
+      expect(disable.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "rollout", rhs_kind: :replace_constant, rhs_constant: 0)
+      )
+      expect(rollout.params.map { |param| [param.name, param.type] }).to eq([["percent", "Int"]])
+      expect(rollout.metadata.dig(:semantic_hints, :guards)).to include(
+        hash_including(kind: :arg_within_state, field: "max_rollout")
+      )
+      expect(rollout.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "rollout", rhs_kind: :replace_with_arg, rhs_arg_name: "percent")
+      )
+      expect(bounded.metadata.dig(:semantic_hints, :qualifier)).to eq(:val)
+      expect(bounded.metadata.dig(:semantic_hints, :property_category)).to eq(:invariant)
+    end
+
+    it "maps multi-counter queue actions and guards into semantic hints" do
+      document = described_class.new.adapt(
+        parse_json: load_quint_json("job_queue_retry_dead_letter", "parse"),
+        typecheck_json: load_quint_json("job_queue_retry_dead_letter", "typecheck")
+      )
+
+      expect(document.metadata[:state_variables]).to eq(
+        [
+          { name: "ready", type: "Int", multiplicity: "one" },
+          { name: "in_flight", type: "Int", multiplicity: "one" },
+          { name: "dead_letter", type: "Int", multiplicity: "one" }
+        ]
+      )
+
+      dispatch = document.properties.find { |entity| entity.name == "Dispatch" }
+      retry_action = document.properties.find { |entity| entity.name == "Retry" }
+      dead_letter = document.properties.find { |entity| entity.name == "DeadLetter" }
+      invariant = document.properties.find { |entity| entity.name == "NonNegativeReady" }
+
+      expect(dispatch.metadata.dig(:semantic_hints, :guards)).to include(
+        hash_including(kind: :non_empty, field: "ready")
+      )
+      expect(dispatch.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "ready", rhs_kind: :decrement, rhs_constant: 1),
+        hash_including(field: "in_flight", rhs_kind: :increment, rhs_constant: 1)
+      )
+      expect(retry_action.metadata.dig(:semantic_hints, :guards)).to include(
+        hash_including(kind: :non_empty, field: "in_flight")
+      )
+      expect(retry_action.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "ready", rhs_kind: :increment, rhs_constant: 1),
+        hash_including(field: "in_flight", rhs_kind: :decrement, rhs_constant: 1)
+      )
+      expect(dead_letter.metadata.dig(:semantic_hints, :state_updates)).to include(
+        hash_including(field: "in_flight", rhs_kind: :decrement, rhs_constant: 1),
+        hash_including(field: "dead_letter", rhs_kind: :increment, rhs_constant: 1)
+      )
+      expect(invariant.metadata.dig(:semantic_hints, :property_category)).to eq(:invariant)
+    end
+
     it "selects exactly one pure def as the stateless operation name" do
       document = described_class.new.adapt(
         parse_json: load_quint_json("normalize", "parse"),

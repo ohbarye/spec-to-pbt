@@ -981,5 +981,56 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("state - 1")
       end
     end
+
+    context "with a Quint feature flag rollout module" do
+      let(:spec) { load_quint_document("feature_flag_rollout") }
+      let(:generator) { described_class.new(spec) }
+
+      it "generates bounded rollout commands with structured scalar state suggestions" do
+        code = generator.generate
+
+        expect(code).to include("class EnableCommand")
+        expect(code).to include("class DisableCommand")
+        expect(code).to include("class RolloutCommand")
+        expect(code).to include("{ rollout: 0, max_rollout: 3 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state.merge(rollout: state[:max_rollout])")
+        expect(code).to include("Pbt.integer(min: 1, max: state[:max_rollout])")
+        expect(code).to include("current_value = state[:max_rollout]")
+      end
+
+      it "suggests state_reader wiring for structured scalar parity" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { rollout: sut.rollout, max_rollout: sut.max_rollout } }")
+        expect(code).to include("# initial_state: { rollout: 0, max_rollout: 3 }")
+      end
+    end
+
+    context "with a Quint job queue retry/dead-letter module" do
+      let(:spec) { load_quint_document("job_queue_retry_dead_letter") }
+      let(:generator) { described_class.new(spec) }
+
+      it "generates guarded queue commands and structured counter updates" do
+        code = generator.generate
+
+        expect(code).to include("class EnqueueCommand")
+        expect(code).to include("class DispatchCommand")
+        expect(code).to include("class AckCommand")
+        expect(code).to include("class RetryCommand")
+        expect(code).to include("class DeadLetterCommand")
+        expect(code).to include("{ ready: 0, in_flight: 0, dead_letter: 0 } # TODO: replace with a domain-specific structured model state")
+        expect(code).to include("state[:ready] > 0 # inferred scalar precondition for dispatch")
+        expect(code).to include("state[:in_flight] > 0 # inferred structured scalar guard for retry")
+        expect(code).to include("state.merge(ready: state[:ready] + 1, in_flight: state[:in_flight] - 1)")
+        expect(code).to include("state.merge(in_flight: state[:in_flight] - 1, dead_letter: state[:dead_letter] + 1)")
+      end
+
+      it "suggests state_reader wiring for multi-counter state" do
+        code = generator.generate_config
+
+        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { ready: sut.ready, in_flight: sut.in_flight, dead_letter: sut.dead_letter } }")
+        expect(code).to include("# initial_state: { ready: 0, in_flight: 0, dead_letter: 0 }")
+      end
+    end
   end
 end

@@ -140,7 +140,8 @@ module SpecToPbt
             field = field_metadata(var_decl, type_table)
             [field[:name], field]
           end
-          guards, updates = extract_action_components(expr, state_fields, params)
+          guards, all_updates = extract_action_components(expr, state_fields, params)
+          updates = filter_semantic_updates(all_updates)
           state_field = updates.first && updates.first[:field]
           update = updates.first
 
@@ -260,11 +261,21 @@ module SpecToPbt
             if assignment?(component)
               updates << classify_assignment(component, state_fields, params)
             else
-              guards << classify_guard(component)
+              guards << classify_guard(component, state_fields, params)
             end
           end
 
           [guards.compact, updates]
+        end
+
+        # @rbs updates: Array[Hash[Symbol, untyped]]
+        # @rbs return: Array[Hash[Symbol, untyped]]
+        def filter_semantic_updates(updates)
+          filtered = updates.reject do |update|
+            update[:update_shape] == :preserve_value && update[:rhs_source_field] == update[:field]
+          end
+
+          filtered.empty? ? updates : filtered
         end
 
         # @rbs expr: Hash[String, untyped]
@@ -275,7 +286,7 @@ module SpecToPbt
 
         # @rbs expr: Hash[String, untyped]
         # @rbs return: Hash[Symbol, untyped]?
-        def classify_guard(expr)
+        def classify_guard(expr, state_fields, params)
           return nil unless expr["kind"] == "app"
 
           opcode = expr["opcode"]
@@ -285,6 +296,9 @@ module SpecToPbt
           end
           if positive_scalar_guard?(opcode, args[0], args[1])
             return { kind: :non_empty, field: args[0]["name"], constant: nil }
+          end
+          if state_bounded_arg_guard?(opcode, args[0], args[1], state_fields, params)
+            return { kind: :arg_within_state, field: args[0]["name"], constant: nil }
           end
           if opcode == "eq" && name_node?(args[0]) && int_node?(args[1])
             return { kind: :state_equals_constant, field: args[0]["name"], constant: args[1]["value"].to_s }
@@ -302,7 +316,7 @@ module SpecToPbt
           field_name = lhs.fetch("name")
           field = state_fields.fetch(field_name)
           param_names = params.map(&:name)
-          rhs_info = classify_rhs(rhs, field_name, param_names)
+          rhs_info = classify_rhs(rhs, field_name, param_names, state_fields)
 
           {
             field: field_name,
@@ -326,7 +340,7 @@ module SpecToPbt
         # @rbs field_name: String
         # @rbs param_names: Array[String]
         # @rbs return: Hash[Symbol, untyped]
-        def classify_rhs(expr, field_name, param_names)
+        def classify_rhs(expr, field_name, param_names, state_fields)
           if expr["kind"] == "app"
             args = Array(expr["args"])
             case expr["opcode"]
@@ -389,12 +403,13 @@ module SpecToPbt
             end
           end
 
-          if name_node?(expr) && expr["name"] == field_name
+          if name_node?(expr) && state_fields.key?(expr["name"])
+            source_field = expr["name"]
             return {
-              update_shape: :preserve_value,
-              rhs_kind: :preserve_value,
+              update_shape: (source_field == field_name ? :preserve_value : :replace_value),
+              rhs_kind: (source_field == field_name ? :preserve_value : :replace_value),
               rhs_source_kind: :state_field,
-              rhs_source_field: field_name,
+              rhs_source_field: source_field,
               size_delta: 0,
               transition_kind: nil,
               result_position: nil,
@@ -574,6 +589,20 @@ module SpecToPbt
           return true if opcode == "igte" && int_literal?(rhs, 1)
 
           false
+        end
+
+        # @rbs opcode: String
+        # @rbs lhs: Hash[String, untyped]?
+        # @rbs rhs: Hash[String, untyped]?
+        # @rbs state_fields: Hash[String, Hash[Symbol, untyped]]
+        # @rbs params: Array[Core::Parameter]
+        # @rbs return: bool
+        def state_bounded_arg_guard?(opcode, lhs, rhs, state_fields, params)
+          return false unless %w[igt igte].include?(opcode)
+          return false unless name_node?(lhs) && name_node?(rhs)
+          return false unless state_fields.key?(lhs["name"])
+
+          params.any? { |param| param.name == rhs["name"] }
         end
 
         # @rbs expr: Hash[String, untyped]?

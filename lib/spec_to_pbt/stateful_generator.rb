@@ -406,7 +406,11 @@ module SpecToPbt
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :state_equals_constant && !analysis.guard_constant.nil?
         lines << "      #{guard_state_expr('state', analysis)} == #{analysis.guard_constant} # inferred scalar lifecycle/status precondition for #{method_name}"
       elsif !collection_like_state?(analysis) && analysis.guard_kind == :non_empty
-        lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
+        if structured_scalar_state?(analysis) && analysis.guard_field && analysis.guard_field != analysis.state_field
+          lines << "      #{guard_state_expr('state', analysis)} > 0 # inferred structured scalar guard for #{method_name}"
+        else
+          lines << "      #{scalar_state_expr('state', analysis)} > 0 # inferred scalar precondition for #{method_name}"
+        end
       else
         lines << "      true"
       end

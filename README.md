@@ -55,6 +55,13 @@ The product claim is deliberately narrow:
 - first-class: recurring, structurally safe valid-path updates
 - config-assisted / config-owned: observed-state wiring, richer initial state, mixed guards, and invalid-path semantics
 
+Quint remains experimental. The current Quint goal is narrower than the Alloy path:
+
+- frontend status: experimental
+- comparison status: generate-parity coverage for selected domains
+- current dual-domain comparison fixtures: `feature_flag_rollout` and `job_queue_retry_dead_letter`
+- non-goal in this phase: Quint config+impl green workflow parity
+
 Use these docs as the current contract:
 
 - [docs/v0-release-candidate-2026-03-15.md](docs/v0-release-candidate-2026-03-15.md)
@@ -114,6 +121,9 @@ Experimental Quint generation is available via auto-detection or `--frontend qui
 # Stateful Quint scaffold
 bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
 
+# Dual-domain comparison fixture
+bin/spec_to_pbt spec/fixtures/quint/feature_flag_rollout.qnt --stateful --quint-cli /path/to/quint -o generated
+
 # Stateless Quint scaffold
 bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
 ```
@@ -123,6 +133,10 @@ Quint CLI resolution order is:
 1. `--quint-cli PATH`
 2. `quint` on `PATH`
 3. `npx --yes @informalsystems/quint`
+
+For current Quint comparison coverage, see:
+
+- [docs/quint-dual-domain-comparison-2026-03-17.md](docs/quint-dual-domain-comparison-2026-03-17.md)
 
 Generated tests require a corresponding `*_impl.rb` file. The **module name** becomes the operation name:
 
