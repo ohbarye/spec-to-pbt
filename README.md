@@ -25,6 +25,10 @@ Project status / handoff docs:
   - [docs/portfolio-evaluation-plan-2026-03-14.md](docs/portfolio-evaluation-plan-2026-03-14.md)
 - portfolio evaluation results:
   - [docs/portfolio-evaluation-results-2026-03-14.md](docs/portfolio-evaluation-results-2026-03-14.md)
+- invalid-path evaluation plan:
+  - [docs/invalid-path-evaluation-plan-2026-03-17.md](docs/invalid-path-evaluation-plan-2026-03-17.md)
+- invalid-path evaluation results:
+  - [docs/invalid-path-evaluation-results-2026-03-17.md](docs/invalid-path-evaluation-results-2026-03-17.md)
 - evaluation summary:
   - [docs/evaluation-summary-2026-03-14.md](docs/evaluation-summary-2026-03-14.md)
 - evaluation narrative:
