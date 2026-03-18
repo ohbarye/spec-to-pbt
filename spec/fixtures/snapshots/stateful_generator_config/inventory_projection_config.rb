@@ -11,6 +11,7 @@
 # 5. leave verify_override unset when observed state should directly match the model
 # 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators
 # 7. next_state_override only when the inferred model transition is not enough
+# Tip: for invalid-path work, wire verify_context.state_reader before changing command-level overrides so silent SUT mutations stay visible.
 
 InventoryProjectionPbtConfig = {
   sut_factory: -> { InventoryProjectionImpl.new },

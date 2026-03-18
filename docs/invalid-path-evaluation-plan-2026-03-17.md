@@ -15,14 +15,21 @@ The remaining weak spot is not recurring update inference. It is that the defaul
 
 ## Scope
 
-Use the two survivor families from the portfolio results:
+Use the current four-domain invalid-path track:
 
 - `partial_refund_remaining_capturable`
   - mutant: `refund_allows_over_refund`
+- `payment_status_amounts`
+  - mutant: `capture_amount_without_guard`
 - `connection_pool`
   - mutant: `checkin_without_guard`
+- `job_status_event_counters`
+  - mutant: `retry_without_guard`
 
-These are the best first cases because both were already classified as invalid-path valid-only workflow gaps.
+These cover both recurring invalid-path shapes we care about:
+
+- out-of-range scalar arguments
+- no-arg guard failures
 
 ## Fixed Workflow Per Domain
 
@@ -53,6 +60,6 @@ Record these exact metrics per domain:
 
 ## Expected Interpretation
 
-- if both domains are recoverable through config-only edits, keep invalid-path behavior off the generator fast path
+- if the track remains recoverable through config-only edits, keep invalid-path behavior off the generator fast path
 - if recovery requires repeated non-obvious config patterns, improve config guidance and examples next
 - only consider generator promotion if a recurring structural invalid-path pattern appears across more than two domains

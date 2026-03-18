@@ -29,6 +29,7 @@ module SpecToPbt
         lines << "# 5. leave verify_override unset when observed state should directly match the model"
         lines << "# 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators"
         lines << "# 7. next_state_override only when the inferred model transition is not enough"
+        lines << "# Tip: for invalid-path work, wire verify_context.state_reader before changing command-level overrides so silent SUT mutations stay visible."
         lines << ""
         lines << "#{config_constant_name} = {"
         lines << "  sut_factory: -> { #{sut_factory_code} },"
@@ -74,6 +75,7 @@ module SpecToPbt
           lines << "      # guard_failure_policy: :no_op, # or :raise / :custom"
           lines << "      # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific"
           lines << "      # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution."
+          lines << "      # #{@suggestions.invalid_path_recipe_comment(predicate, analysis)}"
         end
         lines << "      # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition"
         lines << "      # verify_override: #{@suggestions.verify_override_example(analysis)} # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics"

@@ -128,6 +128,118 @@ RSpec.describe "Invalid-path portfolio evaluation" do
         ]
       },
       {
+        name: "payment_status_amounts",
+        fixture: "payment_status_amounts.als",
+        good_impl: <<~RUBY,
+          # frozen_string_literal: true
+
+          class PaymentStatusAmountsImpl
+            attr_reader :status, :authorized_amount, :captured_amount
+
+            def initialize(status: 0, authorized_amount: 0, captured_amount: 0)
+              @status = status
+              @authorized_amount = authorized_amount
+              @captured_amount = captured_amount
+            end
+
+            def authorize_amount(amount)
+              raise "invalid transition" unless @status == 0
+              raise "amount must be positive" unless amount.positive?
+
+              @status = 1
+              @authorized_amount += amount
+              nil
+            end
+
+            def capture_amount(amount)
+              raise "invalid transition" unless @status == 1 && amount <= @authorized_amount
+
+              @status = 2
+              @authorized_amount -= amount
+              @captured_amount += amount
+              nil
+            end
+
+            def reset
+              raise "invalid transition" unless @status == 2
+
+              @status = 0
+              @authorized_amount = 0
+              @captured_amount = 0
+              nil
+            end
+          end
+        RUBY
+        config: <<~RUBY,
+          # frozen_string_literal: true
+
+          PaymentStatusAmountsPbtConfig = {
+            sut_factory: -> { PaymentStatusAmountsImpl.new(status: 0, authorized_amount: 0, captured_amount: 0) },
+            initial_state: { status: 0, authorized_amount: 0, captured_amount: 0 },
+            command_mappings: {
+              authorize_amount: {
+                method: :authorize_amount,
+                arguments_override: -> { Pbt.integer(min: 1, max: 1) }
+              },
+              capture_amount: {
+                method: :capture_amount,
+                arguments_override: ->(state) { Pbt.integer(min: state[:authorized_amount] + 1, max: state[:authorized_amount] + 1) },
+                guard_failure_policy: :raise
+              },
+              reset: {
+                method: :reset
+              }
+            },
+            verify_context: {
+              state_reader: ->(sut) { { status: sut.status, authorized_amount: sut.authorized_amount, captured_amount: sut.captured_amount } }
+            }
+          }
+        RUBY
+        mutants: [
+          {
+            id: "capture_amount_without_guard",
+            impl: <<~RUBY
+              # frozen_string_literal: true
+
+              class PaymentStatusAmountsImpl
+                attr_reader :status, :authorized_amount, :captured_amount
+
+                def initialize(status: 0, authorized_amount: 0, captured_amount: 0)
+                  @status = status
+                  @authorized_amount = authorized_amount
+                  @captured_amount = captured_amount
+                end
+
+                def authorize_amount(amount)
+                  raise "invalid transition" unless @status == 0
+                  raise "amount must be positive" unless amount.positive?
+
+                  @status = 1
+                  @authorized_amount += amount
+                  nil
+                end
+
+                def capture_amount(amount)
+                  @status = 2
+                  @authorized_amount -= amount
+                  @captured_amount += amount
+                  nil
+                end
+
+                def reset
+                  raise "invalid transition" unless @status == 2
+
+                  @status = 0
+                  @authorized_amount = 0
+                  @captured_amount = 0
+                  nil
+                end
+              end
+            RUBY
+          }
+        ]
+      },
+      {
         name: "connection_pool",
         fixture: "connection_pool.als",
         good_impl: <<~RUBY,
@@ -205,6 +317,110 @@ RSpec.describe "Invalid-path portfolio evaluation" do
                 def checkin
                   @available += 1
                   @checked_out -= 1
+                  nil
+                end
+              end
+            RUBY
+          }
+        ]
+      },
+      {
+        name: "job_status_event_counters",
+        fixture: "job_status_event_counters.als",
+        good_impl: <<~RUBY,
+          # frozen_string_literal: true
+
+          class JobStatusEventCountersImpl
+            attr_reader :status, :events, :retry_budget, :retry_count
+
+            def initialize(status: 0, events: [], retry_budget: 0, retry_count: 0)
+              @status = status
+              @events = events.dup
+              @retry_budget = retry_budget
+              @retry_count = retry_count
+            end
+
+            def activate
+              raise "invalid transition" unless @status == 0
+
+              @status = 1
+              nil
+            end
+
+            def retry
+              raise "invalid transition" unless @status == 1 && @retry_budget.positive?
+
+              @events << 1
+              @retry_budget -= 1
+              @retry_count += 1
+              nil
+            end
+
+            def deactivate
+              raise "invalid transition" unless @status == 1
+
+              @status = 2
+              nil
+            end
+          end
+        RUBY
+        config: <<~RUBY,
+          # frozen_string_literal: true
+
+          JobStatusEventCountersPbtConfig = {
+            sut_factory: -> { JobStatusEventCountersImpl.new(status: 0, events: [], retry_budget: 0, retry_count: 0) },
+            initial_state: { events: [], status: 0, retry_budget: 0, retry_count: 0 },
+            command_mappings: {
+              activate: {
+                method: :activate
+              },
+              retry: {
+                method: :retry,
+                guard_failure_policy: :raise
+              },
+              deactivate: {
+                method: :deactivate
+              }
+            },
+            verify_context: {
+              state_reader: ->(sut) { { events: sut.events.dup, status: sut.status, retry_budget: sut.retry_budget, retry_count: sut.retry_count } }
+            }
+          }
+        RUBY
+        mutants: [
+          {
+            id: "retry_without_guard",
+            impl: <<~RUBY
+              # frozen_string_literal: true
+
+              class JobStatusEventCountersImpl
+                attr_reader :status, :events, :retry_budget, :retry_count
+
+                def initialize(status: 0, events: [], retry_budget: 0, retry_count: 0)
+                  @status = status
+                  @events = events.dup
+                  @retry_budget = retry_budget
+                  @retry_count = retry_count
+                end
+
+                def activate
+                  raise "invalid transition" unless @status == 0
+
+                  @status = 1
+                  nil
+                end
+
+                def retry
+                  @events << 1
+                  @retry_budget -= 1
+                  @retry_count += 1
+                  nil
+                end
+
+                def deactivate
+                  raise "invalid transition" unless @status == 1
+
+                  @status = 2
                   nil
                 end
               end

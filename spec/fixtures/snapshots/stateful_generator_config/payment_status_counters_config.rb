@@ -11,6 +11,7 @@
 # 5. leave verify_override unset when observed state should directly match the model
 # 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators
 # 7. next_state_override only when the inferred model transition is not enough
+# Tip: for invalid-path work, wire verify_context.state_reader before changing command-level overrides so silent SUT mutations stay visible.
 
 PaymentStatusCountersPbtConfig = {
   sut_factory: -> { PaymentStatusCountersImpl.new },
@@ -26,6 +27,7 @@ PaymentStatusCountersPbtConfig = {
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
       # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # Invalid-path starting point: set verify_context.state_reader first, then try guard_failure_policy: :raise to let the scaffold execute guard-failing calls.
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
@@ -40,6 +42,7 @@ PaymentStatusCountersPbtConfig = {
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
       # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # Invalid-path starting point: set verify_context.state_reader first, then try guard_failure_policy: :raise to let the scaffold execute guard-failing calls.
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
@@ -53,6 +56,7 @@ PaymentStatusCountersPbtConfig = {
       # guard_failure_policy: :no_op, # or :raise / :custom
       # Suggested failure/no-op handling: use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override when the invalid path is domain-specific
       # Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.
+      # Invalid-path starting point: set verify_context.state_reader first, then try guard_failure_policy: :raise to let the scaffold execute guard-failing calls.
       # next_state_override: ->(state, args) { state }, # use this when invalid paths or derived state need a domain-specific model transition
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     }

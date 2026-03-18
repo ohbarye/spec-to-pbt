@@ -101,6 +101,17 @@ module SpecToPbt
         end
       end
 
+      # @rbs predicate: Core::Entity
+      # @rbs analysis: StatefulPredicateAnalysis
+      # @rbs return: String
+      def invalid_path_recipe_comment(predicate, analysis)
+        if state_aware_scalar_arg_generation?(analysis)
+          "Invalid-path starting point: set verify_context.state_reader first, then try arguments_override: #{arguments_override_example(predicate, analysis)} with guard_failure_policy: :raise."
+        else
+          "Invalid-path starting point: set verify_context.state_reader first, then try guard_failure_policy: :raise to let the scaffold execute guard-failing calls."
+        end
+      end
+
       # @rbs analysis: StatefulPredicateAnalysis
       # @rbs return: String
       def model_arg_adapter_example(_analysis)

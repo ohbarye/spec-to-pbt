@@ -48,6 +48,11 @@ examples for `spec-to-pbt`.
 - `authorization_expiry_void`
 - `partial_refund_remaining_capturable`
 
+### Invalid Path
+
+- [invalid_path_workflow.md](invalid_path_workflow.md)
+  - config-only recipes for out-of-range args and no-arg guard failures
+
 ## Running An Example
 
 Examples use the bundled `pbt` gem by default. Override with `PBT_REPO_DIR` if needed.
@@ -102,3 +107,4 @@ For current promotion boundaries and restart context:
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`

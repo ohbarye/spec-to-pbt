@@ -1,18 +1,19 @@
 # Invalid-Path Evaluation Track
 
 - date: 2026-03-17
-- scope: config-only recovery of previously surviving invalid-path mutants
+- scope: config-only recovery of invalid-path mutants and generator guidance for that workflow
 
 ## What changed
 
-- added an integration evaluation that regenerates scaffolds for two survivor domains and reruns them with config-driven invalid-path workflows
+- added an integration evaluation that regenerates scaffolds for four invalid-path domains and reruns them with config-driven invalid-path workflows
 - recorded a dedicated invalid-path plan and result note separate from the main valid-path portfolio
+- updated config generation guidance so the generated `*_pbt_config.rb` now points at a concrete invalid-path starting recipe
 
 ## What we learned
 
 - the real gap was evidence, not generator capability
-- both survivor mutants were recoverable without editing generated scaffolds once the config intentionally drove invalid calls
-- invalid-path recovery needs two different levers:
+- all tested invalid-path mutants were recoverable without editing generated scaffolds once the config intentionally drove invalid calls
+- invalid-path recovery needs two different levers and the generated config can name both:
   - out-of-range argument generation for scalar guard bugs
   - guard-failure execution policy for no-arg command guards
 - observed-state verification is already strong enough to act as the oracle once the invalid path is exercised

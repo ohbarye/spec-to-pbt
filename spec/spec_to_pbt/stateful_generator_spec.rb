@@ -923,6 +923,32 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       end
     end
 
+    context "with partial refund state" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/partial_refund_remaining_capturable.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests an amount-aware invalid-path recipe for scalar guard bugs" do
+        code = generator.generate_config
+
+        expect(code).to include("set verify_context.state_reader first, then try arguments_override: ->(state) { Pbt.integer(min: 1, max: state[:captured] + 1) } with guard_failure_policy: :raise")
+      end
+    end
+
+    context "with connection pool state" do
+      let(:fixture_path) { File.expand_path("../fixtures/alloy/connection_pool.als", __dir__) }
+      let(:source) { File.read(fixture_path) }
+      let(:spec) { SpecToPbt::Parser.new.parse(source) }
+      let(:generator) { described_class.new(spec) }
+
+      it "suggests a no-arg invalid-path recipe for guard-only commands" do
+        code = generator.generate_config
+
+        expect(code).to include("set verify_context.state_reader first, then try guard_failure_policy: :raise to let the scaffold execute guard-failing calls")
+      end
+    end
+
     context "with transfer-between-accounts state" do
       let(:fixture_path) { File.expand_path("../fixtures/alloy/transfer_between_accounts.als", __dir__) }
       let(:source) { File.read(fixture_path) }
