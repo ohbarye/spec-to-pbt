@@ -48,6 +48,23 @@ v0 is ready only when all of the following hold:
 
 1. user-facing standard workflow runs with `pbt >= 0.6.0`
 2. generated `*_pbt.rb` stays unedited across the fixed 4-domain portfolio and blind 4-domain expansion
-3. the two known invalid-path survivor families are recoverable via config-only workflows
+3. the recurring invalid-path guard families are recoverable via config-only workflows
 4. `state_reader`-only observed-state verification works for representative domains
 5. limitations and non-goals are explicit in the docs and user-facing CLI guidance
+
+## Current Gate Read
+
+Current supporting evidence:
+
+- valid-path product baseline:
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+- invalid-path config-assisted baseline:
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
+
+What the current evidence now shows:
+
+1. the fixed 4-domain valid-path portfolio still reaches green via config/impl-only edits
+2. invalid-path recovery is now demonstrated across both recurring families:
+   - out-of-range scalar arguments
+   - no-arg guard failures
+3. generated config guidance now points directly at the invalid-path starting recipes instead of leaving them implicit

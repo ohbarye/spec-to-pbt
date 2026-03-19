@@ -115,6 +115,8 @@ RSpec.describe "CLI" do
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Generated:")
       expect(stdout).to include("Next: edit")
+      expect(stdout).to include("wire verify_context.state_reader first")
+      expect(stdout).to include("arguments_override for out-of-range args or guard_failure_policy")
 
       config_file = File.join(output_dir, "stack_pbt_config.rb")
       expect(File.exist?(config_file)).to be(true)
@@ -238,6 +240,7 @@ RSpec.describe "CLI" do
       expect(status.success?).to be(true)
       expect(stdout).to include("Usage:")
       expect(stdout).to include("--output")
+      expect(stdout).to include("observed-state checks")
     end
   end
 

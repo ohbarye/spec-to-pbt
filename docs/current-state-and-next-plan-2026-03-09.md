@@ -64,7 +64,7 @@ Done or stable:
 Current testing baseline:
 
 - `mise exec -- bundle exec rspec`
-- current result: `283 examples, 0 failures`
+- current result: `325 examples, 0 failures, 1 pending`
 
 Representative current workflow baseline:
 
@@ -81,7 +81,10 @@ Representative current workflow baseline:
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-plan-2026-03-17.md`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/portfolio_evaluation_spec.rb`
+  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/invalid_path_portfolio_evaluation_spec.rb`
 
 ## Architecture Snapshot
 
@@ -244,6 +247,9 @@ The working rule is now:
 - some domain patterns are practical only because config provides the final mile
 - some constant-replacement or domain-capped transitions are still better served
   by config than by automatic inference
+- invalid-path recovery is now evidenced across both recurring guard families,
+  but the project still treats this as config-assisted evidence rather than
+  generator promotion evidence
 
 ## Recommended Next Work
 
@@ -252,6 +258,7 @@ The working rule is now:
 The current one-month milestone is:
 
 - a fixed 4-domain portfolio evaluation
+- a config-only invalid-path recovery track
 - no parser expansion in this phase
 - success judged by config/impl-only workflow plus mutant detection evidence
 

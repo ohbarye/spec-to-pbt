@@ -24,6 +24,8 @@ The active evaluation pass is tracked in:
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
 - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-plan-2026-03-17.md`
+- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
 
 For the current product phase:
 
@@ -33,6 +35,7 @@ For the current product phase:
 - record friction
 - classify before promoting anything
 - for the current one-month milestone, use the fixed 4-domain portfolio and mutant protocol as the default product evaluation baseline
+- use the invalid-path track as a separate evidence lane rather than mixing it into valid-path structural promotion decisions
 
 ## Candidate Domain Order
 
@@ -96,6 +99,7 @@ For every new domain, use this sequence.
 The key rule is:
 
 - do not immediately generalize from a single domain
+- keep valid-path misses and invalid-path recovery evidence in separate buckets
 
 ## Friction Log Template
 
@@ -213,6 +217,13 @@ If an injected defect survives, separate these cases:
 Only the first case is evidence for missing valid-path generator behavior.
 The second case is usually evidence for invalid-path or mixed-guard limits and
 should stay config-assisted or config-owned unless a safe recurring strategy appears.
+
+### 7. Did config guidance already solve the issue cleanly?
+
+If yes:
+
+- prefer improving docs, examples, or generated config comments
+- do not promote behavior into the generator just because the recovery is now easier
 
 ## Boundary Decision Table
 

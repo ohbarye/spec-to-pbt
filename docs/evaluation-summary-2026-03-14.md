@@ -40,7 +40,7 @@ Key points:
 - durable customization lives in config
 - this is a practical scaffold workflow, not a semantics-preserving translator
 
-## 4-Domain Evidence
+## Valid-Path 4-Domain Evidence
 
 | Domain | Family | `*_pbt.rb` edited? | Green via config/impl only? | Mutants detected |
 | --- | --- | --- | --- | --- |
@@ -48,6 +48,15 @@ Key points:
 | ledger projection | append-only projection | no | yes | 3 / 3 |
 | job status event counters | status-gated counters / lifecycle | no | yes | 3 / 3 |
 | connection pool | bounded paired counters | no | yes | 2 / 3 |
+
+## Invalid-Path Recovery Evidence
+
+| Domain | Guard family | `*_pbt.rb` edited? | Green via config/impl only? | Guard mutant recovered? |
+| --- | --- | --- | --- | --- |
+| partial refund / remaining capturable | out-of-range scalar argument | no | yes | yes |
+| payment status amounts | out-of-range scalar argument | no | yes | yes |
+| connection pool | no-arg guard failure | no | yes | yes |
+| job status event counters | no-arg guard failure | no | yes | yes |
 
 ## Current Boundary
 
@@ -75,11 +84,13 @@ The generator is intentionally conservative. Config is a design boundary, not an
 
 ## Weak Evidence
 
-- invalid-path bugs that are never exercised because generated workflows stay on valid paths
-- business-rule-heavy mixed guards
+- business-rule-heavy invalid paths still need domain-owned contracts
+- business-rule-heavy mixed guards remain config-owned
+- invalid-path evidence is now practical, but still config-assisted rather than first-class
 
 ## Takeaway
 
 - this is not full automatic completed test generation
 - it is practical, useful stateful PBT scaffold generation from formal-ish specs
 - the recurring structural core is already broad enough to support a credible product-level case study
+- invalid-path recovery is now demonstrated as a config-assisted extension rather than a generator default
