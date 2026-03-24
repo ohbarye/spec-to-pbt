@@ -4,72 +4,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-spec_to_pbt is a tool that generates Ruby Property-Based Tests from Alloy specifications. It parses .als files (Alloy specification language) and outputs Ruby test code compatible with the pbt gem.
+spec_to_pbt is a practical scaffold generator that turns formal-ish specifications
+into Ruby Property-Based Tests. The current product focus is Alloy-first,
+`pbt`-compatible stateful scaffold generation, with Quint support remaining
+experimental.
 
-The generator uses a **pattern-based unified approach** - instead of domain-specific templates, it detects property patterns and dynamically generates check code.
+The strongest current workflow is not "fully automatic test generation". It is:
+
+- generate a runnable scaffold
+- keep durable customization in `*_pbt_config.rb`
+- keep domain behavior in `*_impl.rb`
+- run the result through `Pbt.stateful`
 
 ## Commands
 
+Use `mise exec -- ...` in this repository so the intended Ruby/Bundler toolchain is selected.
+
 ```bash
 # Install dependencies
-bundle install
+mise exec -- bundle install
 
 # Run all tests
-bundle exec rspec
+mise exec -- bundle exec rspec
 
 # Run a single test file
-bundle exec rspec spec/spec_to_pbt/parser_spec.rb
+mise exec -- bundle exec rspec spec/spec_to_pbt/parser_spec.rb
 
 # Run a specific test (by line number)
-bundle exec rspec spec/spec_to_pbt/parser_spec.rb:14
+mise exec -- bundle exec rspec spec/spec_to_pbt/parser_spec.rb:14
 
 # Generate PBT from Alloy spec
-bin/spec_to_pbt spec/fixtures/alloy/sort.als
-bin/spec_to_pbt spec/fixtures/alloy/stack.als -o output_dir
+mise exec -- bin/spec_to_pbt spec/fixtures/alloy/sort.als
+mise exec -- bin/spec_to_pbt spec/fixtures/alloy/stack.als -o output_dir
 
 # Run generated tests (requires *_impl.rb file)
-bundle exec rspec generated/sort_pbt.rb
+mise exec -- bundle exec rspec generated/sort_pbt.rb
 
-# Run example tests
-bundle exec rspec example/generated/sort_pbt.rb
-bundle exec rspec example/generated/stack_pbt.rb
+# Run stateful example tests
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Type checking with Steep
-bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations
-bundle exec steep check                              # Run type check
+mise exec -- bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations
+mise exec -- bundle exec steep check                               # Run type check
 ```
 
 ## Architecture
 
 ```
-Alloy Spec (.als)
+Alloy Spec (.als) / Quint Spec (.qnt)
        ↓
-    Parser
+    Frontends::Alloy::Parser
+    or Frontends::Quint::CLI
        ↓
-    Spec { signatures, predicates, ... }
+    Frontends::*::Adapter
        ↓
-    PropertyPattern.detect → [:idempotent, :size, ...]
+    Core::SpecDocument
        ↓
-    TypeInferrer → Pbt.array(Pbt.integer)
-       ↓
-    PatternCodeGenerator → Ruby check code
-       ↓
-    Generator + unified.erb
+    ┌───────────────────────────────┬────────────────────────────────┐
+    │ stateless path                │ stateful path                  │
+    │ PropertyPattern.detect        │ StatefulPredicateAnalyzer      │
+    │ TypeInferrer                  │ StatefulGenerator              │
+    │ PatternCodeGenerator          │ config + scaffold rendering    │
+    └───────────────────────────────┴────────────────────────────────┘
        ↓
     Ruby PBT code (.rb)
 ```
 
 ### Core Components
 
-1. **Parser** (`lib/spec_to_pbt/parser.rb`): Parses Alloy .als files using regex patterns. Outputs a `Spec` data structure containing signatures, predicates, assertions, and facts.
+1. **Frontends / Parser** (`lib/spec_to_pbt/frontends/`, `lib/spec_to_pbt/parser.rb`): Loads Alloy and experimental Quint inputs into a frontend-neutral document model.
 
-2. **PropertyPattern** (`lib/spec_to_pbt/property_pattern.rb`): Detects common property patterns from predicate names and bodies using regex matching.
+2. **PropertyPattern** (`lib/spec_to_pbt/property_pattern.rb`): Detects common stateless property patterns from predicate names and bodies.
 
-3. **TypeInferrer** (`lib/spec_to_pbt/type_inferrer.rb`): Infers Pbt generator code from Alloy sig definitions (e.g., `seq Element` → `Pbt.array(Pbt.integer)`).
+3. **TypeInferrer** (`lib/spec_to_pbt/type_inferrer.rb`): Infers Pbt generator code from spec definitions (e.g., `seq Element` → `Pbt.array(Pbt.integer)`).
 
-4. **PatternCodeGenerator** (`lib/spec_to_pbt/pattern_code_generator.rb`): Maps detected patterns to Ruby check code (e.g., `:idempotent` → `sort(sort(x)) == sort(x)`).
+4. **PatternCodeGenerator** (`lib/spec_to_pbt/pattern_code_generator.rb`): Maps stateless patterns to Ruby check code.
 
-5. **Generator** (`lib/spec_to_pbt/generator.rb`): Orchestrates the pipeline and renders Ruby PBT code using `unified.erb`.
+5. **StatefulGenerator** (`lib/spec_to_pbt/stateful_generator.rb`): Builds regeneration-safe stateful scaffolds and companion config files targeting `Pbt.stateful`.
 
 ### Data Structures (parser.rb)
 
@@ -104,7 +115,7 @@ Unsupported patterns (elements, empty, ordering, etc.) are output as comments wi
 ## Requirements
 
 - Ruby 4.0+
-- pbt gem for property-based testing
+- `pbt >= 0.6.0` for stateful scaffold execution
 
 ## Type Checking
 
@@ -161,3 +172,4 @@ generated/             # User workspace (gitignored)
 ```
 
 Generated tests require a corresponding `*_impl.rb` file in the same directory.
+For `--stateful --with-config`, durable customization belongs in `*_pbt_config.rb`.
