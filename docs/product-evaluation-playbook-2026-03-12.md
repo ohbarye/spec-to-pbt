@@ -81,13 +81,13 @@ For every new domain, use this sequence.
 
 1. write or adapt an Alloy fixture
 2. run:
-   - `bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
+   - `mise exec -- bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
 3. edit only:
    - `generated/*_pbt_config.rb`
    - `generated/*_impl.rb`
 4. avoid editing `generated/*_pbt.rb` unless blocked
 5. run:
-   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
+   - `mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
    - ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record all friction using the template below
 7. if the same friction appears in a second distinct domain, evaluate promotion

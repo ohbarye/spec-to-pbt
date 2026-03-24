@@ -34,7 +34,7 @@ These cover both recurring invalid-path shapes we care about:
 ## Fixed Workflow Per Domain
 
 1. generate with:
-   - `bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
+   - `mise exec -- bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
 2. edit only:
    - `*_pbt_config.rb`
    - `*_impl.rb`

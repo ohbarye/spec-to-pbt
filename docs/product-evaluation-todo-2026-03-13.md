@@ -36,14 +36,14 @@ This pass is not about:
 Apply this sequence to each domain.
 
 1. generate into a temporary output directory:
-   - `bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
+   - `mise exec -- bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
 2. create only:
    - `generated/*_pbt_config.rb`
    - `generated/*_impl.rb`
 3. do not edit:
    - `generated/*_pbt.rb`
 4. run:
-   - `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
+   - `mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
 5. ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record every friction item immediately in:
    - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`

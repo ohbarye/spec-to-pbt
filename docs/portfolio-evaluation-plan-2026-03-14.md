@@ -33,7 +33,7 @@ Use this fixed 4-domain portfolio.
 For every domain:
 
 1. generate with:
-   - `bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
+   - `mise exec -- bin/spec_to_pbt INPUT.als --stateful --with-config -o generated`
 2. edit only:
    - `*_pbt_config.rb`
    - `*_impl.rb`

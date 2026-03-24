@@ -76,6 +76,10 @@ on valid-path structural behavior and conservative about richer invalid-path sem
 
 ## Usage
 
+These commands assume repo development in this checkout. Use `mise exec -- ...`
+so the pinned Ruby/Bundler toolchain is selected. Generated scaffolds in another
+project can still be run with ordinary `bundle` commands there.
+
 ### Fastest practical workflow
 
 For stateful work, prefer this path:
@@ -86,26 +90,26 @@ For stateful work, prefer this path:
 4. run the scaffold with `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 
 ```bash
-bundle install
+mise exec -- bundle install
 
 # Smallest practical stateful workflow
-bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
+mise exec -- bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
 vi generated/stack_pbt_config.rb
 vi generated/stack_impl.rb
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
 If your bundled `pbt` does not yet provide `Pbt.stateful`, update it first:
 
 ```bash
-bundle update pbt
+mise exec -- bundle update pbt
 ```
 
 You can still override with a local checkout when needed:
 
 ```bash
 PBT_REPO_DIR=/path/to/pbt \
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
 Stateful scaffolds require `pbt >= 0.6.0` with `Pbt.stateful`.
@@ -115,21 +119,21 @@ before rerunning the generated spec.
 Stateless generation remains available:
 
 ```bash
-bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
-bundle exec rspec generated/sort_pbt.rb
+mise exec -- bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
+mise exec -- bundle exec rspec generated/sort_pbt.rb
 ```
 
 Experimental Quint generation is available via auto-detection or `--frontend quint`:
 
 ```bash
 # Stateful Quint scaffold
-bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
+mise exec -- bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
 
 # Dual-domain comparison fixture
-bin/spec_to_pbt spec/fixtures/quint/feature_flag_rollout.qnt --stateful --quint-cli /path/to/quint -o generated
+mise exec -- bin/spec_to_pbt spec/fixtures/quint/feature_flag_rollout.qnt --stateful --quint-cli /path/to/quint -o generated
 
 # Stateless Quint scaffold
-bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
+mise exec -- bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
 ```
 
 Quint CLI resolution order is:
@@ -259,21 +263,18 @@ Working examples are provided in `example/`:
 ```bash
 # Run a practical stateful example with config-driven API mapping
 # The examples use the bundled pbt gem by default (override with PBT_REPO_DIR if needed)
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Run a bounded queue example with structured model state and inferred capacity guards
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
 # Run a financial-domain example with state-aware amount generation
-ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
+mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 See `example/impl/` for sample implementations.
 See `example/stateful/` for config-aware stateful examples using `method:` remapping,
 `verify_override`, `verify_context[:state_reader]`, `initial_state`, `next_state_override`,
-`model_arg_adapter`, and where useful
-`arguments(state)` / `applicable?(state, args)`. The stateful examples use the bundled
-`pbt` gem by default and can be redirected with `PBT_REPO_DIR`.
 `model_arg_adapter`, `arguments_override`, and where useful
 `arguments(state)` / `applicable?(state, args)`. The stateful examples use the bundled
 `pbt` gem by default and can be redirected with `PBT_REPO_DIR`.
@@ -457,20 +458,20 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 
 ```bash
 # Run tests
-bundle exec rspec
+mise exec -- bundle exec rspec
 
 # Type-related checks
-bundle exec rbs-inline --output sig/generated lib/
+mise exec -- bundle exec rbs-inline --output sig/generated lib/
 
 # Steep is currently best-effort and not enforced in CI while the frontend-neutral
 # core/stateful refactor settles.
-bundle exec steep check
+mise exec -- bundle exec steep check
 ```
 
 ### Stateful Development Notes
 
 - The main stateful integration path uses the bundled `pbt` gem by default
-- Upgrade with `bundle update pbt` if your lockfile still points at an older release
+- Upgrade with `mise exec -- bundle update pbt` if your lockfile still points at an older release
 - Override with `PBT_REPO_DIR=/path/to/pbt` when you need a local checkout
 - User-facing stateful workflows assume `pbt >= 0.6.0`
 - For repo development only, example specs can still be pointed at a local `pbt` checkout with `PBT_REPO_DIR=/path/to/pbt`
