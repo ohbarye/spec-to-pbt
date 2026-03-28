@@ -34,17 +34,17 @@ Quint remains experimental. The current Quint goal is narrower than the Alloy pa
 
 ## Prerequisites
 
-This project uses [mise](https://mise.jdx.dev/) to manage the Ruby and Bundler toolchain. Prefix all commands with `mise exec --` to ensure the correct versions are selected.
-
 ```bash
-mise exec -- bundle install
+bundle install
 ```
 
 Stateful scaffolds require `pbt >= 0.6.0` with `Pbt.stateful`. If the generated scaffold raises a runtime preflight error, update `pbt` before rerunning the generated spec:
 
 ```bash
-mise exec -- bundle update pbt
+bundle update pbt
 ```
+
+> If you use [mise](https://mise.jdx.dev/) to manage your Ruby toolchain, prefix commands with `mise exec --`.
 
 ## Usage
 
@@ -56,24 +56,24 @@ mise exec -- bundle update pbt
 4. Run with `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 
 ```bash
-mise exec -- bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
+bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
 vi generated/stack_pbt_config.rb
 vi generated/stack_impl.rb
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
 You can override the bundled `pbt` with a local checkout when needed:
 
 ```bash
 PBT_REPO_DIR=/path/to/pbt \
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
 ```
 
 ### Stateless workflow
 
 ```bash
-mise exec -- bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
-mise exec -- bundle exec rspec generated/sort_pbt.rb
+bin/spec_to_pbt spec/fixtures/alloy/sort.als -o generated
+bundle exec rspec generated/sort_pbt.rb
 ```
 
 Generated tests require a corresponding `*_impl.rb` file. The **module name** becomes the operation name:
@@ -94,10 +94,10 @@ end
 
 ```bash
 # Stateful Quint scaffold
-mise exec -- bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
+bin/spec_to_pbt spec/fixtures/quint/counter.qnt --stateful --quint-cli /path/to/quint -o generated
 
 # Stateless Quint scaffold
-mise exec -- bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
+bin/spec_to_pbt spec/fixtures/quint/normalize.qnt --frontend quint --quint-cli /path/to/quint -o generated
 ```
 
 Quint CLI resolution order: `--quint-cli PATH` > `quint` on `PATH` > `npx --yes @informalsystems/quint`
@@ -167,13 +167,13 @@ Start with these stateful examples:
 
 ```bash
 # Stack: smallest practical stateful scaffold
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Bounded queue: collection state + capacity guards
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
 # Bank account: financial-domain with amount-aware generation
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 The `example/stateful/` directory contains 24+ working examples across these categories:
@@ -232,13 +232,13 @@ Where `op` is replaced with the module name (e.g., `sort`, `reverse`).
 
 ```bash
 # Run tests
-mise exec -- bundle exec rspec
+bundle exec rspec
 
 # Type-related checks
-mise exec -- bundle exec rbs-inline --output sig/generated lib/
+bundle exec rbs-inline --output sig/generated lib/
 
 # Steep is best-effort and not enforced in CI
-mise exec -- bundle exec steep check
+bundle exec steep check
 ```
 
 ### Stateful Development Notes

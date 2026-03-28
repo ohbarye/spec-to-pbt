@@ -18,38 +18,38 @@ The strongest current workflow is not "fully automatic test generation". It is:
 
 ## Commands
 
-Use `mise exec -- ...` in this repository so the intended Ruby/Bundler toolchain is selected.
-
 ```bash
 # Install dependencies
-mise exec -- bundle install
+bundle install
 
 # Run all tests
-mise exec -- bundle exec rspec
+bundle exec rspec
 
 # Run a single test file
-mise exec -- bundle exec rspec spec/spec_to_pbt/parser_spec.rb
+bundle exec rspec spec/spec_to_pbt/parser_spec.rb
 
 # Run a specific test (by line number)
-mise exec -- bundle exec rspec spec/spec_to_pbt/parser_spec.rb:14
+bundle exec rspec spec/spec_to_pbt/parser_spec.rb:14
 
 # Generate PBT from Alloy spec
-mise exec -- bin/spec_to_pbt spec/fixtures/alloy/sort.als
-mise exec -- bin/spec_to_pbt spec/fixtures/alloy/stack.als -o output_dir
+bin/spec_to_pbt spec/fixtures/alloy/sort.als
+bin/spec_to_pbt spec/fixtures/alloy/stack.als -o output_dir
 
 # Generate stateful scaffold with config
-mise exec -- bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
+bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
 
 # Run generated tests (requires *_impl.rb file)
-mise exec -- bundle exec rspec generated/sort_pbt.rb
+bundle exec rspec generated/sort_pbt.rb
 
 # Run stateful example tests
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
 
 # Type checking with Steep
-mise exec -- bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations
-mise exec -- bundle exec steep check                               # Run type check
+bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations
+bundle exec steep check                               # Run type check
 ```
+
+> If you use [mise](https://mise.jdx.dev/) to manage your Ruby toolchain, prefix commands with `mise exec --`.
 
 ## Architecture
 
