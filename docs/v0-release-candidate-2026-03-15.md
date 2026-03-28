@@ -57,9 +57,9 @@ v0 is ready only when all of the following hold:
 Current supporting evidence:
 
 - valid-path product baseline:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
+  - `docs/portfolio-evaluation-results-2026-03-14.md`
 - invalid-path config-assisted baseline:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
+  - `docs/invalid-path-evaluation-results-2026-03-17.md`
 
 What the current evidence now shows:
 

@@ -5,7 +5,7 @@
 This document records the practical engineering decisions behind the recent
 `spec-to-pbt` work, especially around stateful scaffold generation.
 
-Read `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
+Read `docs/current-state-and-next-plan-2026-03-09.md`
 first when resuming work. Read this retrospective when you need the decision
 history, tradeoffs, and lessons.
 
@@ -694,11 +694,11 @@ checklists.
 Use the documents together like this:
 
 - roadmap:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-roadmap-2026-03-04.md`
+  - `docs/stateful-scaffold-roadmap-2026-03-04.md`
 - `pbt` integration history:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/pbt-stateful-api-feedback-2026-03-07.md`
+  - `docs/pbt-stateful-api-feedback-2026-03-07.md`
 - this retrospective:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-retrospective-2026-03-09.md`
+  - `docs/stateful-scaffold-retrospective-2026-03-09.md`
 
 That split keeps:
 

@@ -7,8 +7,8 @@ domains.
 
 This is the operational companion to:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
+- `docs/current-state-and-next-plan-2026-03-09.md`
+- `docs/domain-pattern-catalog-2026-03-09.md`
 
 It answers three questions:
 
@@ -20,12 +20,12 @@ It answers three questions:
 
 The active evaluation pass is tracked in:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-plan-2026-03-17.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
+- `docs/product-evaluation-todo-2026-03-13.md`
+- `docs/evaluation-friction-log-2026-03-13.md`
+- `docs/portfolio-evaluation-plan-2026-03-14.md`
+- `docs/portfolio-evaluation-results-2026-03-14.md`
+- `docs/invalid-path-evaluation-plan-2026-03-17.md`
+- `docs/invalid-path-evaluation-results-2026-03-17.md`
 
 For the current product phase:
 

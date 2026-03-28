@@ -23,13 +23,13 @@ This pass is not about:
 
 - `partial_refund_remaining_capturable`
 - fixture:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/fixtures/alloy/partial_refund_remaining_capturable.als`
+  - `spec/fixtures/alloy/partial_refund_remaining_capturable.als`
 
 ### Software-general
 
 - `job_status_event_counters`
 - fixture:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/fixtures/alloy/job_status_event_counters.als`
+  - `spec/fixtures/alloy/job_status_event_counters.als`
 
 ## Fixed Trial Sequence
 
@@ -46,7 +46,7 @@ Apply this sequence to each domain.
    - `mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
 5. ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record every friction item immediately in:
-   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
+   - `docs/evaluation-friction-log-2026-03-13.md`
 
 ## Pass / Fail Rule
 

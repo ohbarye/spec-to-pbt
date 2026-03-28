@@ -9,8 +9,8 @@ changing the external behavior of `spec-to-pbt`.
 
 Read this after:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
+- `docs/current-state-and-next-plan-2026-03-09.md`
+- `docs/domain-pattern-catalog-2026-03-09.md`
 
 This document is not a product roadmap. It is a refactor work plan.
 
@@ -34,7 +34,7 @@ and role-mixing inside the stateful generation path.
 
 Today:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/lib/spec_to_pbt/stateful_generator.rb`
+- `lib/spec_to_pbt/stateful_generator.rb`
   owns too many responsibilities
 - the generator still interprets analyzer output directly in many places
 - support/runtime helper code is emitted as raw string arrays inside the same
@@ -70,7 +70,7 @@ Non-goals:
 
 Main file:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/lib/spec_to_pbt/stateful_generator.rb`
+- `lib/spec_to_pbt/stateful_generator.rb`
 
 It currently mixes:
 
@@ -379,8 +379,8 @@ evidence, not by reopening this structural split from the beginning.
 
 If resuming this refactor later:
 
-1. read `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
-2. read `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
+1. read `docs/current-state-and-next-plan-2026-03-09.md`
+2. read `docs/domain-pattern-catalog-2026-03-09.md`
 3. read this refactor plan
 4. start at the next uncompleted step in the commit plan above
 5. keep the boundary rule unchanged unless a separate decision doc says otherwise

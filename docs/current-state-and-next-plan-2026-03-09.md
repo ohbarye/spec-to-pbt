@@ -68,23 +68,23 @@ Current testing baseline:
 
 Representative current workflow baseline:
 
-- generated scaffold examples under `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/`
+- generated scaffold examples under `example/stateful/`
   are exercised by auto-discovered example-workflow integration coverage
 - user-facing example selection now starts from:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/example/stateful/README.md`
+  - `example/stateful/README.md`
 - regenerated workflow coverage under:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
+  - `spec/integration/stateful_example_workflow_spec.rb`
+  - `spec/integration/stateful_regenerated_workflow_spec.rb`
 - operational evaluation guide:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-playbook-2026-03-12.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/product-evaluation-todo-2026-03-13.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/evaluation-friction-log-2026-03-13.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-plan-2026-03-14.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-plan-2026-03-17.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/portfolio_evaluation_spec.rb`
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/invalid_path_portfolio_evaluation_spec.rb`
+  - `docs/product-evaluation-playbook-2026-03-12.md`
+  - `docs/product-evaluation-todo-2026-03-13.md`
+  - `docs/evaluation-friction-log-2026-03-13.md`
+  - `docs/portfolio-evaluation-plan-2026-03-14.md`
+  - `docs/portfolio-evaluation-results-2026-03-14.md`
+  - `docs/invalid-path-evaluation-plan-2026-03-17.md`
+  - `docs/invalid-path-evaluation-results-2026-03-17.md`
+  - `spec/integration/portfolio_evaluation_spec.rb`
+  - `spec/integration/invalid_path_portfolio_evaluation_spec.rb`
 
 ## Architecture Snapshot
 
@@ -271,7 +271,7 @@ The fixed portfolio is:
 
 For the next code-structure phase, use:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-generator-refactor-plan-2026-03-11.md`
+- `docs/stateful-generator-refactor-plan-2026-03-11.md`
 
 ### 1. Finish the active evaluation pass before widening scope
 
@@ -339,8 +339,8 @@ Recommended restart sequence:
 1. `git status --short --branch`
 2. `mise exec -- bundle exec rspec`
 3. if touching stateful generation, run targeted example/regenerated workflows:
-   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_example_workflow_spec.rb`
-   - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/spec/integration/stateful_regenerated_workflow_spec.rb`
+   - `spec/integration/stateful_example_workflow_spec.rb`
+   - `spec/integration/stateful_regenerated_workflow_spec.rb`
 4. read this document first
 5. read the roadmap second if deciding what to do next
 6. read the retrospective only if you need the reasoning/history behind earlier
@@ -349,10 +349,10 @@ Recommended restart sequence:
 ## Reference Docs
 
 - roadmap:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-roadmap-2026-03-04.md`
+  - `docs/stateful-scaffold-roadmap-2026-03-04.md`
 - retrospective:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/stateful-scaffold-retrospective-2026-03-09.md`
+  - `docs/stateful-scaffold-retrospective-2026-03-09.md`
 - domain pattern catalog:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
+  - `docs/domain-pattern-catalog-2026-03-09.md`
 - `pbt` protocol history:
-  - `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/pbt-stateful-api-feedback-2026-03-07.md`
+  - `docs/pbt-stateful-api-feedback-2026-03-07.md`

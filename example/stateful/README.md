@@ -104,7 +104,7 @@ If you want a representative complex path, start from:
 
 For current promotion boundaries and restart context:
 
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/current-state-and-next-plan-2026-03-09.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/domain-pattern-catalog-2026-03-09.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/portfolio-evaluation-results-2026-03-14.md`
-- `/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/invalid-path-evaluation-results-2026-03-17.md`
+- `docs/current-state-and-next-plan-2026-03-09.md`
+- `docs/domain-pattern-catalog-2026-03-09.md`
+- `docs/portfolio-evaluation-results-2026-03-14.md`
+- `docs/invalid-path-evaluation-results-2026-03-17.md`

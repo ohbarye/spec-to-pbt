@@ -7,12 +7,12 @@ This timeline groups the recent implementation history into reusable retrospecti
 
 ## Sequence
 
-1. [Stateful scaffold quality](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-stateful-scaffold-quality.md)
-2. [Pbt stateful contract](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-pbt-stateful-contract.md)
-3. [Boundary and pattern promotion](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-boundary-and-pattern-promotion.md)
-4. [Generator refactor and separation](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-generator-refactor-and-separation.md)
-5. [Evaluation and v0 positioning](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-evaluation-and-v0-positioning.md)
-6. [Quint semantic parity](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-quint-semantic-parity.md)
+1. [Stateful scaffold quality](docs/implementation-retrospectives/2026-03-17-stateful-scaffold-quality.md)
+2. [Pbt stateful contract](docs/implementation-retrospectives/2026-03-17-pbt-stateful-contract.md)
+3. [Boundary and pattern promotion](docs/implementation-retrospectives/2026-03-17-boundary-and-pattern-promotion.md)
+4. [Generator refactor and separation](docs/implementation-retrospectives/2026-03-17-generator-refactor-and-separation.md)
+5. [Evaluation and v0 positioning](docs/implementation-retrospectives/2026-03-17-evaluation-and-v0-positioning.md)
+6. [Quint semantic parity](docs/implementation-retrospectives/2026-03-17-quint-semantic-parity.md)
 
 ## Reading guide
 
@@ -24,4 +24,4 @@ Read these in order if you want the decision flow.
 
 For a topic-only summary instead of the timeline, see:
 
-- [topics-so-far](/Users/ohbarye/ghq/github.com/ohbarye/spec-to-pbt/docs/implementation-retrospectives/2026-03-17-topics-so-far.md)
+- [topics-so-far](docs/implementation-retrospectives/2026-03-17-topics-so-far.md)
