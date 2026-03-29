@@ -50,6 +50,8 @@ module SpecToPbt
       lines << '      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"'
       lines << "    end"
       lines << ""
+      lines << "    #{support_module_name}.validate_config!"
+      lines << ""
       lines << "    Pbt.assert(worker: :none, num_runs: 5, seed: 1) do"
       lines << "      Pbt.stateful("
       lines << "        model: #{model_class_name}.new,"

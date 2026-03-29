@@ -3,22 +3,31 @@
 # Regeneration-safe customization file for payout_status_amounts stateful scaffold.
 # Edit this file to map spec command names to your real Ruby API and observed-state checks.
 # This file is user-owned and should not be overwritten automatically.
-# Suggested edit order:
-# 1. sut_factory
-# 2. initial_state only when the inferred model baseline does not match your SUT defaults
-# 3. command_mappings.*.method
-# 4. verify_context.state_reader
-# 5. leave verify_override unset when observed state should directly match the model
-# 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators
-# 7. next_state_override only when the inferred model transition is not enough
-# Tip: for invalid-path work, wire verify_context.state_reader before changing command-level overrides so silent SUT mutations stay visible.
+#
+# Required fields (search for TODO(required) to find them):
+#   sut_factory                   - how to create the system under test
+#   command_mappings.*.method      - real Ruby method name for each command
+#   verify_context.state_reader    - how to read observable state from the SUT
+#
+# Optional fields:
+#   initial_state                  - override when inferred model baseline does not match SUT defaults
+#   arg_adapter / model_arg_adapter - transform arguments for SUT or model
+#   result_adapter                 - normalize SUT return values
+#   arguments_override             - custom argument generator for invalid-path coverage
+#   applicable_override            - override command applicability
+#   next_state_override            - override model transition
+#   verify_override                - override verification logic
+#   guard_failure_policy           - :no_op / :raise / :custom for guard failures
+#   before_run / after_run         - hooks around each command execution
+#
+# See docs/config-reference.md for full field documentation.
 
 PayoutStatusAmountsPbtConfig = {
-  sut_factory: -> { PayoutStatusAmountsImpl.new },
-  # initial_state: { status: 0, pending_amount: 0, paid_amount: 0 }, # set this when the inferred model baseline does not match your SUT defaults
+  sut_factory: -> { raise "TODO(required): replace with your SUT, e.g. YourClass.new" },
+  # initial_state: { status: 0, pending_amount: 0, paid_amount: 0 }, # optional: set this when the inferred model baseline does not match your SUT defaults
   command_mappings: {
     queue_amount: {
-      method: :queue_amount,
+      method: :queue_amount, # TODO(required): replace with real method name
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
@@ -32,7 +41,7 @@ PayoutStatusAmountsPbtConfig = {
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
     complete_amount: {
-      method: :complete_amount,
+      method: :complete_amount, # TODO(required): replace with real method name
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
@@ -46,7 +55,7 @@ PayoutStatusAmountsPbtConfig = {
       # verify_override: ->(after_state:, observed_state:, **) { raise \"Expected observed state to match model\" unless observed_state == after_state } # leave this commented out when state_reader already exposes the model-shaped observed state; enable it for custom postconditions or invalid-path semantics
     },
     reset: {
-      method: :reset,
+      method: :reset, # TODO(required): replace with real method name
       # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape
       # model_arg_adapter: ->(args) { args }
       # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!
@@ -61,7 +70,7 @@ PayoutStatusAmountsPbtConfig = {
     }
   },
   verify_context: {
-    state_reader: nil, # suggested: ->(sut) { { status: sut.status, pending_amount: sut.pending_amount, paid_amount: sut.paid_amount } }; configure this when observed-state checks should be compared against the model
+    state_reader: nil, # TODO(required): suggested: ->(sut) { { status: sut.status, pending_amount: sut.pending_amount, paid_amount: sut.paid_amount } } — without this, SUT state is not compared against the model
   }
   # before_run: ->(sut) { },
   # after_run: ->(sut, result) { }

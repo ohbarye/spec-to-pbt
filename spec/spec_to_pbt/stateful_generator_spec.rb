@@ -589,7 +589,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('raise "Expected incremented value for Ledger#balance" unless after_balance == before_balance + delta')
         expect(code).to include('raise "Expected decremented value for Ledger#balance" unless after_balance == before_balance - delta')
         expect(config).to include("# initial_state: { entries: [], balance: 0 }")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { entries: sut.entries.dup, balance: sut.balance } }")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { entries: sut.entries.dup, balance: sut.balance } }")
         expect(config).to include('observed_state == after_state')
       end
     end
@@ -611,7 +611,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('raise "Expected incremented value for Inventory#stock" unless after_stock == before_stock + delta')
         expect(code).to include('raise "Expected decremented value for Inventory#stock" unless after_stock == before_stock - delta')
         expect(config).to include("# initial_state: { adjustments: [], stock: 0 }")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { adjustments: sut.adjustments.dup, stock: sut.stock } }")
         expect(config).to include('observed_state == after_state')
       end
     end
@@ -689,7 +689,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('raise "Expected incremented value for Payment#authorized" unless after_authorized == before_authorized + 1')
         expect(code).to include('raise "Expected incremented value for Payment#captured" unless after_captured == before_captured + 1')
         expect(code).to include("state.merge(status: 0, authorized: 0, captured: 0)")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { status: sut.status, authorized: sut.authorized, captured: sut.captured } }")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { status: sut.status, authorized: sut.authorized, captured: sut.captured } }")
       end
     end
 
@@ -713,7 +713,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include('raise "Expected decremented value for Payment#authorized_amount" unless after_authorized_amount == before_authorized_amount - delta')
         expect(code).to include('raise "Expected incremented value for Payment#captured_amount" unless after_captured_amount == before_captured_amount + delta')
         expect(code).to include("state.merge(status: 0, authorized_amount: 0, captured_amount: 0)")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { status: sut.status, authorized_amount: sut.authorized_amount, captured_amount: sut.captured_amount } }")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { status: sut.status, authorized_amount: sut.authorized_amount, captured_amount: sut.captured_amount } }")
       end
     end
 
@@ -734,7 +734,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("raise \"Expected appended projection entry to match the model delta\" unless after_items.last == delta")
         expect(code).to include("raise \"Expected replaced value for Ledger#status\" unless after_status == expected_status")
         expect(code).to include("raise \"Expected incremented value for Ledger#balance\" unless after_balance == before_balance + delta")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { entries: sut.entries.dup, status: sut.status, balance: sut.balance } }")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { entries: sut.entries.dup, status: sut.status, balance: sut.balance } }")
       end
     end
 
@@ -755,7 +755,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(config).to include("# arguments_override:")
         expect(config).to include("# applicable_override: ->(state, args = nil) { true }, # use this for unsupported guards, richer domain preconditions, or to deliberately drive invalid calls")
         expect(config).to include("# Note: leave inferred arguments(state) in place for valid-path coverage; add arguments_override only when you need out-of-range args or a custom invalid-path distribution.")
-        expect(config).to include("state_reader: nil, # suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }; configure this when observed-state checks should be compared against the model")
+        expect(config).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { captures: sut.captures.dup, status: sut.status, remaining_amount: sut.remaining_amount, settled_amount: sut.settled_amount } }")
       end
     end
 
@@ -841,17 +841,17 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         code = generator.generate_config
 
         expect(code).to include("StackPbtConfig = {")
-        expect(code).to include("sut_factory: -> { StackImpl.new }")
+        expect(code).to include("sut_factory: -> { raise")
         expect(code).to include("# initial_state: []")
         expect(code).to include("push_adds_element: {")
         expect(code).to include("method: :push_adds_element")
-        expect(code).to include("Suggested real API methods: :push")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :push")
         expect(code).to include("model_arg_adapter:")
         expect(code).to include("verify_override:")
         expect(code).to include("applicable_override:")
         expect(code).to include("next_state_override:")
         expect(code).to include("observed_state:")
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.snapshot }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { sut.snapshot }")
         expect(code).to include('observed_state == after_state')
       end
     end
@@ -865,7 +865,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests collection-oriented readers and verify overrides" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.snapshot }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { sut.snapshot }")
         expect(code).to include('observed_state == after_state[:elements]')
       end
     end
@@ -879,10 +879,10 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests scalar readers and financial API method names" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { sut.balance }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { sut.balance }")
         expect(code).to include("# initial_state: 0")
-        expect(code).to include("Suggested real API methods: :credit, :deposit")
-        expect(code).to include("Suggested real API methods: :debit, :withdraw")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :credit, :deposit")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :debit, :withdraw")
         expect(code).to include("model_arg_adapter: ->(args) { args }")
         expect(code).to include('Expected observed balance to match model')
       end
@@ -897,7 +897,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests a structured scalar state_reader" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { balance: sut.balance, credit_limit: sut.credit_limit } }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { balance: sut.balance, credit_limit: sut.credit_limit } }")
         expect(code).to include("# initial_state: { balance: 0, credit_limit: 3 }")
         expect(code).to include('observed_state == after_state')
       end
@@ -912,11 +912,11 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests a structured state_reader for multi-field reservation state" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { available: sut.available, held: sut.held } }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { available: sut.available, held: sut.held } }")
         expect(code).to include("# initial_state: { available: 0, held: 0 }")
-        expect(code).to include("Suggested real API methods: :authorize, :reserve, :place_hold")
-        expect(code).to include("Suggested real API methods: :settle")
-        expect(code).to include("Suggested real API methods: :release_hold, :void_authorization")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :authorize, :reserve, :place_hold")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :settle")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :release_hold, :void_authorization")
         expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
         expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed reservation state to match model')
@@ -958,9 +958,9 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests a structured state_reader for paired balances" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { source_balance: sut.source_balance, target_balance: sut.target_balance } }")
         expect(code).to include("# initial_state: { source_balance: 0, target_balance: 0 }")
-        expect(code).to include("Suggested real API methods: :move_funds, :transfer_amount, :post_transfer")
+        expect(code).to include("TODO(required): replace with real method name (suggested: :move_funds, :transfer_amount, :post_transfer")
         expect(code).to include("# guard_failure_policy: :no_op, # or :raise / :custom")
         expect(code).to include("use :no_op for unchanged-state invalid calls, :raise for captured exceptions, or :custom with verify_override")
         expect(code).to include('Expected observed account balances to match model')
@@ -1027,7 +1027,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests state_reader wiring for structured scalar parity" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { rollout: sut.rollout, max_rollout: sut.max_rollout } }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { rollout: sut.rollout, max_rollout: sut.max_rollout } }")
         expect(code).to include("# initial_state: { rollout: 0, max_rollout: 3 }")
       end
     end
@@ -1054,7 +1054,7 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "suggests state_reader wiring for multi-counter state" do
         code = generator.generate_config
 
-        expect(code).to include("state_reader: nil, # suggested: ->(sut) { { ready: sut.ready, in_flight: sut.in_flight, dead_letter: sut.dead_letter } }")
+        expect(code).to include("state_reader: nil, # TODO(required): suggested: ->(sut) { { ready: sut.ready, in_flight: sut.in_flight, dead_letter: sut.dead_letter } }")
         expect(code).to include("# initial_state: { ready: 0, in_flight: 0, dead_letter: 0 }")
       end
     end

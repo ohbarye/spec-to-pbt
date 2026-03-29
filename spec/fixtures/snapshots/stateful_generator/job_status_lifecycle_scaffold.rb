@@ -25,8 +25,32 @@ RSpec.describe "job_status_lifecycle (stateful scaffold)" do
     module_function
     ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
 
+    KNOWN_TOP_LEVEL_KEYS = %i[sut_factory initial_state command_mappings verify_context before_run after_run state_reader].freeze
+    KNOWN_COMMAND_KEYS = %i[method arg_adapter model_arg_adapter result_adapter arguments_override applicable_override next_state_override verify_override guard_failure_policy].freeze
+
     def config
       defined?(::JobStatusLifecyclePbtConfig) ? ::JobStatusLifecyclePbtConfig : {}
+    end
+
+    def validate_config!
+      return if config.empty?
+
+      unknown_top = config.keys - KNOWN_TOP_LEVEL_KEYS
+      raise "Unknown config keys in JobStatusLifecyclePbtConfig: #{unknown_top.inspect}. See docs/config-reference.md for valid keys." unless unknown_top.empty?
+
+      config.fetch(:command_mappings, {}).each do |cmd_name, cmd_config|
+        next unless cmd_config.is_a?(Hash)
+        unknown_cmd = cmd_config.keys - KNOWN_COMMAND_KEYS
+        raise "Unknown config keys in JobStatusLifecyclePbtConfig command_mappings[#{cmd_name}]: #{unknown_cmd.inspect}. See docs/config-reference.md for valid keys." unless unknown_cmd.empty?
+      end
+
+      if !config.key?(:sut_factory)
+        warn "Warning: JobStatusLifecyclePbtConfig is missing :sut_factory (required). The scaffold will use a default factory."
+      end
+
+      if state_reader.nil?
+        warn "Warning: JobStatusLifecyclePbtConfig has no verify_context.state_reader configured. SUT state will not be compared against the model."
+      end
     end
 
     def sut_factory(default_factory)
@@ -185,6 +209,8 @@ RSpec.describe "job_status_lifecycle (stateful scaffold)" do
     unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
       skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
     end
+
+    JobStatusLifecyclePbtSupport.validate_config!
 
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(

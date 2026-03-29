@@ -21,19 +21,28 @@ module SpecToPbt
         lines << "# Regeneration-safe customization file for #{module_name} stateful scaffold."
         lines << "# Edit this file to map spec command names to your real Ruby API and observed-state checks."
         lines << "# This file is user-owned and should not be overwritten automatically."
-        lines << "# Suggested edit order:"
-        lines << "# 1. sut_factory"
-        lines << "# 2. initial_state only when the inferred model baseline does not match your SUT defaults"
-        lines << "# 3. command_mappings.*.method"
-        lines << "# 4. verify_context.state_reader"
-        lines << "# 5. leave verify_override unset when observed state should directly match the model"
-        lines << "# 6. arguments_override / applicable_override / guard_failure_policy for invalid-path coverage or richer generators"
-        lines << "# 7. next_state_override only when the inferred model transition is not enough"
-        lines << "# Tip: for invalid-path work, wire verify_context.state_reader before changing command-level overrides so silent SUT mutations stay visible."
+        lines << "#"
+        lines << "# Required fields (search for TODO(required) to find them):"
+        lines << "#   sut_factory                   - how to create the system under test"
+        lines << "#   command_mappings.*.method      - real Ruby method name for each command"
+        lines << "#   verify_context.state_reader    - how to read observable state from the SUT"
+        lines << "#"
+        lines << "# Optional fields:"
+        lines << "#   initial_state                  - override when inferred model baseline does not match SUT defaults"
+        lines << "#   arg_adapter / model_arg_adapter - transform arguments for SUT or model"
+        lines << "#   result_adapter                 - normalize SUT return values"
+        lines << "#   arguments_override             - custom argument generator for invalid-path coverage"
+        lines << "#   applicable_override            - override command applicability"
+        lines << "#   next_state_override            - override model transition"
+        lines << "#   verify_override                - override verification logic"
+        lines << "#   guard_failure_policy           - :no_op / :raise / :custom for guard failures"
+        lines << "#   before_run / after_run         - hooks around each command execution"
+        lines << "#"
+        lines << "# See docs/config-reference.md for full field documentation."
         lines << ""
         lines << "#{config_constant_name} = {"
-        lines << "  sut_factory: -> { #{sut_factory_code} },"
-        lines << "  # initial_state: #{initial_state_config_example}, # set this when the inferred model baseline does not match your SUT defaults"
+        lines << "  sut_factory: -> { raise \"TODO(required): replace with your SUT, e.g. YourClass.new\" },"
+        lines << "  # initial_state: #{initial_state_config_example}, # optional: set this when the inferred model baseline does not match your SUT defaults"
         lines << "  command_mappings: {"
         selected_command_predicates.each_with_index do |predicate, index|
           suffix = index == selected_command_predicates.length - 1 ? "" : ","
@@ -41,7 +50,7 @@ module SpecToPbt
         end
         lines << "  },"
         lines << "  verify_context: {"
-        lines << "    state_reader: nil, # #{@suggestions.state_reader_comment}; configure this when observed-state checks should be compared against the model"
+        lines << "    state_reader: nil, # TODO(required): #{@suggestions.state_reader_comment} — without this, SUT state is not compared against the model"
         lines << "  }"
         lines << "  # before_run: ->(sut) { },"
         lines << "  # after_run: ->(sut, result) { }"
@@ -58,14 +67,12 @@ module SpecToPbt
         method_name = method_name_for(predicate)
         analysis = predicate_analysis(predicate)
         suggested_methods = @suggestions.api_method_names(predicate.name)
+        normalized_methods = suggested_methods - [method_name.to_sym]
+        method_suggestion = normalized_methods.any? ? " (suggested: #{normalized_methods.map { |name| ":#{name}" }.join(', ')})" : ""
         lines = [
           "    #{method_name}: {",
-          "      method: :#{method_name},"
+          "      method: :#{method_name}, # TODO(required): replace with real method name#{method_suggestion}"
         ]
-        normalized_methods = suggested_methods - [method_name.to_sym]
-        if normalized_methods.any?
-          lines << "      # Suggested real API methods: #{normalized_methods.map { |name| ":#{name}" }.join(', ')}"
-        end
         lines << "      # arg_adapter: ->(args) { args }, # use when the Ruby API wants a different runtime argument shape"
         lines << "      # model_arg_adapter: #{@suggestions.model_arg_adapter_example(analysis)}"
         lines << "      # result_adapter: ->(result) { result }, # use when the SUT result needs normalization before verify!"
