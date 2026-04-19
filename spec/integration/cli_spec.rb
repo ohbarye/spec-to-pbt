@@ -91,7 +91,6 @@ RSpec.describe "CLI" do
 
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Next: provide")
-      expect(stdout).to include("ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1")
       expect(stdout).to include("require pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
       expect(stdout).to include("install or update pbt")
       expect(stdout).to include("PBT_REPO_DIR")
@@ -105,7 +104,6 @@ RSpec.describe "CLI" do
       expect(content).to include("unless Pbt.respond_to?(:stateful)")
       expect(content).to include("class StackModel")
       expect(content).to include("worker: :none")
-      expect(content).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
       expect(content).to include("Pbt.integer # placeholder for Element")
     end
 

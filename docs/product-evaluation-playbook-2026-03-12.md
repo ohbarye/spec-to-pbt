@@ -87,7 +87,7 @@ For every new domain, use this sequence.
    - `generated/*_impl.rb`
 4. avoid editing `generated/*_pbt.rb` unless blocked
 5. run:
-   - `mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
+   - `mise exec -- bundle exec rspec generated/*_pbt.rb`
    - ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record all friction using the template below
 7. if the same friction appears in a second distinct domain, evaluate promotion

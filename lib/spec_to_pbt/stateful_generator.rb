@@ -45,11 +45,7 @@ module SpecToPbt
       lines << ""
       lines.concat(config_support_lines)
       lines << ""
-      lines << "  it \"wires a stateful PBT scaffold (customize before enabling)\" do"
-      lines << '    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"'
-      lines << '      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"'
-      lines << "    end"
-      lines << ""
+      lines << "  it \"wires a stateful PBT scaffold\" do"
       lines << "    #{support_module_name}.validate_config!"
       lines << ""
       lines << "    Pbt.assert(worker: :none, num_runs: 5, seed: 1) do"

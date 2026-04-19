@@ -76,10 +76,6 @@ RSpec.describe "bank_account (stateful scaffold)" do
   end
 
   it "wires a bank-account scaffold with config-driven API remapping" do
-    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
-      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
-    end
-
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: BankAccountModel.new,

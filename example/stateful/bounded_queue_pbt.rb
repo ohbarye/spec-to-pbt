@@ -76,10 +76,6 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
   end
 
   it "wires a bounded queue scaffold with capacity-aware overrides" do
-    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
-      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
-    end
-
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: BoundedQueueModel.new,

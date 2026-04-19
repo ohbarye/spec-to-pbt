@@ -43,7 +43,7 @@ Apply this sequence to each domain.
 3. do not edit:
    - `generated/*_pbt.rb`
 4. run:
-   - `mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/*_pbt.rb`
+   - `mise exec -- bundle exec rspec generated/*_pbt.rb`
 5. ensure `pbt >= 0.6.0` is installed so the generated scaffold can call `Pbt.stateful`
 6. record every friction item immediately in:
    - `docs/evaluation-friction-log-2026-03-13.md`

@@ -9,7 +9,7 @@ module StatefulPbtRuntimeHelper
   end
 
   def stateful_pbt_env
-    env = { "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1" }
+    env = {}
     return env unless explicit_pbt_repo_dir
 
     pbt_lib_dir = File.join(explicit_pbt_repo_dir, "lib")

@@ -42,7 +42,7 @@ bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o genera
 bundle exec rspec generated/sort_pbt.rb
 
 # Run stateful example tests
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+bundle exec rspec example/stateful/stack_pbt.rb
 
 # Type checking with Steep
 bundle exec rbs-inline --output sig/generated lib/  # Generate RBS from inline annotations

@@ -60,7 +60,7 @@ Examples assume `pbt >= 0.6.0` with `Pbt.stateful`.
 By default they use the bundled `pbt` gem; for repo development only, you can point them at a local checkout with `PBT_REPO_DIR=/path/to/pbt`.
 
 ```bash
-mise exec -- env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+mise exec -- bundle exec rspec example/stateful/stack_pbt.rb
 ```
 
 ## What To Edit First

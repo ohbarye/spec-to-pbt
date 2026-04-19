@@ -496,7 +496,6 @@ RSpec.describe "Stateful blind expansion" do
 
   def run_generated_spec(generated_filename, domain_dir, expect_success: true)
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1"
     }
 
     generated_spec = File.join(domain_dir, generated_filename)

@@ -104,7 +104,6 @@ RSpec.describe "Stateful invalid-path evaluation" do
     RUBY
 
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
       "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
     }
 
@@ -196,7 +195,6 @@ RSpec.describe "Stateful invalid-path evaluation" do
     RUBY
 
     env = {
-      "ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD" => "1",
       "RUBYOPT" => [ENV["RUBYOPT"], "-I#{stub_lib_dir}"].compact.join(" ")
     }
 

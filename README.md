@@ -53,20 +53,20 @@ bundle update pbt
 1. Generate with `--stateful --with-config`
 2. Edit `*_pbt_config.rb` (SUT wiring, API mapping)
 3. Add `*_impl.rb` (domain implementation)
-4. Run with `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
+4. Run the generated test
 
 ```bash
 bin/spec_to_pbt spec/fixtures/alloy/stack.als --stateful --with-config -o generated
 vi generated/stack_pbt_config.rb
 vi generated/stack_impl.rb
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+bundle exec rspec generated/stack_pbt.rb
 ```
 
 You can override the bundled `pbt` with a local checkout when needed:
 
 ```bash
 PBT_REPO_DIR=/path/to/pbt \
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec generated/stack_pbt.rb
+bundle exec rspec generated/stack_pbt.rb
 ```
 
 ### Stateless workflow
@@ -167,13 +167,13 @@ Start with these stateful examples:
 
 ```bash
 # Stack: smallest practical stateful scaffold
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/stack_pbt.rb
+bundle exec rspec example/stateful/stack_pbt.rb
 
 # Bounded queue: collection state + capacity guards
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bounded_queue_pbt.rb
+bundle exec rspec example/stateful/bounded_queue_pbt.rb
 
 # Bank account: financial-domain with amount-aware generation
-env ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 bundle exec rspec example/stateful/bank_account_pbt.rb
+bundle exec rspec example/stateful/bank_account_pbt.rb
 ```
 
 The `example/stateful/` directory contains 24+ working examples across these categories:
@@ -245,7 +245,6 @@ bundle exec steep check
 
 - The main stateful integration path uses the bundled `pbt` gem by default
 - Override with `PBT_REPO_DIR=/path/to/pbt` when you need a local checkout
-- Stateful scaffold execution is gated by `ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1`
 - `pbt >= 0.6.0` supports `arguments(state)`, `applicable?(state, args)`, and `Pbt::Arbitrary::EmptyDomainError`
 
 ### Type Annotations

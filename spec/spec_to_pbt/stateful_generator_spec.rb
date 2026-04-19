@@ -82,7 +82,6 @@ RSpec.describe SpecToPbt::StatefulGenerator do
         expect(code).to include("Pbt.stateful(")
         expect(code).to include("Expected pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
         expect(code).to include("worker: :none")
-        expect(code).to include('ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"]')
         expect(code).to include('require_relative "stack_pbt_config" if File.exist?')
         expect(code).to include("edit stack_pbt_config.rb for SUT wiring and durable API mapping")
         expect(code).to include("default_state = [] # TODO: replace with a domain-specific collection state")

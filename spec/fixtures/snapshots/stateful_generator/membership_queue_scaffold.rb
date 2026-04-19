@@ -205,11 +205,7 @@ RSpec.describe "membership_queue (stateful scaffold)" do
     end
   end
 
-  it "wires a stateful PBT scaffold (customize before enabling)" do
-    unless ENV["ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD"] == "1"
-      skip "Set ALLOY_TO_PBT_RUN_STATEFUL_SCAFFOLD=1 after customizing the generated scaffold"
-    end
-
+  it "wires a stateful PBT scaffold" do
     MembershipQueuePbtSupport.validate_config!
 
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
