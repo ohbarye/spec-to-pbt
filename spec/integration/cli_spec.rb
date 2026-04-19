@@ -90,11 +90,7 @@ RSpec.describe "CLI" do
       stdout, stderr, status = Open3.capture3(cli_path, input_file, "--stateful", "-o", output_dir)
 
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
-      expect(stdout).to include("Next: provide")
-      expect(stdout).to include("require pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful")
-      expect(stdout).to include("install or update pbt")
-      expect(stdout).to include("PBT_REPO_DIR")
-      expect(stdout).not_to include("RUBYOPT=")
+      expect(stdout).to include("Next: run bundle exec rspec")
 
       output_file = File.join(output_dir, "stack_pbt.rb")
       expect(File.exist?(output_file)).to be(true)
@@ -113,8 +109,6 @@ RSpec.describe "CLI" do
       expect(status.success?).to be(true), "CLI failed: #{stderr}"
       expect(stdout).to include("Generated:")
       expect(stdout).to include("Next: edit")
-      expect(stdout).to include("wire verify_context.state_reader first")
-      expect(stdout).to include("arguments_override for out-of-range args or guard_failure_policy")
 
       config_file = File.join(output_dir, "stack_pbt_config.rb")
       expect(File.exist?(config_file)).to be(true)

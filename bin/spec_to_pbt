@@ -126,12 +126,10 @@ if options[:stateful] && options[:with_config]
 end
 
 if options[:stateful]
-  puts "Next: edit #{File.join(options[:output_dir], "#{base}_pbt_config.rb")} for SUT wiring" if options[:with_config]
-  puts "Next: provide #{File.join(options[:output_dir], "#{base}_impl.rb")} for implementation behavior"
-  puts "Next: run bundle exec rspec #{output_file}"
-  puts "Tip: wire verify_context.state_reader first so observed SUT state is compared against the model" if options[:with_config]
-  puts "Tip: for invalid-path coverage, start with arguments_override for out-of-range args or guard_failure_policy for guard-failing calls" if options[:with_config]
-  puts "Note: stateful scaffolds require pbt >= #{SpecToPbt::PBT_STATEFUL_MIN_VERSION} with Pbt.stateful"
-  puts "Note: install or update pbt, then rerun bundle exec rspec if the generated scaffold reports a runtime preflight error"
-  puts "Note: to override with a checkout, set PBT_REPO_DIR=/path/to/pbt before running rspec"
+  config_file = File.join(options[:output_dir], "#{base}_pbt_config.rb")
+  if options[:with_config]
+    puts "Next: edit #{config_file}, then run bundle exec rspec #{output_file}"
+  else
+    puts "Next: run bundle exec rspec #{output_file}"
+  end
 end
