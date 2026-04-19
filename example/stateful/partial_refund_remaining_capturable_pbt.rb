@@ -1,12 +1,17 @@
 # frozen_string_literal: true
 
-require_relative "pbt_local"
-require "rspec"
-require_relative "partial_refund_remaining_capturable_impl"
+require "pbt"
+require_relative "partial_refund_remaining_capturable_impl" if File.exist?(File.expand_path("partial_refund_remaining_capturable_impl.rb", __dir__))
 require_relative "partial_refund_remaining_capturable_pbt_config" if File.exist?(File.expand_path("partial_refund_remaining_capturable_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("partial_refund_remaining_capturable_pbt_config.rb", __dir__)) && !defined?(::PartialRefundRemainingCapturablePbtConfig)
   raise "Expected PartialRefundRemainingCapturablePbtConfig to be defined in partial_refund_remaining_capturable_pbt_config.rb"
+end
+
+unless Pbt.respond_to?(:stateful)
+  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
+  detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
+  raise "Expected pbt >= 0.6.0 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
 end
 
 RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
@@ -17,9 +22,34 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
 
   module PartialRefundRemainingCapturablePbtSupport
     module_function
+    ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
+
+    KNOWN_TOP_LEVEL_KEYS = %i[sut_factory initial_state command_mappings verify_context before_run after_run state_reader].freeze
+    KNOWN_COMMAND_KEYS = %i[method arg_adapter model_arg_adapter result_adapter arguments_override applicable_override next_state_override verify_override guard_failure_policy].freeze
 
     def config
       defined?(::PartialRefundRemainingCapturablePbtConfig) ? ::PartialRefundRemainingCapturablePbtConfig : {}
+    end
+
+    def validate_config!
+      return if config.empty?
+
+      unknown_top = config.keys - KNOWN_TOP_LEVEL_KEYS
+      raise "Unknown config keys in PartialRefundRemainingCapturablePbtConfig: #{unknown_top.inspect}. See docs/config-reference.md for valid keys." unless unknown_top.empty?
+
+      config.fetch(:command_mappings, {}).each do |cmd_name, cmd_config|
+        next unless cmd_config.is_a?(Hash)
+        unknown_cmd = cmd_config.keys - KNOWN_COMMAND_KEYS
+        raise "Unknown config keys in PartialRefundRemainingCapturablePbtConfig command_mappings[#{cmd_name}]: #{unknown_cmd.inspect}. See docs/config-reference.md for valid keys." unless unknown_cmd.empty?
+      end
+
+      if !config.key?(:sut_factory)
+        warn "Warning: PartialRefundRemainingCapturablePbtConfig is missing :sut_factory (required). The scaffold will use a default factory."
+      end
+
+      if state_reader.nil?
+        warn "Warning: PartialRefundRemainingCapturablePbtConfig has no verify_context.state_reader configured. SUT state will not be compared against the model."
+      end
     end
 
     def sut_factory(default_factory)
@@ -32,6 +62,34 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
 
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def arguments_override(command_name)
+      command_config(command_name)[:arguments_override]
+    end
+
+    def call_arguments_override(command_name, state = ARGUMENTS_OVERRIDE_UNSET)
+      override = arguments_override(command_name)
+      return ARGUMENTS_OVERRIDE_UNSET unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        return state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? override.call : override.call(state)
+      end
+
+      required = parameters.count { |kind, _name| kind == :req }
+      optional = parameters.count { |kind, _name| kind == :opt }
+      provided = state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? 0 : 1
+
+      if provided >= required && provided <= required + optional
+        return provided.zero? ? override.call : override.call(state)
+      end
+
+      if 0 >= required && 0 <= required + optional
+        return override.call
+      end
+
+      raise ArgumentError, "arguments_override for command #{command_name.inspect} must accept 0 or 1 positional arguments"
     end
 
     def resolve_method_name(command_name, default_method_name)
@@ -147,6 +205,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
   end
 
   it "wires a stateful PBT scaffold" do
+    PartialRefundRemainingCapturablePbtSupport.validate_config!
+
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: PartialRefundRemainingCapturableModel.new,
@@ -182,6 +242,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     end
 
     def arguments(state)
+      overridden = PartialRefundRemainingCapturablePbtSupport.call_arguments_override(name, state)
+      return overridden unless overridden.equal?(PartialRefundRemainingCapturablePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.integer(min: 1, max: state[:authorized])
     end
 
@@ -230,7 +292,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.authorized>=amount implies#p'.authorized=sub[#p.authorized,amount]and#p'.captured=add[#p.captured,amount]"
-      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="authorized", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="authorized", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="authorized", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Refund, NonNegativeAuthorized
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -268,6 +330,11 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
         end
         return nil
       end
+      observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#authorized
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -296,6 +363,8 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     end
 
     def arguments(state)
+      overridden = PartialRefundRemainingCapturablePbtSupport.call_arguments_override(name, state)
+      return overridden unless overridden.equal?(PartialRefundRemainingCapturablePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.integer(min: 1, max: state[:captured])
     end
 
@@ -344,7 +413,7 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
     def verify!(before_state:, after_state:, args:, result:, sut:)
       # TODO: translate predicate semantics into postcondition checks
       # Alloy predicate body (preview): "#p.captured>=amount implies#p'.captured=sub[#p.captured,amount]and#p'.refunded=add[#p.refunded,amount]"
-      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", rhs_source_kind=:arg, state_update_shape=:decrement
+      # Analyzer hints: state_field="captured", size_delta=1, transition_kind=nil, requires_non_empty_state=false, scalar_update_kind=:decrement_like, command_confidence=:medium, guard_kind=:arg_within_state, guard_field="captured", guard_constant=nil, rhs_source_kind=:arg, state_update_shape=:decrement
       # Related Alloy property predicates: Capture, NonNegativeCaptured
       # Related pattern hints: size
       # Derived verify hints: check_size_semantics, check_non_negative_scalar_state, check_guard_failure_semantics
@@ -381,6 +450,11 @@ RSpec.describe "partial_refund_remaining_capturable (stateful scaffold)" do
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = PartialRefundRemainingCapturablePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#captured

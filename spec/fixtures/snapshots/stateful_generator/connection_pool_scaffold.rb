@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "connection_pool_impl"
+require_relative "connection_pool_impl" if File.exist?(File.expand_path("connection_pool_impl.rb", __dir__))
 require_relative "connection_pool_pbt_config" if File.exist?(File.expand_path("connection_pool_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("connection_pool_pbt_config.rb", __dir__)) && !defined?(::ConnectionPoolPbtConfig)

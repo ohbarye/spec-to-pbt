@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "payout_status_amounts_impl"
+require_relative "payout_status_amounts_impl" if File.exist?(File.expand_path("payout_status_amounts_impl.rb", __dir__))
 require_relative "payout_status_amounts_pbt_config" if File.exist?(File.expand_path("payout_status_amounts_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("payout_status_amounts_pbt_config.rb", __dir__)) && !defined?(::PayoutStatusAmountsPbtConfig)

@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "rate_limiter_impl"
+require_relative "rate_limiter_impl" if File.exist?(File.expand_path("rate_limiter_impl.rb", __dir__))
 require_relative "rate_limiter_pbt_config" if File.exist?(File.expand_path("rate_limiter_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("rate_limiter_pbt_config.rb", __dir__)) && !defined?(::RateLimiterPbtConfig)

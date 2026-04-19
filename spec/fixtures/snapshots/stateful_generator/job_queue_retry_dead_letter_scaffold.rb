@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "job_queue_retry_dead_letter_impl"
+require_relative "job_queue_retry_dead_letter_impl" if File.exist?(File.expand_path("job_queue_retry_dead_letter_impl.rb", __dir__))
 require_relative "job_queue_retry_dead_letter_pbt_config" if File.exist?(File.expand_path("job_queue_retry_dead_letter_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("job_queue_retry_dead_letter_pbt_config.rb", __dir__)) && !defined?(::JobQueueRetryDeadLetterPbtConfig)

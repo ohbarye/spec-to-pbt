@@ -23,8 +23,7 @@ module SpecToPbt
       lines << "# frozen_string_literal: true"
       lines << ""
       lines << 'require "pbt"'
-      lines << 'require "rspec"'
-      lines << %(require_relative "#{module_name}_impl")
+      lines << %(require_relative "#{module_name}_impl" if File.exist?(File.expand_path("#{module_name}_impl.rb", __dir__)))
       lines << %(require_relative "#{config_file_basename}" if File.exist?(File.expand_path("#{config_file_basename}.rb", __dir__)))
       lines << ""
       lines << %(if File.exist?(File.expand_path("#{config_file_basename}.rb", __dir__)) && !defined?(::#{config_constant_name}))

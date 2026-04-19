@@ -1,12 +1,17 @@
 # frozen_string_literal: true
 
-require_relative "pbt_local"
-require "rspec"
-require_relative "payment_status_lifecycle_impl"
+require "pbt"
+require_relative "payment_status_lifecycle_impl" if File.exist?(File.expand_path("payment_status_lifecycle_impl.rb", __dir__))
 require_relative "payment_status_lifecycle_pbt_config" if File.exist?(File.expand_path("payment_status_lifecycle_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("payment_status_lifecycle_pbt_config.rb", __dir__)) && !defined?(::PaymentStatusLifecyclePbtConfig)
   raise "Expected PaymentStatusLifecyclePbtConfig to be defined in payment_status_lifecycle_pbt_config.rb"
+end
+
+unless Pbt.respond_to?(:stateful)
+  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
+  detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
+  raise "Expected pbt >= 0.6.0 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
 end
 
 RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
@@ -17,9 +22,34 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
 
   module PaymentStatusLifecyclePbtSupport
     module_function
+    ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
+
+    KNOWN_TOP_LEVEL_KEYS = %i[sut_factory initial_state command_mappings verify_context before_run after_run state_reader].freeze
+    KNOWN_COMMAND_KEYS = %i[method arg_adapter model_arg_adapter result_adapter arguments_override applicable_override next_state_override verify_override guard_failure_policy].freeze
 
     def config
       defined?(::PaymentStatusLifecyclePbtConfig) ? ::PaymentStatusLifecyclePbtConfig : {}
+    end
+
+    def validate_config!
+      return if config.empty?
+
+      unknown_top = config.keys - KNOWN_TOP_LEVEL_KEYS
+      raise "Unknown config keys in PaymentStatusLifecyclePbtConfig: #{unknown_top.inspect}. See docs/config-reference.md for valid keys." unless unknown_top.empty?
+
+      config.fetch(:command_mappings, {}).each do |cmd_name, cmd_config|
+        next unless cmd_config.is_a?(Hash)
+        unknown_cmd = cmd_config.keys - KNOWN_COMMAND_KEYS
+        raise "Unknown config keys in PaymentStatusLifecyclePbtConfig command_mappings[#{cmd_name}]: #{unknown_cmd.inspect}. See docs/config-reference.md for valid keys." unless unknown_cmd.empty?
+      end
+
+      if !config.key?(:sut_factory)
+        warn "Warning: PaymentStatusLifecyclePbtConfig is missing :sut_factory (required). The scaffold will use a default factory."
+      end
+
+      if state_reader.nil?
+        warn "Warning: PaymentStatusLifecyclePbtConfig has no verify_context.state_reader configured. SUT state will not be compared against the model."
+      end
     end
 
     def sut_factory(default_factory)
@@ -32,6 +62,34 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
 
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def arguments_override(command_name)
+      command_config(command_name)[:arguments_override]
+    end
+
+    def call_arguments_override(command_name, state = ARGUMENTS_OVERRIDE_UNSET)
+      override = arguments_override(command_name)
+      return ARGUMENTS_OVERRIDE_UNSET unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        return state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? override.call : override.call(state)
+      end
+
+      required = parameters.count { |kind, _name| kind == :req }
+      optional = parameters.count { |kind, _name| kind == :opt }
+      provided = state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? 0 : 1
+
+      if provided >= required && provided <= required + optional
+        return provided.zero? ? override.call : override.call(state)
+      end
+
+      if 0 >= required && 0 <= required + optional
+        return override.call
+      end
+
+      raise ArgumentError, "arguments_override for command #{command_name.inspect} must accept 0 or 1 positional arguments"
     end
 
     def resolve_method_name(command_name, default_method_name)
@@ -147,6 +205,8 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
   end
 
   it "wires a stateful PBT scaffold" do
+    PaymentStatusLifecyclePbtSupport.validate_config!
+
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: PaymentStatusLifecycleModel.new,
@@ -184,6 +244,8 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusLifecyclePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusLifecyclePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -267,6 +329,11 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
         end
         return nil
       end
+      observed = PaymentStatusLifecyclePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -285,6 +352,8 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusLifecyclePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusLifecyclePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -368,6 +437,11 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
         end
         return nil
       end
+      observed = PaymentStatusLifecyclePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -386,6 +460,8 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusLifecyclePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusLifecyclePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -469,6 +545,11 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
         end
         return nil
       end
+      observed = PaymentStatusLifecyclePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status
       # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
@@ -487,6 +568,8 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
     end
 
     def arguments
+      overridden = PaymentStatusLifecyclePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(PaymentStatusLifecyclePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
@@ -569,6 +652,11 @@ RSpec.describe "payment_status_lifecycle (stateful scaffold)" do
           raise "Unsupported guard_failure_policy: #{policy.inspect}"
         end
         return nil
+      end
+      observed = PaymentStatusLifecyclePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state
+        raise "Expected observed state to match model" unless observed == expected_observed_state
       end
       # TODO: inferred state field is not collection-like; replace array-based checks with scalar/domain checks
       # Inferred state target: Payment#status

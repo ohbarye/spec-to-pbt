@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "job_status_event_counters_impl"
+require_relative "job_status_event_counters_impl" if File.exist?(File.expand_path("job_status_event_counters_impl.rb", __dir__))
 require_relative "job_status_event_counters_pbt_config" if File.exist?(File.expand_path("job_status_event_counters_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("job_status_event_counters_pbt_config.rb", __dir__)) && !defined?(::JobStatusEventCountersPbtConfig)

@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "box_impl"
+require_relative "box_impl" if File.exist?(File.expand_path("box_impl.rb", __dir__))
 require_relative "box_pbt_config" if File.exist?(File.expand_path("box_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("box_pbt_config.rb", __dir__)) && !defined?(::BoxPbtConfig)

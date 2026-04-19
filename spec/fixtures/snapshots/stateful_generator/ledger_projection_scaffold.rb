@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "ledger_projection_impl"
+require_relative "ledger_projection_impl" if File.exist?(File.expand_path("ledger_projection_impl.rb", __dir__))
 require_relative "ledger_projection_pbt_config" if File.exist?(File.expand_path("ledger_projection_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("ledger_projection_pbt_config.rb", __dir__)) && !defined?(::LedgerProjectionPbtConfig)

@@ -1,25 +1,95 @@
 # frozen_string_literal: true
 
+require "pbt"
+require_relative "bounded_queue_impl" if File.exist?(File.expand_path("bounded_queue_impl.rb", __dir__))
+require_relative "bounded_queue_pbt_config" if File.exist?(File.expand_path("bounded_queue_pbt_config.rb", __dir__))
 
-require_relative "pbt_local"
-require "rspec"
-require_relative "bounded_queue_impl"
-require_relative "bounded_queue_pbt_config"
+if File.exist?(File.expand_path("bounded_queue_pbt_config.rb", __dir__)) && !defined?(::BoundedQueuePbtConfig)
+  raise "Expected BoundedQueuePbtConfig to be defined in bounded_queue_pbt_config.rb"
+end
+
+unless Pbt.respond_to?(:stateful)
+  loaded_pbt_version = defined?(Gem.loaded_specs) ? Gem.loaded_specs["pbt"]&.version&.to_s : nil
+  detail = loaded_pbt_version ? "loaded pbt #{loaded_pbt_version}" : "loaded pbt version unknown"
+  raise "Expected pbt >= 0.6.0 with Pbt.stateful (#{detail}). Install a compatible pbt release before running this scaffold."
+end
 
 RSpec.describe "bounded_queue (stateful scaffold)" do
+  # Regeneration-safe customization:
+  # - edit bounded_queue_pbt_config.rb for SUT wiring and durable API mapping
+  # - edit bounded_queue_impl.rb for implementation behavior
+  # - edit this scaffold only for one-off refinements when needed
+
   module BoundedQueuePbtSupport
     module_function
+    ARGUMENTS_OVERRIDE_UNSET = Object.new.freeze
+
+    KNOWN_TOP_LEVEL_KEYS = %i[sut_factory initial_state command_mappings verify_context before_run after_run state_reader].freeze
+    KNOWN_COMMAND_KEYS = %i[method arg_adapter model_arg_adapter result_adapter arguments_override applicable_override next_state_override verify_override guard_failure_policy].freeze
 
     def config
       defined?(::BoundedQueuePbtConfig) ? ::BoundedQueuePbtConfig : {}
+    end
+
+    def validate_config!
+      return if config.empty?
+
+      unknown_top = config.keys - KNOWN_TOP_LEVEL_KEYS
+      raise "Unknown config keys in BoundedQueuePbtConfig: #{unknown_top.inspect}. See docs/config-reference.md for valid keys." unless unknown_top.empty?
+
+      config.fetch(:command_mappings, {}).each do |cmd_name, cmd_config|
+        next unless cmd_config.is_a?(Hash)
+        unknown_cmd = cmd_config.keys - KNOWN_COMMAND_KEYS
+        raise "Unknown config keys in BoundedQueuePbtConfig command_mappings[#{cmd_name}]: #{unknown_cmd.inspect}. See docs/config-reference.md for valid keys." unless unknown_cmd.empty?
+      end
+
+      if !config.key?(:sut_factory)
+        warn "Warning: BoundedQueuePbtConfig is missing :sut_factory (required). The scaffold will use a default factory."
+      end
+
+      if state_reader.nil?
+        warn "Warning: BoundedQueuePbtConfig has no verify_context.state_reader configured. SUT state will not be compared against the model."
+      end
     end
 
     def sut_factory(default_factory)
       config.fetch(:sut_factory, default_factory)
     end
 
+    def initial_state(default_state)
+      config.fetch(:initial_state, default_state)
+    end
+
     def command_config(command_name)
       config.fetch(:command_mappings, {}).fetch(command_name, {})
+    end
+
+    def arguments_override(command_name)
+      command_config(command_name)[:arguments_override]
+    end
+
+    def call_arguments_override(command_name, state = ARGUMENTS_OVERRIDE_UNSET)
+      override = arguments_override(command_name)
+      return ARGUMENTS_OVERRIDE_UNSET unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        return state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? override.call : override.call(state)
+      end
+
+      required = parameters.count { |kind, _name| kind == :req }
+      optional = parameters.count { |kind, _name| kind == :opt }
+      provided = state.equal?(ARGUMENTS_OVERRIDE_UNSET) ? 0 : 1
+
+      if provided >= required && provided <= required + optional
+        return provided.zero? ? override.call : override.call(state)
+      end
+
+      if 0 >= required && 0 <= required + optional
+        return override.call
+      end
+
+      raise ArgumentError, "arguments_override for command #{command_name.inspect} must accept 0 or 1 positional arguments"
     end
 
     def resolve_method_name(command_name, default_method_name)
@@ -27,16 +97,36 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def adapt_args(command_name, args)
-      adapter = command_config(command_name)[:arg_adapter]
+      settings = command_config(command_name)
+      adapter = settings[:arg_adapter] || settings[:model_arg_adapter]
       adapter ? adapter.call(args) : args
     end
 
-    def verify_override(command_name)
-      command_config(command_name)[:verify_override]
+    def model_args(command_name, args)
+      adapter = command_config(command_name)[:model_arg_adapter] || command_config(command_name)[:arg_adapter]
+      adapter ? adapter.call(args) : args
+    end
+
+    def scalar_model_arg(command_name, args)
+      payload = model_args(command_name, args)
+      payload.is_a?(Array) && payload.length == 1 ? payload.first : payload
+    end
+
+    def adapt_result(command_name, result)
+      adapter = command_config(command_name)[:result_adapter]
+      adapter ? adapter.call(result) : result
     end
 
     def applicable_override(command_name)
       command_config(command_name)[:applicable_override]
+    end
+
+    def next_state_override(command_name)
+      command_config(command_name)[:next_state_override]
+    end
+
+    def guard_failure_policy(command_name)
+      command_config(command_name)[:guard_failure_policy]
     end
 
     def call_applicable_override(override, state, args)
@@ -56,6 +146,29 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       end
     end
 
+    def call_next_state_override(override, state, args)
+      return nil unless override
+
+      parameters = override.parameters
+      if parameters.any? { |kind, _name| kind == :rest }
+        override.call(state, args)
+      else
+        required = parameters.count { |kind, _name| kind == :req }
+        optional = parameters.count { |kind, _name| kind == :opt }
+        if 2 >= required && 2 <= required + optional
+          override.call(state, args)
+        elsif 1 >= required && 1 <= required + optional
+          override.call(state)
+        else
+          override.call
+        end
+      end
+    end
+
+    def verify_override(command_name)
+      command_config(command_name)[:verify_override]
+    end
+
     def state_reader
       config.fetch(:verify_context, {})[:state_reader] || config[:state_reader]
     end
@@ -70,16 +183,34 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
       return false unless override
 
       payload = kwargs.merge(observed_state: observed_state(kwargs[:sut]))
-      override.call(**payload)
+      if override.parameters.any? { |kind, _name| kind == :keyrest }
+        override.call(**payload)
+      else
+        accepted = override.parameters.filter_map do |kind, name|
+          name if [:keyreq, :key].include?(kind)
+        end
+        accepted_payload = accepted.empty? ? {} : payload.select { |key, _value| accepted.include?(key) }
+        override.call(**accepted_payload)
+      end
       true
+    end
+
+    def before_run_hook
+      config[:before_run]
+    end
+
+    def after_run_hook
+      config[:after_run]
     end
   end
 
-  it "wires a bounded queue scaffold with capacity-aware overrides" do
+  it "wires a stateful PBT scaffold" do
+    BoundedQueuePbtSupport.validate_config!
+
     Pbt.assert(worker: :none, num_runs: 5, seed: 1) do
       Pbt.stateful(
         model: BoundedQueueModel.new,
-        sut: -> { BoundedQueuePbtSupport.sut_factory(-> { BoundedQueueImpl.new(capacity: 3) }).call },
+        sut: -> { BoundedQueuePbtSupport.sut_factory(-> { BoundedQueueImpl.new }).call },
         max_steps: 20
       )
     end
@@ -94,7 +225,8 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def initial_state
-      { elements: [], capacity: 3 }
+      default_state = { elements: [], capacity: 3 } # TODO: replace with a domain-specific structured model state
+      BoundedQueuePbtSupport.initial_state(default_state)
     end
 
     def commands(_state)
@@ -108,40 +240,111 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def arguments
-      Pbt.integer
+      overridden = BoundedQueuePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(BoundedQueuePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
+      Pbt.integer # placeholder for Element
     end
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
+      return true if BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
+    end
 
-      state[:elements].length < state[:capacity]
+    def guard_satisfied?(state, _args = nil)
+      state[:elements].length < state[:capacity] # inferred capacity/fullness guard for enqueue
     end
 
     def next_state(state, args)
+      override = BoundedQueuePbtSupport.next_state_override(name)
+      return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
+      return state if BoundedQueuePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
+      # Inferred transition target: Queue#elements
       state.merge(elements: state[:elements] + [args])
     end
 
     def run!(sut, args)
+      BoundedQueuePbtSupport.before_run_hook&.call(sut)
       payload = BoundedQueuePbtSupport.adapt_args(name, args)
       method_name = BoundedQueuePbtSupport.resolve_method_name(name, :enqueue)
-      payload.is_a?(Array) ? sut.public_send(method_name, *payload) : sut.public_send(method_name, payload)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(BoundedQueuePbtSupport.guard_failure_policy(name))
+        error
+      end
+      adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
+      BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
+      # TODO: translate predicate semantics into postcondition checks
+      # Alloy predicate body (preview): "#q.elements<#q.capacity implies#q'.elements=add[#q.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=1, transition_kind=:append, requires_non_empty_state=false, scalar_update_kind=nil, command_confidence=:high, guard_kind=:below_capacity, guard_field="elements", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:append_like
+      # Related Alloy assertions: QueueBounds
+      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
+      # Related pattern hints: size, empty
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
+      policy = BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
       return nil if BoundedQueuePbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-
-      raise "Expected available capacity before enqueue" unless before_state[:elements].length < before_state[:capacity]
-      raise "Expected size to increase by 1" unless after_state[:elements].length == before_state[:elements].length + 1
-      raise "Expected enqueued element at tail" unless after_state[:elements].last == args
-      nil
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BoundedQueuePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
+      observed = BoundedQueuePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state[:elements]
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
+      # Inferred collection target: Queue#elements
+      before_items = before_state[:elements]
+      after_items = after_state[:elements]
+      before_capacity = before_state[:capacity]
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
+      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
+      raise "Expected available capacity before append" unless before_items.length < before_capacity
+      expected_size = before_items.length + 1
+      raise "Expected size to increase by 1" unless after_items.length == expected_size
+      [sut, args] && nil
     end
   end
 
@@ -151,39 +354,113 @@ RSpec.describe "bounded_queue (stateful scaffold)" do
     end
 
     def arguments
+      overridden = BoundedQueuePbtSupport.call_arguments_override(name)
+      return overridden unless overridden.equal?(BoundedQueuePbtSupport::ARGUMENTS_OVERRIDE_UNSET)
       Pbt.nil
     end
 
     def applicable?(state)
       override = BoundedQueuePbtSupport.applicable_override(name)
       return BoundedQueuePbtSupport.call_applicable_override(override, state, nil) if override
-
-      !state[:elements].empty?
+      return true if BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_satisfied?(state)
     end
 
-    def next_state(state, _args)
+    def guard_satisfied?(state, _args = nil)
+      !state[:elements].empty? # inferred precondition for dequeue
+    end
+
+    def next_state(state, args)
+      override = BoundedQueuePbtSupport.next_state_override(name)
+      return BoundedQueuePbtSupport.call_next_state_override(override, state, args) if override
+      return state if BoundedQueuePbtSupport.guard_failure_policy(name) && !guard_satisfied?(state, args)
+      # Inferred transition target: Queue#elements
       state.merge(elements: state[:elements].drop(1))
     end
 
-    def run!(sut, _args)
+    def run!(sut, args)
+      BoundedQueuePbtSupport.before_run_hook&.call(sut)
+      payload = BoundedQueuePbtSupport.adapt_args(name, args)
       method_name = BoundedQueuePbtSupport.resolve_method_name(name, :dequeue)
-      sut.public_send(method_name)
+      result = begin
+        if payload.nil?
+          sut.public_send(method_name)
+        elsif payload.is_a?(Array)
+          sut.public_send(method_name, *payload)
+        else
+          sut.public_send(method_name, payload)
+        end
+      rescue StandardError => error
+        raise unless [:raise, :custom].include?(BoundedQueuePbtSupport.guard_failure_policy(name))
+        error
+      end
+      adapted_result = BoundedQueuePbtSupport.adapt_result(name, result)
+      BoundedQueuePbtSupport.after_run_hook&.call(sut, adapted_result)
+      adapted_result
     end
 
     def verify!(before_state:, after_state:, args:, result:, sut:)
+      # TODO: translate predicate semantics into postcondition checks
+      # Alloy predicate body (preview): "#q.elements>0 implies#q'.elements=sub[#q.elements,1]"
+      # Analyzer hints: state_field="elements", size_delta=-1, transition_kind=:dequeue, requires_non_empty_state=true, scalar_update_kind=nil, command_confidence=:high, guard_kind=:non_empty, guard_field="elements", guard_constant=nil, rhs_source_kind=:unknown, state_update_shape=:remove_first
+      # Related Alloy assertions: QueueBounds
+      # Related Alloy property predicates: EnqueueDequeueIdentity, IsEmpty, IsFull
+      # Related pattern hints: size, empty
+      # Derived verify hints: respect_non_empty_guard, respect_capacity_guard, check_empty_semantics, check_size_semantics, check_guard_failure_semantics
+      policy = BoundedQueuePbtSupport.guard_failure_policy(name)
+      guard_failed = policy && !guard_satisfied?(before_state, args)
+      # Suggested verify order:
+      # 1. Command-specific postconditions
+      # 2. Related Alloy assertions/facts
+      # 3. Related property predicates
       return nil if BoundedQueuePbtSupport.call_verify_override(
         name,
         before_state: before_state,
         after_state: after_state,
         args: args,
         result: result,
-        sut: sut
+        sut: sut,
+        guard_failed: guard_failed,
+        guard_failure_policy: policy
       )
-
-      raise "Expected non-empty queue before dequeue" if before_state[:elements].empty?
-      raise "Expected dequeued value to match model front" unless result == before_state[:elements].first
-      raise "Expected size to decrease by 1" unless after_state[:elements].length == before_state[:elements].length - 1
-      nil
+      raise result if result.is_a?(StandardError) && !guard_failed
+      if guard_failed
+        observed = BoundedQueuePbtSupport.observed_state(sut)
+        case policy
+        when :no_op
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :raise
+          raise "Expected guard failure to surface as an exception" unless result.is_a?(StandardError)
+          raise "Expected unchanged model state on guard failure" unless after_state == before_state
+          raise "Expected unchanged observed state on guard failure" if !observed.nil? && observed != after_state[:elements]
+        when :custom
+          raise "guard_failure_policy :custom requires verify_override to assert invalid-path semantics"
+        else
+          raise "Unsupported guard_failure_policy: #{policy.inspect}"
+        end
+        return nil
+      end
+      observed = BoundedQueuePbtSupport.observed_state(sut)
+      if !observed.nil?
+        expected_observed_state = after_state[:elements]
+        raise "Expected observed state to match model" unless observed == expected_observed_state
+      end
+      # Inferred collection target: Queue#elements
+      before_items = before_state[:elements]
+      after_items = after_state[:elements]
+      before_capacity = before_state[:capacity]
+      # Derived from related assertions/facts: respect the non-empty guard before removal-style checks
+      # Derived from related assertions/facts: respect capacity/fullness guards before append-style checks
+      # Derived from related property patterns: verify empty-state semantics for the inferred target
+      # Derived from related property patterns: keep size-change checks aligned with related assertions/facts
+      # Derived from predicate guards: decide whether guard failures should reject the command or leave state unchanged
+      raise "Expected non-empty state before removal" if before_items.empty?
+      expected = before_state.first
+      raise "Expected dequeued value to match model" unless result == expected
+      raise "Expected size to decrease by 1" unless after_items.length == before_items.length - 1
+      [sut, args] && nil
     end
   end
+
 end

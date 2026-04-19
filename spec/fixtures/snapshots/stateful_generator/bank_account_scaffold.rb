@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "bank_account_impl"
+require_relative "bank_account_impl" if File.exist?(File.expand_path("bank_account_impl.rb", __dir__))
 require_relative "bank_account_pbt_config" if File.exist?(File.expand_path("bank_account_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("bank_account_pbt_config.rb", __dir__)) && !defined?(::BankAccountPbtConfig)

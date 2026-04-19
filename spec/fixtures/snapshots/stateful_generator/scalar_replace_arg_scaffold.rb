@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "thermostat_impl"
+require_relative "thermostat_impl" if File.exist?(File.expand_path("thermostat_impl.rb", __dir__))
 require_relative "thermostat_pbt_config" if File.exist?(File.expand_path("thermostat_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("thermostat_pbt_config.rb", __dir__)) && !defined?(::ThermostatPbtConfig)

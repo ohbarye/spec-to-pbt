@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require "rspec"
-require_relative "authorization_expiry_void_impl"
+require_relative "authorization_expiry_void_impl" if File.exist?(File.expand_path("authorization_expiry_void_impl.rb", __dir__))
 require_relative "authorization_expiry_void_pbt_config" if File.exist?(File.expand_path("authorization_expiry_void_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("authorization_expiry_void_pbt_config.rb", __dir__)) && !defined?(::AuthorizationExpiryVoidPbtConfig)

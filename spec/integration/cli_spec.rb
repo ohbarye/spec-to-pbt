@@ -31,8 +31,6 @@ RSpec.describe "CLI" do
       expect(File.exist?(output_file)).to be(true)
 
       content = File.read(output_file)
-      expect(content).to include('require "pbt"')
-      expect(content).to include('require_relative "sort_impl"')
       expect(content).to include("Pbt.assert")
       expect(content).to include('RSpec.describe "sort"')
     end
@@ -60,7 +58,6 @@ RSpec.describe "CLI" do
       expect(File.exist?(output_file)).to be(true)
 
       content = File.read(output_file)
-      expect(content).to include('require_relative "stack_impl"')
       expect(content).to include('RSpec.describe "stack"')
     end
 

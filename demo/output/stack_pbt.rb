@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "pbt"
-require_relative "stack_impl" if File.exist?(File.expand_path("stack_impl.rb", __dir__))
+
 require_relative "stack_pbt_config" if File.exist?(File.expand_path("stack_pbt_config.rb", __dir__))
 
 if File.exist?(File.expand_path("stack_pbt_config.rb", __dir__)) && !defined?(::StackPbtConfig)

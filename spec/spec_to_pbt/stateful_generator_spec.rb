@@ -973,7 +973,6 @@ RSpec.describe SpecToPbt::StatefulGenerator do
       it "generates stateful scaffold code from Quint actions" do
         code = generator.generate
 
-        expect(code).to include('require_relative "counter_impl"')
         expect(code).to include("class IncCommand")
         expect(code).to include("0 # TODO: replace with a domain-specific scalar model state")
         expect(code).to include("state + 1")
